@@ -85,15 +85,15 @@ def _load_history() -> None:
     _HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
     if _HISTORY_FILE.exists():
         try:
-            readline.read_history_file(str(_HISTORY_FILE))
+            readline.read_history_file(str(_HISTORY_FILE))  # type: ignore[attr-defined]
         except Exception:
             pass
-    readline.set_history_length(1000)
+    readline.set_history_length(1000)  # type: ignore[attr-defined]
 
 
 def _save_history() -> None:
     try:
-        readline.write_history_file(str(_HISTORY_FILE))
+        readline.write_history_file(str(_HISTORY_FILE))  # type: ignore[attr-defined]
     except Exception:
         pass
 
@@ -131,8 +131,8 @@ def repl(ctx: click.Context, backend: str, port: int | None, no_history: bool) -
 
     # Set up readline completion
     completer = _PbiCompleter(_COMMANDS)
-    readline.set_completer(completer.complete)
-    readline.parse_and_bind("tab: complete")
+    readline.set_completer(completer.complete)  # type: ignore[attr-defined]
+    readline.parse_and_bind("tab: complete")  # type: ignore[attr-defined]
 
     if not no_history:
         _load_history()

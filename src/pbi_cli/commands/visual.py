@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import click
 from rich.console import Console
 
@@ -367,7 +369,7 @@ def visual_screenshot(
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
-def _next_position(backend: object, page: str, w: int, h: int) -> tuple[int, int]:
+def _next_position(backend: Any, page: str, w: int, h: int) -> tuple[int, int]:
     """Find the next free position on the page using simple row-packing."""
     GUTTER = 16
     CANVAS_W = 1280

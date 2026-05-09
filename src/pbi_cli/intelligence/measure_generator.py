@@ -27,7 +27,8 @@ class MeasureGenerator:
                 ),
                 messages=[{"role": "user", "content": description}],
             )
-            expression = message.content[0].text.strip()
+            block = next(b for b in message.content if hasattr(b, "text"))
+            expression = block.text.strip()  # type: ignore[union-attr]
             return {"expression": expression, "valid": True}
         except ImportError:
             return {

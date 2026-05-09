@@ -29,7 +29,7 @@ def docs_generate(ctx: click.Context, fmt: str, output: str | None) -> None:
     else:
         from pbi_cli.docs_gen.confluence import ConfluenceDocsGenerator
 
-        gen = ConfluenceDocsGenerator(backend)
+        gen = ConfluenceDocsGenerator(backend)  # type: ignore[assignment]
     content = gen.generate()
     if output:
         from pathlib import Path

@@ -20,7 +20,7 @@ def write_audit_entry(
     """Append one JSON line to ~/.pbi-cli/audit.jsonl."""
     _AUDIT_FILE.parent.mkdir(parents=True, exist_ok=True)
     entry: dict[str, Any] = {
-        "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "user": _get_user(),
         "command": command,
     }

@@ -43,7 +43,7 @@ class FieldDef:
     is_measure: bool = False  # True = explicit DAX measure
     agg: int | None = AGG_SUM  # None = no aggregation (plain column)
 
-    @property
+    @property  # type: ignore[operator]
     def query_ref(self) -> str:
         """Unique queryRef string for this field within a visual."""
         if self.is_measure or self.agg is None:
@@ -367,7 +367,7 @@ def spec_to_old_pbip_container(spec: VisualSpec) -> dict[str, Any]:
         },
     }
     if spec.title:
-        config["singleVisual"]["objects"].setdefault(
+        config["singleVisual"]["objects"].setdefault(  # type: ignore[index]
             "title",
             [
                 {

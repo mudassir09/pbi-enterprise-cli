@@ -40,7 +40,7 @@ def capture_snapshot(backend: Any) -> Path:
     except Exception:
         state["measures"] = []
 
-    ts = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%S%f")
+    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%f")
     snapshot_path = _SNAPSHOT_DIR / f"{ts}.json"
     snapshot_path.write_text(json.dumps(state, indent=2, default=str), encoding="utf-8")
 

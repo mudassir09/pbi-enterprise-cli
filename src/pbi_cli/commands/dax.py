@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import click
-import yaml
+import yaml  # type: ignore[import-untyped]
 from rich.console import Console
 
 from pbi_cli.commands._shared import get_backend, output_json_or_table

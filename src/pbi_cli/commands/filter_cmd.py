@@ -27,6 +27,7 @@ def _page_json_path(pbip: str, page: str) -> Path:
     if not match:
         raise click.ClickException(f"Page '{page}' not found.")
     report_dir = b._report_dir  # type: ignore[attr-defined]
+    assert report_dir is not None
     pages_dir = report_dir / "definition" / "pages"
     for page_dir in pages_dir.iterdir():
         pj = page_dir / "page.json"
