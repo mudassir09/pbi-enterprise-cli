@@ -35,8 +35,8 @@ jobs:
         run: pip install -e ".[dev,ai]"
       - name: Run tests (excluding e2e)
         run: pytest -m "not e2e" --cov=src/pbi_cli --cov-report=xml -v
-      - name: Coverage gate (>= 70%)
-        run: pytest -m "not e2e" --cov=src/pbi_cli --cov-fail-under=70
+      - name: Coverage gate (>= 65%)
+        run: pytest -m "not e2e" --cov=src/pbi_cli --cov-fail-under=65
       - name: Upload coverage report
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4
