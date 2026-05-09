@@ -117,6 +117,105 @@ class TestModelSuggestMeasures:
             assert "expression" in s
 
 
+# ── model hierarchies ────────────────────────────────────────────────────────
+
+
+class TestModelHierarchies:
+    def test_hierarchies_list_empty(self, runner):
+        result = _run(runner, "model", "hierarchies")
+        assert result.exit_code == 0
+
+    def test_hierarchy_add(self, runner):
+        import json as _json
+        levels = _json.dumps([{"name": "Year", "column": "Year"}, {"name": "Month", "column": "Month"}])  # noqa: E501
+        result = _run(runner, "model", "hierarchy-add",
+                      "--table", "Calendar", "--name", "Date Hierarchy",
+                      "--levels", levels)
+        assert result.exit_code == 0
+
+    def test_hierarchy_add_dry_run(self, runner):
+        import json as _json
+        levels = _json.dumps([{"name": "Year", "column": "Year"}])
+        result = runner.invoke(cli, [
+            "--backend", "mock", "--dry-run",
+            "model", "hierarchy-add",
+            "--table", "Calendar", "--name", "Dry Hier",
+            "--levels", levels,
+        ])
+        assert result.exit_code == 0
+        assert "DRY RUN" in result.output
+
+    def test_hierarchy_delete(self, runner):
+        result = _run(runner, "model", "hierarchy-delete",
+                      "--table", "Calendar", "--name", "Date Hierarchy")
+        assert result.exit_code == 0
+
+    def test_hierarchy_delete_dry_run(self, runner):
+        result = runner.invoke(cli, [
+            "--backend", "mock", "--dry-run",
+            "model", "hierarchy-delete",
+            "--table", "Calendar", "--name", "Date Hierarchy",
+        ])
+        assert result.exit_code == 0
+        assert "DRY RUN" in result.output
+
+
+# ── model calc groups ──────────────────────────────────────────────────────────
+
+
+class TestModelCalcGroups:
+    def test_calc_groups_empty(self, runner):
+        result = _run(runner, "model", "calc-groups")
+        assert result.exit_code == 0
+        assert "No calculation groups" in result.output
+
+    def test_calc_group_add(self, runner):
+        result = _run(runner, "model", "calc-group-add", "--name", "Time Intelligence")
+        assert result.exit_code == 0
+
+    def test_calc_group_add_dry_run(self, runner):
+        result = runner.invoke(cli, [
+            "--backend", "mock", "--dry-run",
+            "model", "calc-group-add", "--name", "Time Intelligence",
+        ])
+        assert result.exit_code == 0
+        assert "DRY RUN" in result.output
+
+    def test_calc_item_add(self, runner):
+        result = _run(runner, "model", "calc-item-add",
+                      "--group", "Time Intelligence",
+                      "--name", "YTD",
+                      "--expression", "CALCULATE([Total Revenue], DATESYTD(Calendar[Date]))")
+        assert result.exit_code == 0
+
+    def test_calc_item_add_dry_run(self, runner):
+        result = runner.invoke(cli, [
+            "--backend", "mock", "--dry-run",
+            "model", "calc-item-add",
+            "--group", "Time Intelligence",
+            "--name", "YTD",
+            "--expression", "CALCULATE([Total Revenue])",
+        ])
+        assert result.exit_code == 0
+        assert "DRY RUN" in result.output
+
+    def test_calc_item_delete(self, runner):
+        result = _run(runner, "model", "calc-item-delete",
+                      "--group", "Time Intelligence",
+                      "--name", "YTD")
+        assert result.exit_code == 0
+
+    def test_calc_item_delete_dry_run(self, runner):
+        result = runner.invoke(cli, [
+            "--backend", "mock", "--dry-run",
+            "model", "calc-item-delete",
+            "--group", "Time Intelligence",
+            "--name", "YTD",
+        ])
+        assert result.exit_code == 0
+        assert "DRY RUN" in result.output
+
+
 # ── model lineage ─────────────────────────────────────────────────────────────
 
 
