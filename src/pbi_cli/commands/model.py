@@ -286,7 +286,7 @@ def model_stats(ctx: click.Context) -> None:
     if warnings:
         console.print("\n[yellow]Warnings:[/yellow]")
         for w in warnings:
-            console.print(f"  ⚠  {w}")
+            console.print(f"  [yellow]![/yellow]  {w}")
     else:
         console.print("\n[green]No warnings — model looks healthy.[/green]")
 

@@ -41,6 +41,44 @@ VISUAL_SIZES = {
     "qanda": (624, 300),
 }
 
+# Map Power BI internal visualType names → layout engine short names
+_PBI_TYPE_TO_SHORT: dict[str, str] = {
+    "card": "card",
+    "kpiVisual": "kpi",
+    "multiRowCard": "multirow",
+    "barChart": "bar",
+    "clusteredBarChart": "bar",
+    "columnChart": "column",
+    "clusteredColumnChart": "column",
+    "stackedBarChart": "stackedbar",
+    "stackedColumnChart": "stackedcolumn",
+    "hundredPercentStackedBarChart": "100percentbar",
+    "hundredPercentStackedColumnChart": "100percentcolumn",
+    "lineChart": "line",
+    "areaChart": "area",
+    "stackedAreaChart": "stackedarea",
+    "lineClusteredColumnComboChart": "combo",
+    "lineStackedColumnComboChart": "combo",
+    "scatterChart": "scatter",
+    "pieChart": "pie",
+    "donutChart": "donut",
+    "gauge": "gauge",
+    "waterfallChart": "waterfall",
+    "funnel": "funnel",
+    "ribbonChart": "ribbon",
+    "treemap": "treemap",
+    "tableEx": "table",
+    "pivotTable": "matrix",
+    "slicer": "slicer",
+    "map": "map",
+    "filledMap": "filledmap",
+    "azureMap": "azuremap",
+    "decompositionTreeVisual": "decomptree",
+    "keyDrivers": "keyinfluencers",
+    "narrativeVisual": "smartnarrative",
+    "qnaVisual": "qanda",
+}
+
 PRIORITY_ORDER = [
     "kpi",
     "card",
@@ -102,8 +140,12 @@ class LayoutEngine:
 
     def _classify(self, visuals: list[dict]) -> list[dict]:
         for v in visuals:
-            vtype = v.get("type", "chart").lower()
+            # Accept both "type" (CLI shortname) and "visualType" (PBI internal name)
+            raw = v.get("visualType") or v.get("type") or "chart"
+            # Map PBI internal name → short name; already-short names pass through
+            vtype = _PBI_TYPE_TO_SHORT.get(raw, raw.lower())
             w, h = VISUAL_SIZES.get(vtype, VISUAL_SIZES["chart"])
+            v["_short_type"] = vtype
             v["_width"] = w
             v["_height"] = h
             v["_priority"] = PRIORITY_ORDER.index(vtype) if vtype in PRIORITY_ORDER else 99
@@ -121,15 +163,20 @@ class LayoutEngine:
             w = self._snap(v.get("_width", 200))
             h = self._snap(v.get("_height", 120))
 
+            # Wrap to next row if we'd exceed canvas width
             if x + w + self.GUTTER > self.canvas_width:
                 x = self.GUTTER
                 y += row_height + self.GUTTER
                 row_height = 0
 
+            # Skip visuals that would overflow the canvas height
+            if y + h > self.canvas_height:
+                break
+
             positions.append(
                 VisualPosition(
                     name=v.get("name", "visual"),
-                    visual_type=v.get("type", "chart"),
+                    visual_type=v.get("_short_type", v.get("visualType", v.get("type", "chart"))),
                     x=x,
                     y=y,
                     width=w,
