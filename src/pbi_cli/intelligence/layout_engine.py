@@ -26,6 +26,20 @@ VISUAL_SIZES = {
     "multirow":  (624, 200),
     "slicer":    (200,  56),
     "map":       (624, 400),
+    "stackedbar":   (624, 240),
+    "stackedcolumn":(624, 240),
+    "100percentbar":(624, 240),
+    "100percentcolumn": (624, 240),
+    "area":         (624, 240),
+    "stackedarea":  (624, 240),
+    "combo":        (624, 280),
+    "bubble":       (624, 300),
+    "filledmap":    (624, 400),
+    "azuremap":     (624, 400),
+    "decomptree":   (900, 500),
+    "keyinfluencers":(900, 500),
+    "smartnarrative":(624, 240),
+    "qanda":        (624, 300),
 }
 
 PRIORITY_ORDER = [

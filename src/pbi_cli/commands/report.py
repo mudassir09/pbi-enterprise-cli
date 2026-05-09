@@ -351,6 +351,54 @@ def report_bookmark_delete(ctx: click.Context, pbip: str, name: str) -> None:
         console.print(f"[yellow]Bookmark '{name}' not found.[/yellow]")
 
 
+
+@report.command("bookmark-get")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--name", required=True, help="Display name of the bookmark.")
+@click.pass_context
+def report_bookmark_get(ctx: click.Context, pbip: str, name: str) -> None:
+    """Get full details of a single bookmark by display name."""
+    from pbi_cli.backends.pbir_backend import PbirBackend
+    from pbi_cli.commands._shared import output_json_or_table
+    b = PbirBackend(pbip)
+    bookmarks = b.bookmark_list()
+    match = next((bm for bm in bookmarks if bm.get("displayName") == name), None)
+    if not match:
+        console.print(f"[red]Bookmark '{name}' not found.[/red]")
+        raise SystemExit(1)
+    output_json_or_table(match, ctx, title=f"Bookmark: {name}")
+
+
+@report.command("bookmark-set-visibility")
+@click.option("--pbip",    required=True, help="Path to the .pbip project folder or file.")
+@click.option("--name",    required=True, help="Display name of the bookmark.")
+@click.option("--visible", is_flag=True, default=True, help="Set bookmark visible in the selection pane (default).")
+@click.option("--hidden",  is_flag=True, default=False, help="Hide bookmark from the selection pane.")
+@click.pass_context
+def report_bookmark_set_visibility(
+    ctx: click.Context, pbip: str, name: str, visible: bool, hidden: bool
+) -> None:
+    """Show or hide a bookmark in the Power BI bookmark selection pane."""
+    if dry_run_echo(ctx, f"set visibility of bookmark '{name}'"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+    import json as _json
+    b = PbirBackend(pbip)
+    bdir = b._ga_bookmarks_dir()
+    for entry in bdir.iterdir():
+        if not entry.is_file() or not entry.name.endswith(".bookmark.json"):
+            continue
+        data = _json.loads(entry.read_text(encoding="utf-8"))
+        if data.get("displayName") == name:
+            data.setdefault("options", {})["isHidden"] = hidden
+            entry.write_text(_json.dumps(data, indent=2), encoding="utf-8")
+            state = "hidden" if hidden else "visible"
+            console.print(f"[green]Bookmark '{name}' is now {state}.[/green]")
+            return
+    console.print(f"[red]Bookmark '{name}' not found.[/red]")
+    raise SystemExit(1)
+
+
 # ── Drillthrough & Tooltip ─────────────────────────────────────────────────────
 
 @report.command("drillthrough-setup")

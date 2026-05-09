@@ -12,6 +12,7 @@ from pbi_cli.commands import (
     dax, database, deploy, docs, govern, layout,
     measure, model, report, server_cmd, source, theme, visual, watch,
     security, partition, filter_cmd,
+    trace, connections, skills_cmd, calendar_cmd, repl, custom_visual,
 )
 
 console = Console()
@@ -85,6 +86,14 @@ cli.add_command(watch.watch)
 cli.add_command(security.security)
 cli.add_command(partition.partition)
 cli.add_command(filter_cmd.filter_cmd)
+cli.add_command(trace.trace)
+cli.add_command(trace.benchmark)
+cli.add_command(connections.connections)
+cli.add_command(skills_cmd.skills_cmd)
+cli.add_command(calendar_cmd.calendar_cmd)
+cli.add_command(calendar_cmd.culture_cmd)
+cli.add_command(repl.repl)
+cli.add_command(custom_visual.custom_visual)
 
 
 @cli.command()

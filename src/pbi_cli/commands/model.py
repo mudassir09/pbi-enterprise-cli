@@ -184,6 +184,92 @@ def model_calc_item_delete(ctx: click.Context, group: str, name: str) -> None:
     console.print(f"[green]Deleted[/green] calc item '{name}' from '{group}'.")
 
 
+@model.command("stats")
+@click.pass_context
+def model_stats(ctx: click.Context) -> None:
+    """Show health statistics for the model: object counts, complexity score, warnings."""
+    backend = get_backend(ctx)
+
+    tables = backend.table_list()
+    columns = backend.column_list()
+    measures = backend.measure_list()
+    relationships = backend.relationship_list()
+
+    hidden_tables = [t for t in tables if t.get("isHidden")]
+    hidden_cols = [c for c in columns if c.get("isHidden")]
+    hidden_measures = [m for m in measures if m.get("isHidden")]
+
+    # Relationship complexity: count many-to-many and bidirectional
+    m2m = [r for r in relationships if r.get("fromCardinality") == "Many" and r.get("toCardinality") == "Many"]
+    bidir = [r for r in relationships if r.get("crossFilteringBehavior") == "BothDirections"]
+
+    # Warnings
+    warnings: list[str] = []
+    if m2m:
+        warnings.append(f"{len(m2m)} many-to-many relationship(s) — may cause unexpected aggregation")
+    if bidir:
+        warnings.append(f"{len(bidir)} bidirectional relationship(s) — can degrade query performance")
+    no_desc = [m for m in measures if not m.get("description")]
+    if no_desc:
+        warnings.append(f"{len(no_desc)} measure(s) missing descriptions")
+    no_fmt = [m for m in measures if not m.get("formatString")]
+    if no_fmt:
+        warnings.append(f"{len(no_fmt)} measure(s) missing format strings")
+
+    # Complexity score: simple heuristic
+    complexity = (
+        len(tables) * 2
+        + len(relationships)
+        + len(measures) * 3
+        + len(m2m) * 10
+        + len(bidir) * 5
+    )
+    complexity_label = "Low" if complexity < 100 else "Medium" if complexity < 300 else "High"
+
+    stats = {
+        "tables": len(tables),
+        "columns": len(columns),
+        "measures": len(measures),
+        "relationships": len(relationships),
+        "hidden_tables": len(hidden_tables),
+        "hidden_columns": len(hidden_cols),
+        "hidden_measures": len(hidden_measures),
+        "many_to_many_relationships": len(m2m),
+        "bidirectional_relationships": len(bidir),
+        "complexity_score": complexity,
+        "complexity_label": complexity_label,
+        "warnings": warnings,
+    }
+
+    if ctx.obj and ctx.obj.get("output_json"):
+        import json as _json
+        console.print(_json.dumps(stats, indent=2))
+        return
+
+    from rich.table import Table as RichTable
+    tbl = RichTable(title="Model Statistics", show_header=True, header_style="bold cyan")
+    tbl.add_column("Metric", style="bold")
+    tbl.add_column("Value")
+    tbl.add_row("Tables", str(len(tables)))
+    tbl.add_row("Columns", str(len(columns)))
+    tbl.add_row("Measures", str(len(measures)))
+    tbl.add_row("Relationships", str(len(relationships)))
+    tbl.add_row("Hidden tables", str(len(hidden_tables)))
+    tbl.add_row("Hidden columns", str(len(hidden_cols)))
+    tbl.add_row("Hidden measures", str(len(hidden_measures)))
+    tbl.add_row("Many-to-many rels", str(len(m2m)))
+    tbl.add_row("Bidirectional rels", str(len(bidir)))
+    tbl.add_row("Complexity score", f"{complexity} ({complexity_label})")
+    console.print(tbl)
+
+    if warnings:
+        console.print("\n[yellow]Warnings:[/yellow]")
+        for w in warnings:
+            console.print(f"  ⚠  {w}")
+    else:
+        console.print("\n[green]No warnings — model looks healthy.[/green]")
+
+
 @model.command("diff")
 @click.option("--snapshot", required=True, help="Path to a TMDL snapshot directory to compare against.")
 @click.pass_context

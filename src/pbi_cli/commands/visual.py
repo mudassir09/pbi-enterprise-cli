@@ -11,22 +11,49 @@ from pbi_cli.intelligence.layout_engine import VISUAL_SIZES
 console = Console()
 # Visual types the CLI accepts → internal Power BI visual type
 VISUAL_TYPE_MAP: dict[str, str] = {
-    "card":      "card",
-    "bar":       "barChart",
-    "column":    "columnChart",
-    "line":      "lineChart",
-    "table":     "tableEx",
-    "slicer":    "slicer",
-    "multirow":  "multiRowCard",
-    "scatter":   "scatterChart",
-    "gauge":     "gauge",
-    "donut":     "donutChart",
-    "pie":       "pieChart",
-    "treemap":   "treemap",
-    "funnel":    "funnel",
-    "waterfall": "waterfallChart",
-    "matrix":    "pivotTable",
-    "ribbon":    "ribbonChart",
+    # ── Core ──────────────────────────────────────────────────────────────
+    "card":               "card",
+    "kpi":                "kpiVisual",
+    "multirow":           "multiRowCard",
+    # ── Bar / Column ───────────────────────────────────────────────────────
+    "bar":                "barChart",
+    "column":             "columnChart",
+    "stackedbar":         "stackedBarChart",
+    "stackedcolumn":      "stackedColumnChart",
+    "100percentbar":      "hundredPercentStackedBarChart",
+    "100percentcolumn":   "hundredPercentStackedColumnChart",
+    # ── Line / Area ────────────────────────────────────────────────────────
+    "line":               "lineChart",
+    "area":               "areaChart",
+    "stackedarea":        "stackedAreaChart",
+    # ── Combo ─────────────────────────────────────────────────────────────
+    "combo":              "lineClusteredColumnComboChart",
+    # ── Scatter / Bubble ───────────────────────────────────────────────────
+    "scatter":            "scatterChart",
+    "bubble":             "scatterChart",
+    # ── Pie / Donut ────────────────────────────────────────────────────────
+    "pie":                "pieChart",
+    "donut":              "donutChart",
+    # ── Other charts ───────────────────────────────────────────────────────
+    "gauge":              "gauge",
+    "waterfall":          "waterfallChart",
+    "funnel":             "funnel",
+    "ribbon":             "ribbonChart",
+    "treemap":            "treemap",
+    # ── Matrix / Table ─────────────────────────────────────────────────────
+    "table":              "tableEx",
+    "matrix":             "pivotTable",
+    # ── Slicer ─────────────────────────────────────────────────────────────
+    "slicer":             "slicer",
+    # ── Map ────────────────────────────────────────────────────────────────
+    "map":                "map",
+    "filledmap":          "filledMap",
+    "azuremap":           "azureMap",
+    # ── AI / Smart ─────────────────────────────────────────────────────────
+    "decomptree":         "decompositionTreeVisual",
+    "keyinfluencers":     "keyDrivers",
+    "smartnarrative":     "narrativeVisual",
+    "qanda":              "qnaVisual",
 }
 
 AGG_MAP: dict[str, int] = {
