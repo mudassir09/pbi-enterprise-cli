@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+*.tar.gz
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# Environment / secrets
+.env.local
+.env.*.local
+*.env
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# mypy
+.mypy_cache/
+
+# ruff
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Large binary / DLL artifacts — keep only pyproject.toml references
+adomd.zip
+adomd_dlls/
+amo.nupkg
+amo.zip
+amo_dlls/
+amo_fw.zip
+amo_fw_dlls/
+
+# Bundled Microsoft DLLs (proprietary — install via Power BI Desktop or NuGet)
+src/pbi_cli/dlls/
+
+# Claude Code personal settings (machine-specific)
+.claude/
+
+# Generated / scratch files
+output.md
+project_content.txt
+docx_content/
+
+# Word / office docs (large binaries — store elsewhere)
+*.docx
+
+# Node (SOP generator was one-off)
+node_modules/
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db

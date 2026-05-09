@@ -1,0 +1,30 @@
+suite: "Sales Measures"
+description: "Core measure assertions for the default Sales star-schema fixture."
+connection: mock  # Uses MockTomBackend — no Power BI Desktop required
+
+tests:
+  - name: "Total Revenue exists and expression references Sales[Revenue]"
+    measure: "Sales[Total Revenue]"
+    assert_expression_contains: "Sales[Revenue]"
+
+  - name: "Total Units exists and expression references Sales[Units]"
+    measure: "Sales[Total Units]"
+    assert_expression_contains: "Sales[Units]"
+
+  - name: "Total Revenue uses SUM aggregation"
+    measure: "Sales[Total Revenue]"
+    assert_expression_contains: "SUM("
+
+  - name: "Total Revenue has a formatString"
+    measure: "Sales[Total Revenue]"
+    assert_has_field: "formatString"
+
+  - name: "Total Units has a formatString"
+    measure: "Sales[Total Units]"
+    assert_has_field: "formatString"
+
+  - name: "Measures are in the Sales table"
+    assert_all_in_table: "Sales"
+
+  - name: "At least two measures exist"
+    assert_min_count: 2

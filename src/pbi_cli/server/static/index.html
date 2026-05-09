@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pbi-server — Power BI CLI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            pbi: {
+              yellow: '#F2C811',
+              dark:   '#1A1A2E',
+              panel:  '#16213E',
+              card:   '#0F3460',
+              border: '#2A2A4A',
+              text:   '#E0E0F0',
+              muted:  '#8888AA',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    .tab-btn.active { border-bottom: 2px solid #F2C811; color: #F2C811; }
+    .nav-item.active { background: #0F3460; color: #F2C811; }
+    pre { white-space: pre-wrap; word-break: break-word; }
+    .badge-info    { background:#1e40af; color:#bfdbfe; }
+    .badge-warning { background:#92400e; color:#fde68a; }
+    .badge-error   { background:#7f1d1d; color:#fecaca; }
+    .badge-success { background:#14532d; color:#bbf7d0; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:#1A1A2E; }
+    ::-webkit-scrollbar-thumb { background:#2A2A4A; border-radius:3px; }
+  </style>
+</head>
+<body class="bg-pbi-dark text-pbi-text h-full min-h-screen flex flex-col">
+
+<!-- Top bar -->
+<header class="bg-pbi-panel border-b border-pbi-border flex items-center px-4 py-2 gap-3 shrink-0">
+  <svg class="w-6 h-6 text-pbi-yellow" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+  </svg>
+  <span class="font-bold text-pbi-yellow text-lg tracking-wide">pbi-server</span>
+  <span class="text-pbi-muted text-sm ml-1">Power BI CLI Dashboard</span>
+  <div class="ml-auto flex items-center gap-2">
+    <span id="conn-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
+    <span id="conn-label" class="text-xs text-pbi-muted">Connecting…</span>
+    <button onclick="refreshAll()" class="ml-3 text-xs px-2 py-1 rounded bg-pbi-card hover:bg-pbi-border text-pbi-muted">↻ Refresh</button>
+  </div>
+</header>
+
+<div class="flex flex-1 overflow-hidden">
+
+<!-- Sidebar -->
+<nav class="bg-pbi-panel border-r border-pbi-border w-44 shrink-0 flex flex-col py-3 gap-1">
+  <button onclick="showSection('dashboard')"   class="nav-item active  text-left px-4 py-2 text-sm rounded-r-full mr-2 transition-colors" id="nav-dashboard">📊 Dashboard</button>
+  <button onclick="showSection('explorer')"    class="nav-item        text-left px-4 py-2 text-sm rounded-r-full mr-2 transition-colors" id="nav-explorer">🗂 Model</button>
+  <button onclick="showSection('measures')"    class="nav-item        text-left px-4 py-2 text-sm rounded-r-full mr-2 transition-colors" id="nav-measures">∑ Measures</button>
+  <button onclick="showSection('dax')"         class="nav-item        text-left px-4 py-2 text-sm rounded-r-full mr-2 transition-colors" id="nav-dax">⚡ DAX Console</button>
+  <button onclick="showSection('governance')"  class="nav-item        text-left px-4 py-2 text-sm rounded-r-full mr-2 transition-colors" id="nav-governance">🛡 Governance</button>
+  <button onclick="showSection('docs')"        class="nav-item        text-left px-4 py-2 text-sm rounded-r-full mr-2 transition-colors" id="nav-docs">📄 Docs</button>
+</nav>
+
+<!-- Main content -->
+<main class="flex-1 overflow-y-auto p-5">
+
+  <!-- ── DASHBOARD ── -->
+  <section id="section-dashboard">
+    <h2 class="text-xl font-bold mb-4 text-pbi-yellow">Dashboard</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-pbi-card rounded-lg p-4">
+        <div class="text-2xl font-bold" id="stat-tables">—</div>
+        <div class="text-xs text-pbi-muted mt-1">Tables</div>
+      </div>
+      <div class="bg-pbi-card rounded-lg p-4">
+        <div class="text-2xl font-bold" id="stat-cols">—</div>
+        <div class="text-xs text-pbi-muted mt-1">Columns</div>
+      </div>
+      <div class="bg-pbi-card rounded-lg p-4">
+        <div class="text-2xl font-bold" id="stat-measures">—</div>
+        <div class="text-xs text-pbi-muted mt-1">Measures</div>
+      </div>
+      <div class="bg-pbi-card rounded-lg p-4">
+        <div class="text-2xl font-bold" id="stat-rels">—</div>
+        <div class="text-xs text-pbi-muted mt-1">Relationships</div>
+      </div>
+    </div>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div class="bg-pbi-panel border border-pbi-border rounded-lg p-4">
+        <h3 class="text-sm font-semibold text-pbi-yellow mb-3">Tables</h3>
+        <div id="dash-tables" class="text-sm text-pbi-muted">Loading…</div>
+      </div>
+      <div class="bg-pbi-panel border border-pbi-border rounded-lg p-4">
+        <h3 class="text-sm font-semibold text-pbi-yellow mb-3">Measures</h3>
+        <div id="dash-measures" class="text-sm text-pbi-muted">Loading…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── MODEL EXPLORER ── -->
+  <section id="section-explorer" class="hidden">
+    <h2 class="text-xl font-bold mb-4 text-pbi-yellow">Model Explorer</h2>
+    <div class="flex gap-4 border-b border-pbi-border mb-4">
+      <button class="tab-btn active pb-2 text-sm px-1" onclick="explorerTab('columns', this)">Columns</button>
+      <button class="tab-btn pb-2 text-sm px-1" onclick="explorerTab('relationships', this)">Relationships</button>
+    </div>
+    <div id="explorer-columns">
+      <div id="columns-content" class="text-sm text-pbi-muted">Loading…</div>
+    </div>
+    <div id="explorer-relationships" class="hidden">
+      <div id="relationships-content" class="text-sm text-pbi-muted">Loading…</div>
+    </div>
+  </section>
+
+  <!-- ── MEASURES ── -->
+  <section id="section-measures" class="hidden">
+    <h2 class="text-xl font-bold mb-4 text-pbi-yellow">Measures</h2>
+
+    <!-- Add form -->
+    <div class="bg-pbi-panel border border-pbi-border rounded-lg p-4 mb-4">
+      <h3 class="text-sm font-semibold mb-3">Add Measure</h3>
+      <div class="grid md:grid-cols-3 gap-3 mb-3">
+        <div>
+          <label class="text-xs text-pbi-muted block mb-1">Table</label>
+          <input id="m-table" type="text" placeholder="e.g. Financials" class="w-full bg-pbi-card border border-pbi-border rounded px-3 py-1.5 text-sm text-pbi-text focus:outline-none focus:border-pbi-yellow" />
+        </div>
+        <div>
+          <label class="text-xs text-pbi-muted block mb-1">Name</label>
+          <input id="m-name" type="text" placeholder="e.g. [Total Sales]" class="w-full bg-pbi-card border border-pbi-border rounded px-3 py-1.5 text-sm text-pbi-text focus:outline-none focus:border-pbi-yellow" />
+        </div>
+        <div>
+          <label class="text-xs text-pbi-muted block mb-1">Format String</label>
+          <input id="m-format" type="text" placeholder='e.g. #,0.00' class="w-full bg-pbi-card border border-pbi-border rounded px-3 py-1.5 text-sm text-pbi-text focus:outline-none focus:border-pbi-yellow" />
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="text-xs text-pbi-muted block mb-1">DAX Expression</label>
+        <textarea id="m-expr" rows="3" placeholder="SUM(Financials[Sales])" class="w-full bg-pbi-card border border-pbi-border rounded px-3 py-1.5 text-sm text-pbi-text font-mono focus:outline-none focus:border-pbi-yellow resize-none"></textarea>
+      </div>
+      <div class="flex gap-2 items-center">
+        <button onclick="validateMeasureExpr()" class="text-xs px-3 py-1.5 rounded bg-pbi-border hover:bg-pbi-card text-pbi-muted">✓ Validate</button>
+        <button onclick="addMeasure()" class="text-xs px-3 py-1.5 rounded bg-pbi-yellow text-pbi-dark font-semibold hover:opacity-90">+ Add Measure</button>
+        <span id="m-status" class="text-xs text-pbi-muted ml-2"></span>
+      </div>
+    </div>
+
+    <!-- Measures table -->
+    <div id="measures-table" class="text-sm text-pbi-muted">Loading…</div>
+  </section>
+
+  <!-- ── DAX CONSOLE ── -->
+  <section id="section-dax" class="hidden">
+    <h2 class="text-xl font-bold mb-4 text-pbi-yellow">DAX Console</h2>
+    <div class="bg-pbi-panel border border-pbi-border rounded-lg p-4 mb-4">
+      <div class="flex gap-2 mb-2 flex-wrap">
+        <button onclick="daxSnippet('EVALUATE SUMMARIZECOLUMNS(Financials[Country], \"Sales\", SUM(Financials[Sales]))')" class="text-xs px-2 py-1 rounded bg-pbi-border hover:bg-pbi-card text-pbi-muted">Sales by Country</button>
+        <button onclick="daxSnippet('EVALUATE ROW(\"Total Sales\", SUM(Financials[Sales]), \"Total Profit\", SUM(Financials[Profit]))')" class="text-xs px-2 py-1 rounded bg-pbi-border hover:bg-pbi-card text-pbi-muted">Totals Row</button>
+        <button onclick="daxSnippet('EVALUATE TOPN(10, SUMMARIZECOLUMNS(Financials[Product], \"Sales\", SUM(Financials[Sales])), [Sales], DESC)')" class="text-xs px-2 py-1 rounded bg-pbi-border hover:bg-pbi-card text-pbi-muted">Top 10 Products</button>
+        <button onclick="daxSnippet('EVALUATE SUMMARIZECOLUMNS(Financials[Segment], \"Revenue\", SUM(Financials[Sales]), \"Profit\", SUM(Financials[Profit]))')" class="text-xs px-2 py-1 rounded bg-pbi-border hover:bg-pbi-card text-pbi-muted">By Segment</button>
+      </div>
+      <textarea id="dax-expr" rows="5" placeholder="EVALUATE ..." class="w-full bg-pbi-card border border-pbi-border rounded px-3 py-2 text-sm text-pbi-text font-mono focus:outline-none focus:border-pbi-yellow resize-y"></textarea>
+      <div class="flex gap-2 mt-2 items-center">
+        <button onclick="runDax()" class="text-xs px-3 py-1.5 rounded bg-pbi-yellow text-pbi-dark font-semibold hover:opacity-90">▶ Run</button>
+        <button onclick="validateDax()" class="text-xs px-3 py-1.5 rounded bg-pbi-border hover:bg-pbi-card text-pbi-muted">✓ Validate</button>
+        <span id="dax-timing" class="text-xs text-pbi-muted ml-2"></span>
+      </div>
+    </div>
+    <div id="dax-results" class="text-sm"></div>
+  </section>
+
+  <!-- ── GOVERNANCE ── -->
+  <section id="section-governance" class="hidden">
+    <h2 class="text-xl font-bold mb-4 text-pbi-yellow">Governance</h2>
+    <div class="flex gap-2 mb-4">
+      <button onclick="runGovernance()" class="text-xs px-3 py-1.5 rounded bg-pbi-yellow text-pbi-dark font-semibold hover:opacity-90">🔍 Check Now</button>
+      <button onclick="fixGovernance()" class="text-xs px-3 py-1.5 rounded bg-pbi-border hover:bg-pbi-card text-pbi-muted">🔧 Auto-Fix</button>
+      <span id="gov-status" class="text-xs text-pbi-muted ml-2 self-center"></span>
+    </div>
+    <div id="governance-results" class="text-sm text-pbi-muted">Click "Check Now" to run governance rules.</div>
+  </section>
+
+  <!-- ── DOCS ── -->
+  <section id="section-docs" class="hidden">
+    <h2 class="text-xl font-bold mb-4 text-pbi-yellow">Data Dictionary</h2>
+    <div class="flex gap-2 mb-4">
+      <button onclick="loadDocs()" class="text-xs px-3 py-1.5 rounded bg-pbi-yellow text-pbi-dark font-semibold hover:opacity-90">Generate</button>
+    </div>
+    <div id="docs-content" class="bg-pbi-panel border border-pbi-border rounded-lg p-4 text-sm text-pbi-muted">
+      Click "Generate" to build the data dictionary.
+    </div>
+  </section>
+
+</main>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let state = { tables: [], columns: [], measures: [], relationships: [] };
+
+// ── Navigation ────────────────────────────────────────────────────
+function showSection(name) {
+  document.querySelectorAll('section[id^="section-"]').forEach(s => s.classList.add('hidden'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-' + name).classList.remove('hidden');
+  document.getElementById('nav-' + name).classList.add('active');
+}
+
+// ── Connection status ──────────────────────────────────────────────
+async function checkConnection() {
+  try {
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    const dot = document.getElementById('conn-dot');
+    const lbl = document.getElementById('conn-label');
+    if (d.connected) {
+      dot.className = 'w-2 h-2 rounded-full bg-green-400';
+      lbl.textContent = d.model + ' @ port ' + d.port;
+      lbl.className = 'text-xs text-green-400';
+    } else {
+      dot.className = 'w-2 h-2 rounded-full bg-yellow-500';
+      lbl.textContent = 'Not connected';
+      lbl.className = 'text-xs text-yellow-400';
+    }
+  } catch {
+    document.getElementById('conn-dot').className = 'w-2 h-2 rounded-full bg-red-500';
+    document.getElementById('conn-label').textContent = 'Server offline';
+    document.getElementById('conn-label').className = 'text-xs text-red-400';
+  }
+}
+
+// ── Data loading ───────────────────────────────────────────────────
+async function loadTables() {
+  try {
+    const r = await fetch('/api/tables');
+    state.tables = await r.json();
+    document.getElementById('stat-tables').textContent = state.tables.length;
+    const el = document.getElementById('dash-tables');
+    if (!state.tables.length) { el.textContent = 'No tables found.'; return; }
+    el.innerHTML = state.tables.map(t =>
+      `<div class="flex justify-between py-1 border-b border-pbi-border last:border-0">
+        <span>${escHtml(t.name)}</span>
+        ${t.isHidden ? '<span class="text-xs text-pbi-muted">hidden</span>' : ''}
+      </div>`
+    ).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function loadColumns() {
+  try {
+    const r = await fetch('/api/columns');
+    state.columns = await r.json();
+    document.getElementById('stat-cols').textContent = state.columns.length;
+    renderColumns();
+  } catch(e) { console.error(e); }
+}
+
+function renderColumns() {
+  const el = document.getElementById('columns-content');
+  if (!state.columns.length) { el.textContent = 'No columns found.'; return; }
+  const byTable = {};
+  state.columns.forEach(c => {
+    if (!byTable[c.table]) byTable[c.table] = [];
+    byTable[c.table].push(c);
+  });
+  el.innerHTML = Object.entries(byTable).map(([tbl, cols]) =>
+    `<div class="mb-4">
+      <div class="text-xs font-semibold text-pbi-yellow mb-1">${escHtml(tbl)}</div>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-1">
+        ${cols.map(c => `
+          <div class="bg-pbi-card rounded px-2 py-1 flex items-center gap-1.5">
+            <span class="${dtypeColor(c.dataType)} text-xs px-1 rounded font-mono">${escHtml(shortType(c.dataType))}</span>
+            <span class="text-sm truncate" title="${escHtml(c.name)}">${escHtml(c.name)}</span>
+          </div>`).join('')}
+      </div>
+    </div>`
+  ).join('');
+}
+
+async function loadRelationships() {
+  try {
+    const r = await fetch('/api/relationships');
+    state.relationships = await r.json();
+    document.getElementById('stat-rels').textContent = state.relationships.length;
+    const el = document.getElementById('relationships-content');
+    if (!state.relationships.length) { el.textContent = 'No relationships found.'; return; }
+    el.innerHTML = `<table class="w-full text-sm border-collapse">
+      <thead><tr class="text-pbi-muted text-xs border-b border-pbi-border">
+        <th class="text-left py-1 pr-3">From</th>
+        <th class="text-left py-1 pr-3">To</th>
+        <th class="text-left py-1 pr-3">Active</th>
+        <th class="text-left py-1">Filter</th>
+      </tr></thead>
+      <tbody>
+        ${state.relationships.map(r =>
+          `<tr class="border-b border-pbi-border hover:bg-pbi-card">
+            <td class="py-1.5 pr-3 font-mono text-xs">${escHtml(r.from)}</td>
+            <td class="py-1.5 pr-3 font-mono text-xs">${escHtml(r.to)}</td>
+            <td class="py-1.5 pr-3">${r.isActive ? '<span class="badge-success text-xs px-1.5 py-0.5 rounded">Yes</span>' : '<span class="badge-warning text-xs px-1.5 py-0.5 rounded">No</span>'}</td>
+            <td class="py-1.5 text-xs text-pbi-muted">${escHtml(r.crossFilteringBehavior || '')}</td>
+          </tr>`
+        ).join('')}
+      </tbody></table>`;
+  } catch(e) { console.error(e); }
+}
+
+async function loadMeasures() {
+  try {
+    const r = await fetch('/api/measures');
+    state.measures = await r.json();
+    document.getElementById('stat-measures').textContent = state.measures.length;
+    renderDashMeasures();
+    renderMeasuresTable();
+  } catch(e) { console.error(e); }
+}
+
+function renderDashMeasures() {
+  const el = document.getElementById('dash-measures');
+  if (!state.measures.length) { el.textContent = 'No measures found.'; return; }
+  el.innerHTML = state.measures.slice(0, 15).map(m =>
+    `<div class="flex justify-between py-1 border-b border-pbi-border last:border-0 gap-2">
+      <span class="truncate" title="${escHtml(m.name)}">${escHtml(m.name)}</span>
+      <span class="text-pbi-muted text-xs shrink-0">${escHtml(m.table)}</span>
+    </div>`
+  ).join('') + (state.measures.length > 15 ? `<div class="text-xs text-pbi-muted mt-1">+${state.measures.length-15} more</div>` : '');
+}
+
+function renderMeasuresTable() {
+  const el = document.getElementById('measures-table');
+  if (!state.measures.length) { el.textContent = 'No measures found.'; return; }
+  el.innerHTML = `<table class="w-full text-sm border-collapse">
+    <thead><tr class="text-pbi-muted text-xs border-b border-pbi-border">
+      <th class="text-left py-1 pr-3">Table</th>
+      <th class="text-left py-1 pr-3">Name</th>
+      <th class="text-left py-1 pr-3">Expression</th>
+      <th class="text-left py-1 pr-3">Format</th>
+      <th class="text-left py-1">Actions</th>
+    </tr></thead>
+    <tbody>
+      ${state.measures.map((m, i) =>
+        `<tr class="border-b border-pbi-border hover:bg-pbi-card" id="mrow-${i}">
+          <td class="py-1.5 pr-3 text-xs text-pbi-muted">${escHtml(m.table)}</td>
+          <td class="py-1.5 pr-3 font-semibold">${escHtml(m.name)}</td>
+          <td class="py-1.5 pr-3 font-mono text-xs max-w-xs truncate" title="${escHtml(m.expression)}">${escHtml(m.expression)}</td>
+          <td class="py-1.5 pr-3 text-xs text-pbi-muted">${escHtml(m.formatString || '')}</td>
+          <td class="py-1.5">
+            <button onclick="deleteMeasure('${escAttr(m.table)}','${escAttr(m.name)}')" class="text-xs px-2 py-0.5 rounded bg-red-900 hover:bg-red-800 text-red-300">Delete</button>
+          </td>
+        </tr>`
+      ).join('')}
+    </tbody></table>`;
+}
+
+// ── Measure CRUD ───────────────────────────────────────────────────
+async function addMeasure() {
+  const table = document.getElementById('m-table').value.trim();
+  const name  = document.getElementById('m-name').value.trim();
+  const expr  = document.getElementById('m-expr').value.trim();
+  const fmt   = document.getElementById('m-format').value.trim();
+  const st    = document.getElementById('m-status');
+  if (!table || !name || !expr) { st.textContent = 'Table, name, and expression are required.'; return; }
+  st.textContent = 'Adding…';
+  try {
+    const r = await fetch('/api/measures', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ table, name, expression: expr, formatString: fmt || undefined })
+    });
+    const d = await r.json();
+    if (!r.ok) { st.textContent = '✗ ' + (d.detail || 'Error'); return; }
+    st.textContent = '✓ Added';
+    document.getElementById('m-name').value = '';
+    document.getElementById('m-expr').value = '';
+    document.getElementById('m-format').value = '';
+    await loadMeasures();
+  } catch(e) { st.textContent = '✗ ' + e.message; }
+}
+
+async function deleteMeasure(table, name) {
+  if (!confirm(`Delete measure "${name}" from "${table}"?`)) return;
+  try {
+    const r = await fetch(`/api/measures/${encodeURIComponent(table)}/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    if (!r.ok) { const d = await r.json(); alert(d.detail || 'Error'); return; }
+    await loadMeasures();
+  } catch(e) { alert(e.message); }
+}
+
+async function validateMeasureExpr() {
+  const expr = document.getElementById('m-expr').value.trim();
+  const st = document.getElementById('m-status');
+  if (!expr) { st.textContent = 'Enter an expression first.'; return; }
+  st.textContent = 'Validating…';
+  try {
+    const r = await fetch('/api/dax/validate', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ expression: expr })
+    });
+    const d = await r.json();
+    st.textContent = d.valid ? '✓ Valid DAX' : '✗ ' + (d.error || 'Invalid');
+    st.className = 'text-xs ml-2 ' + (d.valid ? 'text-green-400' : 'text-red-400');
+  } catch(e) { st.textContent = '✗ ' + e.message; }
+}
+
+// ── DAX Console ────────────────────────────────────────────────────
+function daxSnippet(q) { document.getElementById('dax-expr').value = q; }
+
+async function runDax() {
+  const expr = document.getElementById('dax-expr').value.trim();
+  if (!expr) return;
+  const timing = document.getElementById('dax-timing');
+  const results = document.getElementById('dax-results');
+  timing.textContent = 'Running…';
+  results.innerHTML = '';
+  const t0 = Date.now();
+  try {
+    const r = await fetch('/api/dax/query', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ expression: expr })
+    });
+    const d = await r.json();
+    const ms = Date.now() - t0;
+    timing.textContent = `${ms}ms`;
+    if (!r.ok) {
+      results.innerHTML = `<div class="bg-red-900/30 border border-red-800 rounded p-3 text-red-300 text-sm">${escHtml(d.detail || JSON.stringify(d))}</div>`;
+      return;
+    }
+    if (!d.length) { results.innerHTML = '<div class="text-pbi-muted text-sm">No rows returned.</div>'; return; }
+    const cols = Object.keys(d[0]);
+    results.innerHTML = `<div class="overflow-x-auto">
+      <table class="w-full text-sm border-collapse">
+        <thead><tr class="text-pbi-muted text-xs border-b border-pbi-border">
+          ${cols.map(c => `<th class="text-left py-1 pr-4">${escHtml(c)}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${d.slice(0, 500).map(row =>
+            `<tr class="border-b border-pbi-border hover:bg-pbi-card">
+              ${cols.map(c => `<td class="py-1 pr-4 font-mono text-xs">${escHtml(String(row[c] ?? ''))}</td>`).join('')}
+            </tr>`
+          ).join('')}
+        </tbody>
+      </table>
+      ${d.length > 500 ? `<div class="text-xs text-pbi-muted mt-1">(showing 500 of ${d.length} rows)</div>` : ''}
+    </div>`;
+  } catch(e) { timing.textContent = ''; results.innerHTML = `<div class="text-red-400 text-sm">${escHtml(e.message)}</div>`; }
+}
+
+async function validateDax() {
+  const expr = document.getElementById('dax-expr').value.trim();
+  const timing = document.getElementById('dax-timing');
+  if (!expr) return;
+  timing.textContent = 'Validating…';
+  try {
+    const r = await fetch('/api/dax/validate', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ expression: expr })
+    });
+    const d = await r.json();
+    timing.textContent = d.valid ? '✓ Valid' : '✗ Invalid: ' + (d.error || '');
+    timing.className = 'text-xs ml-2 ' + (d.valid ? 'text-green-400' : 'text-red-400');
+  } catch(e) { timing.textContent = e.message; }
+}
+
+// ── Model Explorer tabs ─────────────────────────────────────────────
+function explorerTab(tab, btn) {
+  document.getElementById('explorer-columns').classList.toggle('hidden', tab !== 'columns');
+  document.getElementById('explorer-relationships').classList.toggle('hidden', tab !== 'relationships');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── Governance ─────────────────────────────────────────────────────
+async function runGovernance() {
+  const st = document.getElementById('gov-status');
+  const el = document.getElementById('governance-results');
+  st.textContent = 'Checking…';
+  el.innerHTML = '';
+  try {
+    const r = await fetch('/api/govern/check');
+    const d = await r.json();
+    st.textContent = '';
+    if (!d.length) {
+      el.innerHTML = '<div class="text-green-400 text-sm">✓ All governance rules pass!</div>';
+      return;
+    }
+    el.innerHTML = d.map(issue =>
+      `<div class="bg-pbi-panel border border-pbi-border rounded p-3 mb-2">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="${severityBadge(issue.severity)} text-xs px-1.5 py-0.5 rounded">${escHtml(issue.severity || 'info')}</span>
+          <span class="text-xs text-pbi-muted">${escHtml(issue.rule || '')}</span>
+        </div>
+        <div class="text-sm">${escHtml(issue.message || issue.description || JSON.stringify(issue))}</div>
+        ${issue.object ? `<div class="text-xs text-pbi-muted mt-1 font-mono">${escHtml(issue.object)}</div>` : ''}
+      </div>`
+    ).join('');
+  } catch(e) { st.textContent = ''; el.innerHTML = `<div class="text-red-400 text-sm">${escHtml(e.message)}</div>`; }
+}
+
+async function fixGovernance() {
+  const st = document.getElementById('gov-status');
+  st.textContent = 'Fixing…';
+  try {
+    const r = await fetch('/api/govern/fix', { method: 'POST' });
+    const d = await r.json();
+    st.textContent = '✓ Fixed ' + (d.fixed || 0) + ' issues';
+    await loadMeasures();
+    await runGovernance();
+  } catch(e) { st.textContent = '✗ ' + e.message; }
+}
+
+// ── Docs ───────────────────────────────────────────────────────────
+async function loadDocs() {
+  const el = document.getElementById('docs-content');
+  el.textContent = 'Generating…';
+  try {
+    const r = await fetch('/api/docs/markdown');
+    const text = await r.text();
+    el.innerHTML = `<pre class="text-xs text-pbi-text">${escHtml(text)}</pre>`;
+  } catch(e) { el.textContent = 'Error: ' + e.message; }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) { return String(s).replace(/'/g,"\\'"); }
+
+function dtypeColor(t) {
+  const m = {
+    Int64:'badge-info', Decimal:'badge-info', Double:'badge-info',
+    String:'badge-success', Boolean:'badge-warning',
+    DateTime:'text-purple-200 bg-purple-900',
+  };
+  return m[t] || 'bg-pbi-border text-pbi-muted';
+}
+function shortType(t) {
+  const m = {Int64:'int',Decimal:'dec',Double:'dbl',String:'str',Boolean:'bool',DateTime:'dt'};
+  return m[t] || (t||'').substring(0,4);
+}
+function severityBadge(s) {
+  const m = {error:'badge-error',warning:'badge-warning',info:'badge-info',success:'badge-success'};
+  return m[(s||'').toLowerCase()] || 'badge-info';
+}
+
+// ── Boot ───────────────────────────────────────────────────────────
+async function refreshAll() {
+  await checkConnection();
+  await Promise.all([loadTables(), loadColumns(), loadRelationships(), loadMeasures()]);
+}
+
+refreshAll();
+setInterval(checkConnection, 10000);
+</script>
+</body>
+</html>
