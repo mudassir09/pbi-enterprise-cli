@@ -24,10 +24,17 @@ console = Console()
     show_default=True,
     help="Which checks to run on each change (can repeat).",
 )
-@click.option("--debounce", default=2.0, show_default=True,
-              help="Seconds to wait after a change before running checks.")
-@click.option("--patterns", default="*.tmdl,*.json",
-              help="Comma-separated glob patterns to watch (default: *.tmdl,*.json).")
+@click.option(
+    "--debounce",
+    default=2.0,
+    show_default=True,
+    help="Seconds to wait after a change before running checks.",
+)
+@click.option(
+    "--patterns",
+    default="*.tmdl,*.json",
+    help="Comma-separated glob patterns to watch (default: *.tmdl,*.json).",
+)
 def watch(path: str, events: tuple[str, ...], debounce: float, patterns: str) -> None:
     """Watch for TMDL / PBIP file changes and auto-run govern check and/or dax test.
 
@@ -41,12 +48,10 @@ def watch(path: str, events: tuple[str, ...], debounce: float, patterns: str) ->
       pbi watch --path . --on govern --on dax-test --debounce 3
     """
     try:
-        from watchdog.events import FileSystemEventHandler, FileSystemEvent  # type: ignore[import]
+        from watchdog.events import FileSystemEvent, FileSystemEventHandler  # type: ignore[import]
         from watchdog.observers import Observer  # type: ignore[import]
     except ImportError:
-        console.print(
-            "[red]watchdog not installed.[/red] Run: [bold]pip install watchdog[/bold]"
-        )
+        console.print("[red]watchdog not installed.[/red] Run: [bold]pip install watchdog[/bold]")
         raise SystemExit(1)
 
     watch_path = Path(path).resolve()
@@ -60,7 +65,9 @@ def watch(path: str, events: tuple[str, ...], debounce: float, patterns: str) ->
     pat_list = [p.strip() for p in patterns.split(",") if p.strip()]
     console.print(f"[cyan]Watching:[/cyan] {watch_path}")
     console.print(f"  Patterns : {', '.join(pat_list)}")
-    console.print(f"  Checks   : {'govern' if run_govern else ''} {'dax-test' if run_dax else ''}".strip())
+    console.print(
+        f"  Checks   : {'govern' if run_govern else ''} {'dax-test' if run_dax else ''}".strip()
+    )
     console.print(f"  Debounce : {debounce}s")
     console.print("Press [bold]Ctrl+C[/bold] to stop.\n")
 
@@ -68,13 +75,11 @@ def watch(path: str, events: tuple[str, ...], debounce: float, patterns: str) ->
         def __init__(self) -> None:
             self._last_trigger = 0.0
 
-        def on_any_event(self, event: "FileSystemEvent") -> None:
+        def on_any_event(self, event: FileSystemEvent) -> None:
             if event.is_directory:
                 return
             src = str(event.src_path)
-            if not any(
-                Path(src).match(pat) for pat in pat_list
-            ):
+            if not any(Path(src).match(pat) for pat in pat_list):
                 return
             now = time.monotonic()
             if now - self._last_trigger < debounce:
@@ -87,6 +92,7 @@ def watch(path: str, events: tuple[str, ...], debounce: float, patterns: str) ->
         pbi_cmd = [sys.executable, "-m", "pbi_cli"]
         # Use the installed `pbi` entry-point if available
         import shutil
+
         pbi_exe = shutil.which("pbi")
         base_cmd: list[str] = [pbi_exe] if pbi_exe else pbi_cmd
 

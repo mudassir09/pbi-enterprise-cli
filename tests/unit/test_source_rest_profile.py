@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from pbi_cli.commands.source import (
     _detect_next_link,
     _extract_records,
@@ -13,8 +11,8 @@ from pbi_cli.commands.source import (
     _url_to_table_name,
 )
 
-
 # ── _extract_records ──────────────────────────────────────────────────────────
+
 
 class TestExtractRecords:
     def test_plain_list(self):
@@ -57,6 +55,7 @@ class TestExtractRecords:
 
 # ── _detect_next_link ─────────────────────────────────────────────────────────
 
+
 class TestDetectNextLink:
     def test_odata_next_link(self):
         data = {
@@ -85,6 +84,7 @@ class TestDetectNextLink:
 
 # ── _flatten_record ───────────────────────────────────────────────────────────
 
+
 class TestFlattenRecord:
     def test_flat_record_unchanged(self):
         record = {"id": 1, "name": "Test"}
@@ -104,6 +104,7 @@ class TestFlattenRecord:
 
 
 # ── _infer_pbi_type ───────────────────────────────────────────────────────────
+
 
 class TestInferPbiType:
     def test_integers_map_to_int64(self):
@@ -136,6 +137,7 @@ class TestInferPbiType:
 
 # ── _infer_columns ────────────────────────────────────────────────────────────
 
+
 class TestInferColumns:
     def test_basic_schema_inference(self):
         sample = [
@@ -165,6 +167,7 @@ class TestInferColumns:
 
 # ── _url_to_table_name ────────────────────────────────────────────────────────
 
+
 class TestUrlToTableName:
     def test_simple_path_segment(self):
         assert _url_to_table_name("https://api.example.com/v1/orders") == "Orders"
@@ -182,11 +185,13 @@ class TestUrlToTableName:
 
 # ── Integration: _profile_rest with mocked httpx ─────────────────────────────
 
+
 class TestProfileRestIntegration:
     def test_profile_rest_with_odata_response(self, monkeypatch):
         """Mock httpx to verify full REST profile pipeline with OData pagination."""
-        import httpx
         from unittest.mock import MagicMock
+
+        import httpx
 
         pages = [
             {
@@ -218,6 +223,7 @@ class TestProfileRestIntegration:
         monkeypatch.setattr(httpx, "Client", lambda **kw: mock_client)
 
         from pbi_cli.commands.source import _profile_rest
+
         result = _profile_rest("https://api.example.com/v1/products", max_pages=2)
 
         assert len(result) == 1
@@ -232,8 +238,9 @@ class TestProfileRestIntegration:
 
     def test_profile_rest_bearer_auth_header_sent(self, monkeypatch):
         """Verify the Authorization: Bearer header is included in the request."""
-        import httpx
         from unittest.mock import MagicMock
+
+        import httpx
 
         sent_headers = []
 
@@ -251,6 +258,7 @@ class TestProfileRestIntegration:
         monkeypatch.setattr(httpx, "Client", lambda **kw: mock_client)
 
         from pbi_cli.commands.source import _profile_rest
+
         _profile_rest("https://api.example.com/v1/data", bearer_token="my-secret-token")
 
         assert sent_headers, "No requests made"

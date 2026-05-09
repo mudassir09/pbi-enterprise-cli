@@ -20,7 +20,9 @@ def server_start(port: int, host: str) -> None:
     """Start the FastAPI REST server on the specified port."""
     try:
         import uvicorn
+
         from pbi_cli.server.api import app
+
         console.print(f"[green]Starting pbi-server[/green] on {host}:{port}")
         uvicorn.run(app, host=host, port=port)
     except ImportError:

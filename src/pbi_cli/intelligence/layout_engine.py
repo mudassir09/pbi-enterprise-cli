@@ -5,49 +5,62 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-
 VISUAL_SIZES = {
-    "kpi":       (200, 120),
-    "card":      (300, 130),
-    "chart":     (624, 240),
-    "bar":       (624, 240),
-    "column":    (624, 240),
-    "line":      (624, 240),
-    "scatter":   (624, 300),
-    "gauge":     (300, 200),
-    "donut":     (400, 280),
-    "pie":       (400, 280),
-    "treemap":   (624, 300),
-    "funnel":    (400, 300),
+    "kpi": (200, 120),
+    "card": (300, 130),
+    "chart": (624, 240),
+    "bar": (624, 240),
+    "column": (624, 240),
+    "line": (624, 240),
+    "scatter": (624, 300),
+    "gauge": (300, 200),
+    "donut": (400, 280),
+    "pie": (400, 280),
+    "treemap": (624, 300),
+    "funnel": (400, 300),
     "waterfall": (624, 300),
-    "matrix":    (900, 400),
-    "ribbon":    (624, 240),
-    "table":     (900, 400),
-    "multirow":  (624, 200),
-    "slicer":    (200,  56),
-    "map":       (624, 400),
-    "stackedbar":   (624, 240),
-    "stackedcolumn":(624, 240),
-    "100percentbar":(624, 240),
+    "matrix": (900, 400),
+    "ribbon": (624, 240),
+    "table": (900, 400),
+    "multirow": (624, 200),
+    "slicer": (200, 56),
+    "map": (624, 400),
+    "stackedbar": (624, 240),
+    "stackedcolumn": (624, 240),
+    "100percentbar": (624, 240),
     "100percentcolumn": (624, 240),
-    "area":         (624, 240),
-    "stackedarea":  (624, 240),
-    "combo":        (624, 280),
-    "bubble":       (624, 300),
-    "filledmap":    (624, 400),
-    "azuremap":     (624, 400),
-    "decomptree":   (900, 500),
-    "keyinfluencers":(900, 500),
-    "smartnarrative":(624, 240),
-    "qanda":        (624, 300),
+    "area": (624, 240),
+    "stackedarea": (624, 240),
+    "combo": (624, 280),
+    "bubble": (624, 300),
+    "filledmap": (624, 400),
+    "azuremap": (624, 400),
+    "decomptree": (900, 500),
+    "keyinfluencers": (900, 500),
+    "smartnarrative": (624, 240),
+    "qanda": (624, 300),
 }
 
 PRIORITY_ORDER = [
-    "kpi", "card",
-    "gauge", "donut", "pie",
-    "bar", "column", "line", "scatter", "waterfall", "funnel", "treemap", "ribbon", "chart",
+    "kpi",
+    "card",
+    "gauge",
+    "donut",
+    "pie",
+    "bar",
+    "column",
+    "line",
+    "scatter",
+    "waterfall",
+    "funnel",
+    "treemap",
+    "ribbon",
+    "chart",
     "slicer",
-    "map", "multirow", "table", "matrix",
+    "map",
+    "multirow",
+    "table",
+    "matrix",
 ]
 
 
@@ -113,11 +126,16 @@ class LayoutEngine:
                 y += row_height + self.GUTTER
                 row_height = 0
 
-            positions.append(VisualPosition(
-                name=v.get("name", "visual"),
-                visual_type=v.get("type", "chart"),
-                x=x, y=y, width=w, height=h,
-            ))
+            positions.append(
+                VisualPosition(
+                    name=v.get("name", "visual"),
+                    visual_type=v.get("type", "chart"),
+                    x=x,
+                    y=y,
+                    width=w,
+                    height=h,
+                )
+            )
             x += w + self.GUTTER
             row_height = max(row_height, h)
 

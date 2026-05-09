@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from pbi_cli.backends.pbir_backend import PbirBackend
-from pbi_cli.intelligence.visual_builder import FieldDef, VisualSpec, build_card, AGG_SUM
+from pbi_cli.intelligence.visual_builder import AGG_SUM, FieldDef, VisualSpec, build_card
 
 _PBIP_PATH = Path(r"C:\Users\GGPC\Documents\financials.pbip")
 _REPORT_DIR = Path(r"C:\Users\GGPC\Documents\financials.Report")
@@ -49,6 +49,7 @@ def write_backend(tmp_path) -> PbirBackend:
 
 # ── Format detection ──────────────────────────────────────────────────────────
 
+
 class TestFormatDetection:
     def test_format_is_pbir_ga(self, backend):
         assert backend.format == "pbir_ga"
@@ -58,6 +59,7 @@ class TestFormatDetection:
 
 
 # ── Page list ─────────────────────────────────────────────────────────────────
+
 
 class TestPageList:
     def test_returns_list(self, backend):
@@ -78,6 +80,7 @@ class TestPageList:
 
 
 # ── Visual list ───────────────────────────────────────────────────────────────
+
 
 class TestVisualList:
     def test_executive_summary_has_visuals(self, backend):
@@ -121,6 +124,7 @@ class TestVisualList:
 
 # ── Page add / delete (on tmp copy) ──────────────────────────────────────────
 
+
 class TestPageWrite:
     def test_add_and_delete_page(self, write_backend):
         test_page = "TestPage_pbi_cli"
@@ -155,7 +159,10 @@ class TestPageWrite:
         spec = VisualSpec(
             visual_type="card",
             visual_body=build_card(FieldDef(entity="financials", property="Sales", agg=AGG_SUM)),
-            x=16, y=16, width=280, height=120,
+            x=16,
+            y=16,
+            width=280,
+            height=120,
         )
         write_backend.visual_add(test_page, spec)
 
@@ -168,6 +175,7 @@ class TestPageWrite:
 
 
 # ── Visual add / delete (on tmp copy) ────────────────────────────────────────
+
 
 class TestVisualWrite:
     def _make_page(self, backend, name="VisualTest_pbi_cli"):
@@ -182,7 +190,10 @@ class TestVisualWrite:
                 visual_body=build_card(
                     FieldDef(entity="financials", property="Sales", agg=AGG_SUM)
                 ),
-                x=16, y=16, width=280, height=120,
+                x=16,
+                y=16,
+                width=280,
+                height=120,
                 title="Total Sales",
             )
             result = write_backend.visual_add(page, spec)
@@ -200,7 +211,10 @@ class TestVisualWrite:
                 visual_body=build_card(
                     FieldDef(entity="financials", property="Sales", agg=AGG_SUM)
                 ),
-                x=100, y=200, width=300, height=150,
+                x=100,
+                y=200,
+                width=300,
+                height=150,
             )
             write_backend.visual_add(page, spec)
             visuals = write_backend.visual_list(page)
@@ -221,7 +235,10 @@ class TestVisualWrite:
                 visual_body=build_card(
                     FieldDef(entity="financials", property="Sales", agg=AGG_SUM)
                 ),
-                x=16, y=16, width=280, height=120,
+                x=16,
+                y=16,
+                width=280,
+                height=120,
             )
             result = write_backend.visual_add(page, spec)
             visual_name = result["name"]

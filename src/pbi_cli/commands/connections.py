@@ -66,23 +66,36 @@ def connections_last() -> None:
 
 
 @connections.command("add")
-@click.option("--name",          required=True, help="Short alias for this connection.")
-@click.option("--type",          "conn_type", required=True,
-              type=click.Choice(["desktop", "xmla"]),
-              help="Connection type.")
-@click.option("--endpoint",      default=None, help="XMLA endpoint URL.")
-@click.option("--catalog",       default=None, help="Dataset / semantic model name.")
-@click.option("--auth",          default="device_flow",
-              type=click.Choice(["device_flow", "service_principal", "token"]),
-              help="Auth mode (XMLA only).")
-@click.option("--client-id",     default=None, help="AAD client ID (service_principal).")
+@click.option("--name", required=True, help="Short alias for this connection.")
+@click.option(
+    "--type",
+    "conn_type",
+    required=True,
+    type=click.Choice(["desktop", "xmla"]),
+    help="Connection type.",
+)
+@click.option("--endpoint", default=None, help="XMLA endpoint URL.")
+@click.option("--catalog", default=None, help="Dataset / semantic model name.")
+@click.option(
+    "--auth",
+    default="device_flow",
+    type=click.Choice(["device_flow", "service_principal", "token"]),
+    help="Auth mode (XMLA only).",
+)
+@click.option("--client-id", default=None, help="AAD client ID (service_principal).")
 @click.option("--client-secret", default=None, help="AAD client secret (service_principal).")
-@click.option("--tenant-id",     default=None, help="AAD tenant ID (service_principal).")
-@click.option("--port",          default=None, type=int, help="Desktop local server port.")
+@click.option("--tenant-id", default=None, help="AAD tenant ID (service_principal).")
+@click.option("--port", default=None, type=int, help="Desktop local server port.")
 def connections_add(
-    name: str, conn_type: str, endpoint: str | None, catalog: str | None,
-    auth: str, client_id: str | None, client_secret: str | None,
-    tenant_id: str | None, port: int | None,
+    name: str,
+    conn_type: str,
+    endpoint: str | None,
+    catalog: str | None,
+    auth: str,
+    client_id: str | None,
+    client_secret: str | None,
+    tenant_id: str | None,
+    port: int | None,
 ) -> None:
     """Save a named connection profile."""
     data = _load()
@@ -94,7 +107,9 @@ def connections_add(
             raise click.UsageError("--endpoint is required for xmla connections.")
         record.update({"endpoint": endpoint, "catalog": catalog or "", "auth": auth})
         if auth == "service_principal":
-            record.update({"client_id": client_id, "client_secret": client_secret, "tenant_id": tenant_id})
+            record.update(
+                {"client_id": client_id, "client_secret": client_secret, "tenant_id": tenant_id}
+            )
     else:
         if port:
             record["port"] = port

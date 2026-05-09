@@ -12,7 +12,6 @@ class ConfluenceDocsGenerator:
     def generate(self) -> str:
         lines = ["h1. Data Dictionary\n"]
         tables = self._backend.table_list()
-        measures = self._backend.measure_list()
         for table in tables:
             name = table["name"]
             lines.append(f"h2. {name}\n")

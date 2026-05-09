@@ -27,20 +27,24 @@ def mock_backend(monkeypatch):
 @pytest.fixture()
 def client() -> TestClient:
     from pbi_cli.server.api import app
+
     return TestClient(app)
 
 
 # ── /api/status ───────────────────────────────────────────────────────────────
 
+
 class TestStatus:
     def test_status_returns_200(self, client, monkeypatch):
         import pbi_cli.backends.tom_backend as tom
+
         monkeypatch.setattr(tom, "find_pbi_port", lambda: 12345)
         r = client.get("/api/status")
         assert r.status_code == 200
 
     def test_status_no_pbi_desktop(self, client, monkeypatch):
         import pbi_cli.backends.tom_backend as tom
+
         monkeypatch.setattr(tom, "find_pbi_port", lambda: None)
         r = client.get("/api/status")
         assert r.status_code == 200
@@ -48,6 +52,7 @@ class TestStatus:
 
 
 # ── /api/tables ───────────────────────────────────────────────────────────────
+
 
 class TestTables:
     def test_list_tables_returns_200(self, client):
@@ -67,6 +72,7 @@ class TestTables:
 
 
 # ── /api/columns ──────────────────────────────────────────────────────────────
+
 
 class TestColumns:
     def test_list_all_columns(self, client):
@@ -92,6 +98,7 @@ class TestColumns:
 
 # ── /api/relationships ────────────────────────────────────────────────────────
 
+
 class TestRelationships:
     def test_list_relationships(self, client):
         r = client.get("/api/relationships")
@@ -106,6 +113,7 @@ class TestRelationships:
 
 
 # ── /api/measures ─────────────────────────────────────────────────────────────
+
 
 class TestMeasures:
     def test_list_measures(self, client):
@@ -122,46 +130,61 @@ class TestMeasures:
         assert all(m["table"] == "Sales" for m in data)
 
     def test_create_measure(self, client):
-        r = client.post("/api/measures", json={
-            "table": "Sales",
-            "name": "API Test Measure",
-            "expression": "SUM(Sales[Revenue])",
-            "formatString": "#,0.00",
-        })
+        r = client.post(
+            "/api/measures",
+            json={
+                "table": "Sales",
+                "name": "API Test Measure",
+                "expression": "SUM(Sales[Revenue])",
+                "formatString": "#,0.00",
+            },
+        )
         assert r.status_code == 201
         data = r.json()
         assert data["name"] == "API Test Measure"
 
     def test_create_measure_appears_in_list(self, client):
-        client.post("/api/measures", json={
-            "table": "Sales",
-            "name": "ListCheck",
-            "expression": "1",
-        })
+        client.post(
+            "/api/measures",
+            json={
+                "table": "Sales",
+                "name": "ListCheck",
+                "expression": "1",
+            },
+        )
         data = client.get("/api/measures").json()
         names = [m["name"] for m in data]
         assert "ListCheck" in names
 
     def test_update_measure(self, client):
-        r = client.patch("/api/measures/Sales/Total Revenue", json={
-            "expression": "SUMX(Sales, Sales[Revenue])",
-        })
+        r = client.patch(
+            "/api/measures/Sales/Total Revenue",
+            json={
+                "expression": "SUMX(Sales, Sales[Revenue])",
+            },
+        )
         assert r.status_code == 200
         data = r.json()
         assert data["expression"] == "SUMX(Sales, Sales[Revenue])"
 
     def test_update_nonexistent_measure_returns_404(self, client):
-        r = client.patch("/api/measures/Sales/DoesNotExist", json={
-            "expression": "1",
-        })
+        r = client.patch(
+            "/api/measures/Sales/DoesNotExist",
+            json={
+                "expression": "1",
+            },
+        )
         assert r.status_code == 404
 
     def test_delete_measure(self, client):
-        client.post("/api/measures", json={
-            "table": "Sales",
-            "name": "ToDelete",
-            "expression": "1",
-        })
+        client.post(
+            "/api/measures",
+            json={
+                "table": "Sales",
+                "name": "ToDelete",
+                "expression": "1",
+            },
+        )
         r = client.delete("/api/measures/Sales/ToDelete")
         assert r.status_code == 204
 
@@ -171,6 +194,7 @@ class TestMeasures:
 
 
 # ── /api/dax ──────────────────────────────────────────────────────────────────
+
 
 class TestDax:
     def test_dax_query(self, client):
@@ -192,6 +216,7 @@ class TestDax:
 
 
 # ── /api/govern ───────────────────────────────────────────────────────────────
+
 
 class TestGovern:
     def test_govern_check_returns_list(self, client):
@@ -215,6 +240,7 @@ class TestGovern:
 
 # ── /api/docs/markdown ────────────────────────────────────────────────────────
 
+
 class TestDocs:
     def test_docs_markdown_returns_text(self, client):
         r = client.get("/api/docs/markdown")
@@ -223,6 +249,7 @@ class TestDocs:
 
 
 # ── /api/suggest ──────────────────────────────────────────────────────────────
+
 
 class TestSuggest:
     def test_suggest_measures_returns_list(self, client):

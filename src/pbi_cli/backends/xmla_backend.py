@@ -48,6 +48,7 @@ _connection_pool: dict[tuple[str, str], Any] = {}  # value: AMO Server object
 # Auth
 # ---------------------------------------------------------------------------
 
+
 class XmlaAuth:
     """Acquires and caches an MSAL access token for the XMLA endpoint.
 
@@ -150,6 +151,7 @@ class XmlaAuth:
 # AMO helpers (lazy-imported so tests can patch them)
 # ---------------------------------------------------------------------------
 
+
 def _load_amo():  # type: ignore[return]
     """Import and return the AMO Server class via pythonnet.
 
@@ -158,9 +160,11 @@ def _load_amo():  # type: ignore[return]
     """
     try:
         import clr  # type: ignore[import]  # noqa: PLC0415
+
         clr.AddReference("Microsoft.AnalysisServices.Core")
         clr.AddReference("Microsoft.AnalysisServices.Tabular")
         from Microsoft.AnalysisServices.Tabular import Server  # type: ignore[import]
+
         return Server
     except Exception as exc:
         raise ImportError(
@@ -175,22 +179,24 @@ def _load_adomd():  # type: ignore[return]
     """Import and return AdomdConnection + AdomdCommand via pythonnet."""
     try:
         import clr  # type: ignore[import]  # noqa: PLC0415
+
         clr.AddReference("Microsoft.AnalysisServices.AdomdClient")
         from Microsoft.AnalysisServices.AdomdClient import (  # type: ignore[import]
             AdomdCommand,
             AdomdConnection,
         )
+
         return AdomdConnection, AdomdCommand
     except Exception as exc:
         raise ImportError(
-            "AdomdClient .NET assembly not found.\n"
-            "Install with: pip install pbi-cli-tool[xmla]"
+            "AdomdClient .NET assembly not found.\nInstall with: pip install pbi-cli-tool[xmla]"
         ) from exc
 
 
 # ---------------------------------------------------------------------------
 # Backend
 # ---------------------------------------------------------------------------
+
 
 class XmlaBackend:
     """Power BI Premium / Fabric XMLA backend.
@@ -266,10 +272,8 @@ class XmlaBackend:
         Server = _load_amo()
         server = Server()
         token = self._auth.get_token()  # type: ignore[union-attr]
-        conn_str = (
-            f"Data Source={self._data_source};"
-            f"Password={token};"
-            + (f"Initial Catalog={self._catalog};" if self._catalog else "")
+        conn_str = f"Data Source={self._data_source};Password={token};" + (
+            f"Initial Catalog={self._catalog};" if self._catalog else ""
         )
         server.Connect(conn_str)
         _connection_pool[pool_key] = server
@@ -308,9 +312,7 @@ class XmlaBackend:
 
     def _require_connection(self) -> None:
         if not self._connected or self._server is None:
-            raise RuntimeError(
-                "Not connected to an XMLA endpoint. Call connect() first."
-            )
+            raise RuntimeError("Not connected to an XMLA endpoint. Call connect() first.")
 
     @property
     def _model(self) -> Any:
@@ -341,11 +343,13 @@ class XmlaBackend:
         model = self._model
         result = []
         for tbl in model.Tables:
-            result.append({
-                "name": str(tbl.Name),
-                "isHidden": bool(tbl.IsHidden),
-                "description": str(tbl.Description or ""),
-            })
+            result.append(
+                {
+                    "name": str(tbl.Name),
+                    "isHidden": bool(tbl.IsHidden),
+                    "description": str(tbl.Description or ""),
+                }
+            )
         return result
 
     def column_list(self, table: str | None = None) -> list[dict[str, Any]]:
@@ -354,25 +358,29 @@ class XmlaBackend:
         tables = [model.Tables[table]] if table else list(model.Tables)
         for tbl in tables:
             for col in tbl.Columns:
-                result.append({
-                    "table": str(tbl.Name),
-                    "name": str(col.Name),
-                    "dataType": str(col.DataType),
-                    "isHidden": bool(col.IsHidden),
-                    "description": str(col.Description or ""),
-                })
+                result.append(
+                    {
+                        "table": str(tbl.Name),
+                        "name": str(col.Name),
+                        "dataType": str(col.DataType),
+                        "isHidden": bool(col.IsHidden),
+                        "description": str(col.Description or ""),
+                    }
+                )
         return result
 
     def relationship_list(self) -> list[dict[str, Any]]:
         model = self._model
         result = []
         for rel in model.Relationships:
-            result.append({
-                "from": f"{rel.FromTable.Name}[{rel.FromColumn.Name}]",
-                "to": f"{rel.ToTable.Name}[{rel.ToColumn.Name}]",
-                "cardinality": str(rel.FromCardinality),
-                "isActive": bool(rel.IsActive),
-            })
+            result.append(
+                {
+                    "from": f"{rel.FromTable.Name}[{rel.FromColumn.Name}]",
+                    "to": f"{rel.ToTable.Name}[{rel.ToColumn.Name}]",
+                    "cardinality": str(rel.FromCardinality),
+                    "isActive": bool(rel.IsActive),
+                }
+            )
         return result
 
     # ------------------------------------------------------------------
@@ -385,19 +393,19 @@ class XmlaBackend:
         tables = [model.Tables[table]] if table else list(model.Tables)
         for tbl in tables:
             for m in tbl.Measures:
-                result.append({
-                    "table": str(tbl.Name),
-                    "name": str(m.Name),
-                    "expression": str(m.Expression),
-                    "formatString": str(m.FormatString or ""),
-                    "description": str(m.Description or ""),
-                    "isHidden": bool(m.IsHidden),
-                })
+                result.append(
+                    {
+                        "table": str(tbl.Name),
+                        "name": str(m.Name),
+                        "expression": str(m.Expression),
+                        "formatString": str(m.FormatString or ""),
+                        "description": str(m.Description or ""),
+                        "isHidden": bool(m.IsHidden),
+                    }
+                )
         return result
 
-    def measure_add(
-        self, table: str, name: str, expression: str, **kwargs: Any
-    ) -> dict[str, Any]:
+    def measure_add(self, table: str, name: str, expression: str, **kwargs: Any) -> dict[str, Any]:
         from Microsoft.AnalysisServices.Tabular import Measure  # type: ignore[import]
 
         model = self._model
@@ -457,9 +465,7 @@ class XmlaBackend:
     # Columns
     # ------------------------------------------------------------------
 
-    def column_add(
-        self, table: str, name: str, data_type: str, **kwargs: Any
-    ) -> dict[str, Any]:
+    def column_add(self, table: str, name: str, data_type: str, **kwargs: Any) -> dict[str, Any]:
         from Microsoft.AnalysisServices.Tabular import (  # type: ignore[import]
             DataColumn,
             DataType,
@@ -524,10 +530,8 @@ class XmlaBackend:
         AdomdConnection, AdomdCommand = _load_adomd()
 
         token = self._auth.get_token()  # type: ignore[union-attr]
-        conn_str = (
-            f"Data Source={self._data_source};"
-            f"Password={token};"
-            + (f"Initial Catalog={self._catalog};" if self._catalog else "")
+        conn_str = f"Data Source={self._data_source};Password={token};" + (
+            f"Initial Catalog={self._catalog};" if self._catalog else ""
         )
 
         rows: list[dict[str, Any]] = []
@@ -580,14 +584,20 @@ class XmlaBackend:
         tables = [model.Tables[table]] if table else list(model.Tables)
         for tbl in tables:
             for h in tbl.Hierarchies:
-                result.append({
-                    "table": str(tbl.Name),
-                    "name": str(h.Name),
-                    "levels": [
-                        {"ordinal": int(lv.Ordinal), "name": str(lv.Name), "column": str(lv.Column.Name)}
-                        for lv in h.Levels
-                    ],
-                })
+                result.append(
+                    {
+                        "table": str(tbl.Name),
+                        "name": str(h.Name),
+                        "levels": [
+                            {
+                                "ordinal": int(lv.Ordinal),
+                                "name": str(lv.Name),
+                                "column": str(lv.Column.Name),
+                            }
+                            for lv in h.Levels
+                        ],
+                    }
+                )
         return result
 
     # ------------------------------------------------------------------
@@ -600,6 +610,17 @@ class XmlaBackend:
         for role in model.Roles:
             perms = []
             for tp in role.TablePermissions:
-                perms.append({"table": str(tp.Table.Name), "filterExpression": str(tp.FilterExpression or "")})
-            result.append({"name": str(role.Name), "modelPermission": str(role.ModelPermission), "tablePermissions": perms})
+                perms.append(
+                    {
+                        "table": str(tp.Table.Name),
+                        "filterExpression": str(tp.FilterExpression or ""),
+                    }
+                )
+            result.append(
+                {
+                    "name": str(role.Name),
+                    "modelPermission": str(role.ModelPermission),
+                    "tablePermissions": perms,
+                }
+            )
         return result

@@ -21,10 +21,10 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-AGG_SUM   = 0
-AGG_AVG   = 1
-AGG_MIN   = 2
-AGG_MAX   = 3
+AGG_SUM = 0
+AGG_AVG = 1
+AGG_MIN = 2
+AGG_MAX = 3
 AGG_COUNT = 4
 AGG_NAMES = {AGG_SUM: "Sum", AGG_AVG: "Avg", AGG_MIN: "Min", AGG_MAX: "Max", AGG_COUNT: "Count"}
 
@@ -37,8 +37,9 @@ VISUAL_CONTAINER_SCHEMA = (
 @dataclass
 class FieldDef:
     """One field to bind to a visual role slot."""
-    entity: str           # table name, e.g. "financials"
-    property: str         # column or measure name, e.g. "Sales"
+
+    entity: str  # table name, e.g. "financials"
+    property: str  # column or measure name, e.g. "Sales"
     is_measure: bool = False  # True = explicit DAX measure
     agg: int | None = AGG_SUM  # None = no aggregation (plain column)
 
@@ -59,9 +60,7 @@ class FieldDef:
             return {"Column": {"Expression": src, "Property": self.property}}
         return {
             "Aggregation": {
-                "Expression": {
-                    "Column": {"Expression": src, "Property": self.property}
-                },
+                "Expression": {"Column": {"Expression": src, "Property": self.property}},
                 "Function": self.agg,
             }
         }
@@ -85,6 +84,7 @@ def _query_state(roles: dict[str, list[FieldDef]]) -> dict[str, Any]:
 
 
 # ── Visual body builders ───────────────────────────────────────────────────────
+
 
 def build_card(value: FieldDef) -> dict[str, Any]:
     return {
@@ -151,7 +151,12 @@ def build_multi_row_card(fields: list[FieldDef]) -> dict[str, Any]:
     }
 
 
-def build_scatter_chart(x_axis: FieldDef, y_axis: FieldDef, details: FieldDef | None = None, size: FieldDef | None = None) -> dict[str, Any]:
+def build_scatter_chart(
+    x_axis: FieldDef,
+    y_axis: FieldDef,
+    details: FieldDef | None = None,
+    size: FieldDef | None = None,
+) -> dict[str, Any]:
     roles: dict[str, list[FieldDef]] = {"X": [x_axis], "Y": [y_axis]}
     if details:
         roles["Details"] = [details]
@@ -165,7 +170,12 @@ def build_scatter_chart(x_axis: FieldDef, y_axis: FieldDef, details: FieldDef | 
     }
 
 
-def build_gauge(value: FieldDef, target: FieldDef | None = None, min_val: FieldDef | None = None, max_val: FieldDef | None = None) -> dict[str, Any]:
+def build_gauge(
+    value: FieldDef,
+    target: FieldDef | None = None,
+    min_val: FieldDef | None = None,
+    max_val: FieldDef | None = None,
+) -> dict[str, Any]:
     roles: dict[str, list[FieldDef]] = {"Y": [value]}
     if target:
         roles["TargetValue"] = [target]
@@ -217,7 +227,9 @@ def build_funnel(category: FieldDef, value: FieldDef) -> dict[str, Any]:
     }
 
 
-def build_waterfall(category: FieldDef, value: FieldDef, breakdown: FieldDef | None = None) -> dict[str, Any]:
+def build_waterfall(
+    category: FieldDef, value: FieldDef, breakdown: FieldDef | None = None
+) -> dict[str, Any]:
     roles: dict[str, list[FieldDef]] = {"Category": [category], "Y": [value]}
     if breakdown:
         roles["Breakdown"] = [breakdown]
@@ -229,7 +241,9 @@ def build_waterfall(category: FieldDef, value: FieldDef, breakdown: FieldDef | N
     }
 
 
-def build_matrix(rows: list[FieldDef], values: list[FieldDef], columns: list[FieldDef] | None = None) -> dict[str, Any]:
+def build_matrix(
+    rows: list[FieldDef], values: list[FieldDef], columns: list[FieldDef] | None = None
+) -> dict[str, Any]:
     roles: dict[str, list[FieldDef]] = {"Rows": rows, "Values": values}
     if columns:
         roles["Columns"] = columns
@@ -241,7 +255,9 @@ def build_matrix(rows: list[FieldDef], values: list[FieldDef], columns: list[Fie
     }
 
 
-def build_ribbon_chart(category: FieldDef, value: FieldDef, series: FieldDef | None = None) -> dict[str, Any]:
+def build_ribbon_chart(
+    category: FieldDef, value: FieldDef, series: FieldDef | None = None
+) -> dict[str, Any]:
     roles: dict[str, list[FieldDef]] = {"Category": [category], "Y": [value]}
     if series:
         roles["Series"] = [series]
@@ -254,6 +270,7 @@ def build_ribbon_chart(category: FieldDef, value: FieldDef, series: FieldDef | N
 
 
 # ── VisualSpec and serialisation ───────────────────────────────────────────────
+
 
 @dataclass
 class VisualSpec:
@@ -274,19 +291,24 @@ def spec_to_pbir_visual(spec: VisualSpec) -> dict[str, Any]:
 
     if spec.title:
         body.setdefault("visualContainerObjects", {})
-        body["visualContainerObjects"]["title"] = [{
-            "properties": {
-                "show": {"expr": {"Literal": {"Value": "true"}}},
-                "text": {"expr": {"Literal": {"Value": f"'{spec.title}'"}}},
+        body["visualContainerObjects"]["title"] = [
+            {
+                "properties": {
+                    "show": {"expr": {"Literal": {"Value": "true"}}},
+                    "text": {"expr": {"Literal": {"Value": f"'{spec.title}'"}}},
+                }
             }
-        }]
+        ]
 
     return {
         "$schema": VISUAL_CONTAINER_SCHEMA,
         "name": spec.name,
         "position": {
-            "x": spec.x, "y": spec.y, "z": 0,
-            "width": spec.width, "height": spec.height,
+            "x": spec.x,
+            "y": spec.y,
+            "z": 0,
+            "width": spec.width,
+            "height": spec.height,
             "tabOrder": spec.tab_order,
         },
         "visual": body,
@@ -316,16 +338,25 @@ def spec_to_old_pbip_container(spec: VisualSpec) -> dict[str, Any]:
             select_items.append(select_item)
         projections[role] = role_projs
 
-    from_items = [{"Name": alias, "Entity": entity, "Type": 0}
-                  for entity, alias in from_aliases.items()]
+    from_items = [
+        {"Name": alias, "Entity": entity, "Type": 0} for entity, alias in from_aliases.items()
+    ]
 
     config = {
         "name": spec.name,
-        "layouts": [{"id": 0, "position": {
-            "x": spec.x, "y": spec.y, "z": 0,
-            "width": spec.width, "height": spec.height,
-            "tabOrder": spec.tab_order,
-        }}],
+        "layouts": [
+            {
+                "id": 0,
+                "position": {
+                    "x": spec.x,
+                    "y": spec.y,
+                    "z": 0,
+                    "width": spec.width,
+                    "height": spec.height,
+                    "tabOrder": spec.tab_order,
+                },
+            }
+        ],
         "singleVisual": {
             "visualType": body.get("visualType", spec.visual_type),
             "projections": projections,
@@ -336,16 +367,24 @@ def spec_to_old_pbip_container(spec: VisualSpec) -> dict[str, Any]:
         },
     }
     if spec.title:
-        config["singleVisual"]["objects"].setdefault("title", [{
-            "properties": {
-                "show": {"expr": {"Literal": {"Value": "true"}}},
-                "text": {"expr": {"Literal": {"Value": f"'{spec.title}'"}}},
-            }
-        }])
+        config["singleVisual"]["objects"].setdefault(
+            "title",
+            [
+                {
+                    "properties": {
+                        "show": {"expr": {"Literal": {"Value": "true"}}},
+                        "text": {"expr": {"Literal": {"Value": f"'{spec.title}'"}}},
+                    }
+                }
+            ],
+        )
 
     return {
-        "x": spec.x, "y": spec.y, "z": 0,
-        "width": spec.width, "height": spec.height,
+        "x": spec.x,
+        "y": spec.y,
+        "z": 0,
+        "width": spec.width,
+        "height": spec.height,
         "config": _json.dumps(config, separators=(",", ":")),
         "filters": "[]",
         "tabOrder": spec.tab_order,
@@ -357,6 +396,7 @@ def _field_expr_to_select(
     from_aliases: dict[str, str],
 ) -> tuple[dict[str, Any], str]:
     """Convert a PBIR GA field expression to an old-format SELECT item."""
+
     def _alias(entity: str) -> str:
         if entity not in from_aliases:
             from_aliases[entity] = entity[0].lower() + str(len(from_aliases))
@@ -379,7 +419,11 @@ def _field_expr_to_select(
     if "Aggregation" in fe:
         a = fe["Aggregation"]
         inner, alias = _field_expr_to_select(a["Expression"], from_aliases)
-        return {"Aggregation": {"Expression": inner["Column"] if "Column" in inner else inner,
-                                "Function": a["Function"]}}, alias
+        return {
+            "Aggregation": {
+                "Expression": inner["Column"] if "Column" in inner else inner,
+                "Function": a["Function"],
+            }
+        }, alias
 
     return fe, ""

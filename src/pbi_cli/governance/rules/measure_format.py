@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-RULE_ID = "measure-format-required"
-
 from typing import Any
+
+RULE_ID = "measure-format-required"
 
 _DEFAULT_FORMAT = "#,0.00"
 
@@ -13,13 +13,15 @@ def check(backend: Any) -> list[dict[str, Any]]:
     violations = []
     for measure in backend.measure_list():
         if not measure.get("formatString"):
-            violations.append({
-                "rule": "measure-format-required",
-                "object": f"Measure '{measure['name']}'",
-                "message": f"Measure '{measure['name']}' is missing a formatString",
-                "severity": "warning",
-                "autoFixable": True,
-            })
+            violations.append(
+                {
+                    "rule": "measure-format-required",
+                    "object": f"Measure '{measure['name']}'",
+                    "message": f"Measure '{measure['name']}' is missing a formatString",
+                    "severity": "warning",
+                    "autoFixable": True,
+                }
+            )
     return violations
 
 

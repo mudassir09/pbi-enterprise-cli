@@ -30,8 +30,12 @@ def security_roles(ctx: click.Context) -> None:
 @security.command("role-add")
 @click.option("--name", required=True, help="Role name (e.g. 'Region Manager').")
 @click.option("--table", required=True, help="Table to apply the filter to.")
-@click.option("--filter", "filter_expression", required=True,
-              help='DAX filter expression (e.g. "[Region] = USERNAME()").')
+@click.option(
+    "--filter",
+    "filter_expression",
+    required=True,
+    help='DAX filter expression (e.g. "[Region] = USERNAME()").',
+)
 @click.pass_context
 def security_role_add(ctx: click.Context, name: str, table: str, filter_expression: str) -> None:
     """Add an RLS role with a DAX row filter on a table."""
@@ -40,6 +44,7 @@ def security_role_add(ctx: click.Context, name: str, table: str, filter_expressi
     backend = get_backend(ctx)
     result = backend.role_add(name=name, table=table, filter_expression=filter_expression)
     from pbi_cli._audit import write_audit_entry
+
     write_audit_entry("security role-add", extra={"name": name, "table": table})
     output_json_or_table(result, ctx, title="RLS Role Added")
     console.print(f"[green]Role added:[/green] '{name}' — {table}: {filter_expression}")
@@ -55,14 +60,18 @@ def security_role_delete(ctx: click.Context, name: str) -> None:
     backend = get_backend(ctx)
     backend.role_delete(name=name)
     from pbi_cli._audit import write_audit_entry
+
     write_audit_entry("security role-delete", extra={"name": name})
     console.print(f"[green]Deleted[/green] RLS role '{name}'.")
 
 
 @security.command("test")
 @click.option("--role", required=True, help="Role name to test.")
-@click.option("--query", required=True,
-              help='DAX EVALUATE query to run under the role (e.g. "EVALUATE Sales").')
+@click.option(
+    "--query",
+    required=True,
+    help='DAX EVALUATE query to run under the role (e.g. "EVALUATE Sales").',
+)
 @click.pass_context
 def security_test(ctx: click.Context, role: str, query: str) -> None:
     """Execute a DAX query with a specific RLS role applied and show the filtered result.

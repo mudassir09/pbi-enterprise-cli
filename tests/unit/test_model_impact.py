@@ -40,11 +40,18 @@ class TestModelImpact:
         assert "DAX dependents" in result.output or "No DAX dependents" in result.output
 
     def test_impact_json_output(self, runner):
-        import json
-        result = runner.invoke(cli, [
-            "--backend", "mock", "--json",
-            "model", "impact", "--measure", "Total Sales",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--backend",
+                "mock",
+                "--json",
+                "model",
+                "impact",
+                "--measure",
+                "Total Sales",
+            ],
+        )
         assert result.exit_code == 0
         # Output should include JSON somewhere
         assert "target" in result.output or "Total Sales" in result.output
@@ -53,12 +60,14 @@ class TestModelImpact:
 class TestImpactHelpers:
     def test_search_terms_measure(self):
         from pbi_cli.commands.model import _impact_search_terms
+
         terms = _impact_search_terms("Total Sales", is_measure=True)
         assert "Total Sales" in terms
         assert "[Total Sales]" in terms
 
     def test_search_terms_column(self):
         from pbi_cli.commands.model import _impact_search_terms
+
         terms = _impact_search_terms("financials[Sales]", is_measure=False)
         assert "financials[Sales]" in terms
         assert "[Sales]" in terms
@@ -66,17 +75,20 @@ class TestImpactHelpers:
 
     def test_search_terms_simple_column(self):
         from pbi_cli.commands.model import _impact_search_terms
+
         terms = _impact_search_terms("Revenue", is_measure=False)
         assert "Revenue" in terms
 
     def test_scan_pbir_nonexistent_path(self, tmp_path):
         from pbi_cli.commands.model import _scan_pbir_for_field
+
         result = _scan_pbir_for_field(str(tmp_path / "no_report"), "Sales", is_measure=True)
         assert result == []
 
     def test_scan_pbir_finds_reference(self, tmp_path):
         """Creates a mock PBIR folder and verifies scan finds the field."""
         import json
+
         from pbi_cli.commands.model import _scan_pbir_for_field
 
         # Build a minimal PBIR structure
@@ -114,15 +126,11 @@ class TestImpactHelpers:
                 },
             },
         }
-        (visuals_dir / "visual.json").write_text(
-            json.dumps(visual_json), encoding="utf-8"
-        )
+        (visuals_dir / "visual.json").write_text(json.dumps(visual_json), encoding="utf-8")
 
         # Create .pbip file
         pbip_file = tmp_path / "TestReport.pbip"
-        pbip_file.write_text(
-            json.dumps({"version": "1.0"}), encoding="utf-8"
-        )
+        pbip_file.write_text(json.dumps({"version": "1.0"}), encoding="utf-8")
 
         results = _scan_pbir_for_field(str(tmp_path), "Sales", is_measure=True)
         assert len(results) == 1

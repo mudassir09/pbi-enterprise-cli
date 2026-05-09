@@ -5,7 +5,7 @@ from __future__ import annotations
 import click
 from rich.console import Console
 
-from pbi_cli.commands._shared import dry_run_echo, get_backend, output_json_or_table
+from pbi_cli.commands._shared import dry_run_echo, get_backend
 
 console = Console()
 
@@ -16,21 +16,37 @@ def calendar_cmd() -> None:
 
 
 @calendar_cmd.command("generate")
-@click.option("--table-name", default="Calendar", show_default=True,
-              help="Name for the generated calendar table.")
-@click.option("--start-year", default=2020, show_default=True, type=int,
-              help="First year to include.")
-@click.option("--end-year",   default=2030, show_default=True, type=int,
-              help="Last year to include.")
-@click.option("--fiscal-year-start", default=1, show_default=True, type=int,
-              help="First month of the fiscal year (1=Jan, 7=Jul, 10=Oct).")
-@click.option("--weekend-days", default="6,7", show_default=True,
-              help="Comma-separated ISO weekday numbers for weekends (1=Mon…7=Sun).")
+@click.option(
+    "--table-name",
+    default="Calendar",
+    show_default=True,
+    help="Name for the generated calendar table.",
+)
+@click.option(
+    "--start-year", default=2020, show_default=True, type=int, help="First year to include."
+)
+@click.option("--end-year", default=2030, show_default=True, type=int, help="Last year to include.")
+@click.option(
+    "--fiscal-year-start",
+    default=1,
+    show_default=True,
+    type=int,
+    help="First month of the fiscal year (1=Jan, 7=Jul, 10=Oct).",
+)
+@click.option(
+    "--weekend-days",
+    default="6,7",
+    show_default=True,
+    help="Comma-separated ISO weekday numbers for weekends (1=Mon…7=Sun).",
+)
 @click.pass_context
 def calendar_generate(
     ctx: click.Context,
-    table_name: str, start_year: int, end_year: int,
-    fiscal_year_start: int, weekend_days: str,
+    table_name: str,
+    start_year: int,
+    end_year: int,
+    fiscal_year_start: int,
+    weekend_days: str,
 ) -> None:
     """Generate a DAX CALENDAR expression and add it as a calculated table.
 
@@ -57,8 +73,9 @@ def calendar_generate(
 
 @calendar_cmd.command("mark-date-table")
 @click.option("--table", required=True, help="Table to mark as the date table.")
-@click.option("--date-column", default="Date", show_default=True,
-              help="Column containing the date key.")
+@click.option(
+    "--date-column", default="Date", show_default=True, help="Column containing the date key."
+)
 @click.pass_context
 def calendar_mark_date_table(ctx: click.Context, table: str, date_column: str) -> None:
     """Mark a table as the official date table for time-intelligence functions."""
@@ -104,20 +121,24 @@ def _build_calendar_dax(start_year: int, end_year: int, fy_start: int, weekends:
 
 # ── Culture / Locale ───────────────────────────────────────────────────────────
 
+
 @click.group("culture")
 def culture_cmd() -> None:
     """Configure model locale and number/date format culture settings."""
 
 
 @culture_cmd.command("set")
-@click.option("--locale", required=True,
-              help="BCP-47 locale tag (e.g. en-US, en-GB, de-DE, fr-FR, ar-SA).")
+@click.option(
+    "--locale", required=True, help="BCP-47 locale tag (e.g. en-US, en-GB, de-DE, fr-FR, ar-SA)."
+)
 @click.option("--thousands-sep", default=None, help="Override thousands separator.")
-@click.option("--decimal-sep",   default=None, help="Override decimal separator.")
+@click.option("--decimal-sep", default=None, help="Override decimal separator.")
 @click.pass_context
 def culture_set(
-    ctx: click.Context, locale: str,
-    thousands_sep: str | None, decimal_sep: str | None,
+    ctx: click.Context,
+    locale: str,
+    thousands_sep: str | None,
+    decimal_sep: str | None,
 ) -> None:
     """Set the model culture (locale) for number and date formatting.
 
@@ -136,9 +157,15 @@ def culture_set(
     if dry_run_echo(ctx, f"set model culture to '{locale}'"):
         return
     _KNOWN_LOCALES = {
-        "en-US": (",", "."), "en-GB": (",", "."), "de-DE": (".", ","),
-        "fr-FR": (" ", ","), "nl-NL": (".", ","), "es-ES": (".", ","),
-        "pt-BR": (".", ","), "ja-JP": (",", "."), "zh-CN": (",", "."),
+        "en-US": (",", "."),
+        "en-GB": (",", "."),
+        "de-DE": (".", ","),
+        "fr-FR": (" ", ","),
+        "nl-NL": (".", ","),
+        "es-ES": (".", ","),
+        "pt-BR": (".", ","),
+        "ja-JP": (",", "."),
+        "zh-CN": (",", "."),
         "ar-SA": (",", "."),
     }
     if locale in _KNOWN_LOCALES and not thousands_sep:

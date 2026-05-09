@@ -42,40 +42,60 @@ class TestVisualFormat:
     def test_format_missing_visual_exits_nonzero(self, runner, pbip_copy):
         result = _run(
             runner,
-            "visual", "format",
-            "--pbip", pbip_copy,
-            "--page", "Executive Summary",
-            "--visual", "definitely_does_not_exist_xyz",
-            "--type", "color-scale",
-            "--table", "financials",
-            "--measure", "Sales",
+            "visual",
+            "format",
+            "--pbip",
+            pbip_copy,
+            "--page",
+            "Executive Summary",
+            "--visual",
+            "definitely_does_not_exist_xyz",
+            "--type",
+            "color-scale",
+            "--table",
+            "financials",
+            "--measure",
+            "Sales",
         )
         assert result.exit_code != 0
 
     def test_format_dry_run(self, runner, pbip_copy):
-        result = runner.invoke(cli, [
-            "--dry-run",
-            "visual", "format",
-            "--pbip", pbip_copy,
-            "--page", "Executive Summary",
-            "--visual", "some_visual",
-            "--type", "data-bar",
-            "--table", "financials",
-            "--measure", "Sales",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--dry-run",
+                "visual",
+                "format",
+                "--pbip",
+                pbip_copy,
+                "--page",
+                "Executive Summary",
+                "--visual",
+                "some_visual",
+                "--type",
+                "data-bar",
+                "--table",
+                "financials",
+                "--measure",
+                "Sales",
+            ],
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
     def test_format_color_scale_writes_back_color_property(self, runner, pbip_copy):
         """visual.json must use 'backColor' (not 'background') — Desktop's property name."""
         from pbi_cli.backends.pbir_backend import PbirBackend
-        from pbi_cli.intelligence.visual_builder import FieldDef, VisualSpec, build_table, AGG_SUM
+        from pbi_cli.intelligence.visual_builder import AGG_SUM, FieldDef, VisualSpec, build_table
 
         b = PbirBackend(pbip_copy)
         spec = VisualSpec(
             visual_type="tableEx",
             visual_body=build_table([FieldDef(entity="financials", property="Sales", agg=AGG_SUM)]),
-            x=16, y=16, width=600, height=300,
+            x=16,
+            y=16,
+            width=600,
+            height=300,
         )
         b.page_add("BackColorTest")
         info = b.visual_add("BackColorTest", spec)
@@ -85,8 +105,15 @@ class TestVisualFormat:
         # Re-add to inspect the written file
         b.page_add("BackColorTest2")
         info2 = b.visual_add("BackColorTest2", spec)
-        b.visual_format_color_scale("BackColorTest2", info2["name"], "financials", "Sales",
-                                    low_color="#FF6B6B", mid_color="#FFD93D", high_color="#6BCB77")
+        b.visual_format_color_scale(
+            "BackColorTest2",
+            info2["name"],
+            "financials",
+            "Sales",
+            low_color="#FF6B6B",
+            mid_color="#FFD93D",
+            high_color="#6BCB77",
+        )
 
         vj = b._ga_find_visual_json("BackColorTest2", info2["name"])
         assert vj is not None
@@ -101,19 +128,24 @@ class TestVisualFormat:
     def test_format_color_scale_uses_linear_gradient3_lowercase(self, runner, pbip_copy):
         """FillRule must use 'linearGradient3' (lowercase) — Desktop's exact key name."""
         from pbi_cli.backends.pbir_backend import PbirBackend
-        from pbi_cli.intelligence.visual_builder import FieldDef, VisualSpec, build_table, AGG_SUM
+        from pbi_cli.intelligence.visual_builder import AGG_SUM, FieldDef, VisualSpec, build_table
 
         b = PbirBackend(pbip_copy)
         spec = VisualSpec(
             visual_type="tableEx",
             visual_body=build_table([FieldDef(entity="financials", property="Sales", agg=AGG_SUM)]),
-            x=16, y=16, width=600, height=300,
+            x=16,
+            y=16,
+            width=600,
+            height=300,
         )
         b.page_add("GradientTest")
         info = b.visual_add("GradientTest", spec)
         b.visual_format_color_scale("GradientTest", info["name"], "financials", "Sales")
         _, vdata = b._ga_find_visual_json("GradientTest", info["name"])
-        expr = vdata["visual"]["objects"]["values"][0]["properties"]["backColor"]["solid"]["color"]["expr"]
+        expr = vdata["visual"]["objects"]["values"][0]["properties"]["backColor"]["solid"]["color"][
+            "expr"
+        ]
         fill_rule_def = expr["FillRule"]["FillRule"]
         assert "linearGradient3" in fill_rule_def, (
             f"expected 'linearGradient3', got keys: {list(fill_rule_def)}"
@@ -124,13 +156,16 @@ class TestVisualFormat:
     def test_format_color_scale_selector_has_data_wildcard(self, runner, pbip_copy):
         """Selector must have both 'data' (dataViewWildcard) and 'metadata' fields."""
         from pbi_cli.backends.pbir_backend import PbirBackend
-        from pbi_cli.intelligence.visual_builder import FieldDef, VisualSpec, build_table, AGG_SUM
+        from pbi_cli.intelligence.visual_builder import AGG_SUM, FieldDef, VisualSpec, build_table
 
         b = PbirBackend(pbip_copy)
         spec = VisualSpec(
             visual_type="tableEx",
             visual_body=build_table([FieldDef(entity="financials", property="Sales", agg=AGG_SUM)]),
-            x=16, y=16, width=600, height=300,
+            x=16,
+            y=16,
+            width=600,
+            height=300,
         )
         b.page_add("SelectorTest")
         info = b.visual_add("SelectorTest", spec)
@@ -148,19 +183,23 @@ class TestVisualFormat:
     def test_format_color_scale_no_duplicate_entries(self, runner, pbip_copy):
         """Applying color-scale twice on same field must not create duplicate entries."""
         from pbi_cli.backends.pbir_backend import PbirBackend
-        from pbi_cli.intelligence.visual_builder import FieldDef, VisualSpec, build_table, AGG_SUM
+        from pbi_cli.intelligence.visual_builder import AGG_SUM, FieldDef, VisualSpec, build_table
 
         b = PbirBackend(pbip_copy)
         spec = VisualSpec(
             visual_type="tableEx",
             visual_body=build_table([FieldDef(entity="financials", property="Sales", agg=AGG_SUM)]),
-            x=16, y=16, width=600, height=300,
+            x=16,
+            y=16,
+            width=600,
+            height=300,
         )
         b.page_add("DedupTest")
         info = b.visual_add("DedupTest", spec)
         b.visual_format_color_scale("DedupTest", info["name"], "financials", "Sales")
-        b.visual_format_color_scale("DedupTest", info["name"], "financials", "Sales",
-                                    low_color="#000000")
+        b.visual_format_color_scale(
+            "DedupTest", info["name"], "financials", "Sales", low_color="#000000"
+        )
         _, vdata = b._ga_find_visual_json("DedupTest", info["name"])
         values = vdata["visual"]["objects"]["values"]
         assert len(values) == 1, f"expected 1 entry after re-apply, got {len(values)}"
@@ -170,17 +209,25 @@ class TestVisualFormat:
         """Add a table visual, then apply color-scale formatting."""
         from pbi_cli.backends.pbir_backend import PbirBackend
         from pbi_cli.intelligence.visual_builder import (
-            FieldDef, VisualSpec, build_table, AGG_SUM,
+            AGG_SUM,
+            FieldDef,
+            VisualSpec,
+            build_table,
         )
 
         b = PbirBackend(pbip_copy)
         spec = VisualSpec(
             visual_type="tableEx",
-            visual_body=build_table([
-                FieldDef(entity="financials", property="Sales", agg=AGG_SUM),
-                FieldDef(entity="financials", property="Profit", agg=AGG_SUM),
-            ]),
-            x=16, y=16, width=600, height=300,
+            visual_body=build_table(
+                [
+                    FieldDef(entity="financials", property="Sales", agg=AGG_SUM),
+                    FieldDef(entity="financials", property="Profit", agg=AGG_SUM),
+                ]
+            ),
+            x=16,
+            y=16,
+            width=600,
+            height=300,
             title="Test Table",
         )
         b.page_add("FormatTest")
@@ -190,16 +237,26 @@ class TestVisualFormat:
         try:
             result = _run(
                 runner,
-                "visual", "format",
-                "--pbip", pbip_copy,
-                "--page", "FormatTest",
-                "--visual", visual_name,
-                "--type", "color-scale",
-                "--table", "financials",
-                "--measure", "Sales",
-                "--low-color", "#FF0000",
-                "--mid-color", "#FFFF00",
-                "--high-color", "#00FF00",
+                "visual",
+                "format",
+                "--pbip",
+                pbip_copy,
+                "--page",
+                "FormatTest",
+                "--visual",
+                visual_name,
+                "--type",
+                "color-scale",
+                "--table",
+                "financials",
+                "--measure",
+                "Sales",
+                "--low-color",
+                "#FF0000",
+                "--mid-color",
+                "#FFFF00",
+                "--high-color",
+                "#00FF00",
             )
             assert result.exit_code == 0
             assert "color-scale" in result.output.lower() or "conditional" in result.output.lower()
@@ -210,16 +267,24 @@ class TestVisualFormat:
         """Add a table visual, then apply data-bar formatting."""
         from pbi_cli.backends.pbir_backend import PbirBackend
         from pbi_cli.intelligence.visual_builder import (
-            FieldDef, VisualSpec, build_table, AGG_SUM,
+            AGG_SUM,
+            FieldDef,
+            VisualSpec,
+            build_table,
         )
 
         b = PbirBackend(pbip_copy)
         spec = VisualSpec(
             visual_type="tableEx",
-            visual_body=build_table([
-                FieldDef(entity="financials", property="Profit", agg=AGG_SUM),
-            ]),
-            x=16, y=16, width=600, height=300,
+            visual_body=build_table(
+                [
+                    FieldDef(entity="financials", property="Profit", agg=AGG_SUM),
+                ]
+            ),
+            x=16,
+            y=16,
+            width=600,
+            height=300,
         )
         b.page_add("DataBarTest")
         result_info = b.visual_add("DataBarTest", spec)
@@ -228,13 +293,20 @@ class TestVisualFormat:
         try:
             result = _run(
                 runner,
-                "visual", "format",
-                "--pbip", pbip_copy,
-                "--page", "DataBarTest",
-                "--visual", visual_name,
-                "--type", "data-bar",
-                "--table", "financials",
-                "--measure", "Profit",
+                "visual",
+                "format",
+                "--pbip",
+                pbip_copy,
+                "--page",
+                "DataBarTest",
+                "--visual",
+                visual_name,
+                "--type",
+                "data-bar",
+                "--table",
+                "financials",
+                "--measure",
+                "Profit",
             )
             assert result.exit_code == 0
         finally:

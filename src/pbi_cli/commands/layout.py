@@ -5,7 +5,7 @@ from __future__ import annotations
 import click
 from rich.console import Console
 
-from pbi_cli.commands._shared import dry_run_echo, get_backend, output_json_or_table
+from pbi_cli.commands._shared import dry_run_echo, output_json_or_table
 
 console = Console()
 
@@ -21,10 +21,12 @@ def layout() -> None:
 @click.option("--canvas-width", default=1280, show_default=True)
 @click.option("--canvas-height", default=720, show_default=True)
 @click.pass_context
-def layout_auto(ctx: click.Context, pbip: str, page: str, canvas_width: int, canvas_height: int) -> None:
+def layout_auto(
+    ctx: click.Context, pbip: str, page: str, canvas_width: int, canvas_height: int
+) -> None:
     """Load all visuals from a PBIR page, classify them, and repack onto the canvas."""
-    from pbi_cli.intelligence.layout_engine import LayoutEngine
     from pbi_cli.backends.pbir_backend import PbirBackend
+    from pbi_cli.intelligence.layout_engine import LayoutEngine
 
     console.print(f"[cyan]Auto-layout:[/cyan] page '{page}' ({canvas_width}x{canvas_height})")
     pbir = PbirBackend(pbip)
@@ -43,8 +45,8 @@ def layout_auto(ctx: click.Context, pbip: str, page: str, canvas_width: int, can
         return
 
     # Write positions back to PBIR files
-    from pbi_cli.intelligence.visual_builder import VisualSpec
     from pbi_cli._audit import write_audit_entry
+
     for pos in positions:
         vd = pbir._ga_visuals_dir(page)  # type: ignore[attr-defined]
         if vd is None:
@@ -56,12 +58,17 @@ def layout_auto(ctx: click.Context, pbip: str, page: str, canvas_width: int, can
             if not vj.exists():
                 continue
             import json
+
             data = json.loads(vj.read_text(encoding="utf-8"))
             if data.get("name") == pos["name"]:
-                data.setdefault("position", {}).update({
-                    "x": pos["x"], "y": pos["y"],
-                    "width": pos["width"], "height": pos["height"],
-                })
+                data.setdefault("position", {}).update(
+                    {
+                        "x": pos["x"],
+                        "y": pos["y"],
+                        "width": pos["width"],
+                        "height": pos["height"],
+                    }
+                )
                 vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
     write_audit_entry("layout auto", extra={"page": page, "visuals_repositioned": len(positions)})
@@ -70,13 +77,24 @@ def layout_auto(ctx: click.Context, pbip: str, page: str, canvas_width: int, can
 
 
 @layout.command("template")
-@click.option("--name", required=True, type=click.Choice(["executive-dashboard", "operational-monitor", "financial-report", "drill-through-detail"]))
+@click.option(
+    "--name",
+    required=True,
+    type=click.Choice(
+        ["executive-dashboard", "operational-monitor", "financial-report", "drill-through-detail"]
+    ),
+)
 @click.option("--page", required=True, help="Page name.")
 @click.pass_context
 def layout_template(ctx: click.Context, name: str, page: str) -> None:
     """Apply a named layout template to a page."""
     templates = {
-        "executive-dashboard": ["KPI Strip (top 15%)", "Main Chart (center 60%)", "Table (bottom 25%)", "Slicer Rail (right 20%)"],
+        "executive-dashboard": [
+            "KPI Strip (top 15%)",
+            "Main Chart (center 60%)",
+            "Table (bottom 25%)",
+            "Slicer Rail (right 20%)",
+        ],
         "operational-monitor": ["KPI Strip", "Real-time Chart", "Alert Table"],
         "financial-report": ["Header", "YTD KPIs", "Trend Chart", "Variance Table"],
         "drill-through-detail": ["Filter Panel", "Detail Table", "Supporting Chart"],

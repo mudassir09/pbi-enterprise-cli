@@ -29,6 +29,7 @@ def _invoke_json(runner: CliRunner, *args: str) -> list | dict:
 
 # ── measure list ──────────────────────────────────────────────────────────────
 
+
 class TestMeasureListContract:
     def test_returns_list(self, runner):
         data = _invoke_json(runner, "measure", "list")
@@ -50,6 +51,7 @@ class TestMeasureListContract:
 
 # ── model tables ──────────────────────────────────────────────────────────────
 
+
 class TestModelTablesContract:
     def test_returns_list(self, runner):
         data = _invoke_json(runner, "model", "tables")
@@ -66,6 +68,7 @@ class TestModelTablesContract:
 
 
 # ── model columns ─────────────────────────────────────────────────────────────
+
 
 class TestModelColumnsContract:
     def test_returns_list(self, runner):
@@ -89,6 +92,7 @@ class TestModelColumnsContract:
 
 # ── model relationships ───────────────────────────────────────────────────────
 
+
 class TestModelRelationshipsContract:
     def test_returns_list(self, runner):
         data = _invoke_json(runner, "model", "relationships")
@@ -106,6 +110,7 @@ class TestModelRelationshipsContract:
 
 
 # ── govern check ─────────────────────────────────────────────────────────────
+
 
 class TestGovernCheckContract:
     def test_returns_list(self, runner):
@@ -127,9 +132,11 @@ class TestGovernCheckContract:
 
 # ── source scaffold ───────────────────────────────────────────────────────────
 
+
 class TestSourceScaffoldContract:
     def test_scaffold_output_has_tables_and_relationships(self, runner, tmp_path):
         import json as _json
+
         profile = [
             {
                 "tableName": "FactOrders",
@@ -165,9 +172,12 @@ class TestSourceScaffoldContract:
 
 # ── visual recommend ─────────────────────────────────────────────────────────
 
+
 class TestVisualRecommendContract:
     def test_returns_list(self, runner):
-        data = _invoke_json(runner, "visual", "recommend", "--measures", "Total Revenue,YTD Revenue")
+        data = _invoke_json(
+            runner, "visual", "recommend", "--measures", "Total Revenue,YTD Revenue"
+        )
         assert isinstance(data, list)
 
     def test_each_item_has_visual_and_rationale(self, runner):

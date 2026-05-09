@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import colorsys
-import json
 import re
 from typing import Any
 
@@ -15,12 +14,13 @@ def _hex_to_rgb(hex_color: str) -> tuple[float, float, float]:
 
 
 def _rgb_to_hex(r: float, g: float, b: float) -> str:
-    return "#{:02X}{:02X}{:02X}".format(int(r * 255), int(g * 255), int(b * 255))
+    return f"#{int(r * 255):02X}{int(g * 255):02X}{int(b * 255):02X}"
 
 
 def _relative_luminance(r: float, g: float, b: float) -> float:
     def linearise(c: float) -> float:
         return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
     return 0.2126 * linearise(r) + 0.7152 * linearise(g) + 0.0722 * linearise(b)
 
 
@@ -48,15 +48,17 @@ def _lighten(hex_color: str, amount: float) -> str:
 class ThemeGenerator:
     def generate(self, brand_color: str, style: str = "corporate") -> dict[str, Any]:
         primary = brand_color
-        p_dark1 = _darken(primary, 0.15)   # slot 2: darker variant
-        p_dark2 = _darken(primary, 0.30)   # slot 5: deep dark
-        p_light1 = _lighten(primary, 0.25) # slot 3: medium light
-        p_light2 = _lighten(primary, 0.50) # slot 4: light tint
+        p_dark1 = _darken(primary, 0.15)  # slot 2: darker variant
+        p_dark2 = _darken(primary, 0.30)  # slot 5: deep dark
+        p_light1 = _lighten(primary, 0.25)  # slot 3: medium light
+        p_light2 = _lighten(primary, 0.50)  # slot 4: light tint
 
         # Complementary accent — rotate hue 150 degrees
         r, g, b = _hex_to_rgb(primary)
         h, s, v = colorsys.rgb_to_hsv(r, g, b)
-        accent = _rgb_to_hex(*colorsys.hsv_to_rgb((h + 150 / 360) % 1.0, s * 0.8, min(v + 0.1, 1.0)))
+        accent = _rgb_to_hex(
+            *colorsys.hsv_to_rgb((h + 150 / 360) % 1.0, s * 0.8, min(v + 0.1, 1.0))
+        )
 
         neutral = "#605E5C"
         warning = "#FFB900"
@@ -70,7 +72,6 @@ class ThemeGenerator:
 
         # Build style-specific visualStyles
         card_label_color = "#F0F0F0" if is_dark else primary
-        title_color = "#F0F0F0" if is_dark else "#252423"
         header_bg = primary
 
         return {
@@ -90,39 +91,49 @@ class ThemeGenerator:
                 },
                 "card": {
                     "*": {
-                        "labels": [{
-                            "color": {"solid": {"color": card_label_color}},
-                            "fontSize": 28,
-                            "fontFamily": "Segoe UI Light",
-                        }],
-                        "categoryLabels": [{
-                            "color": {"solid": {"color": neutral}},
-                            "fontSize": 10,
-                        }],
+                        "labels": [
+                            {
+                                "color": {"solid": {"color": card_label_color}},
+                                "fontSize": 28,
+                                "fontFamily": "Segoe UI Light",
+                            }
+                        ],
+                        "categoryLabels": [
+                            {
+                                "color": {"solid": {"color": neutral}},
+                                "fontSize": 10,
+                            }
+                        ],
                     }
                 },
                 "tableEx": {
                     "*": {
-                        "header": [{
-                            "fontColor": {"solid": {"color": "#FFFFFF"}},
-                            "backColor": {"solid": {"color": header_bg}},
-                            "fontSize": 10,
-                            "fontFamily": "Segoe UI",
-                            "bold": True,
-                        }],
-                        "values": [{
-                            "fontSize": 9,
-                            "fontFamily": "Segoe UI",
-                        }],
+                        "header": [
+                            {
+                                "fontColor": {"solid": {"color": "#FFFFFF"}},
+                                "backColor": {"solid": {"color": header_bg}},
+                                "fontSize": 10,
+                                "fontFamily": "Segoe UI",
+                                "bold": True,
+                            }
+                        ],
+                        "values": [
+                            {
+                                "fontSize": 9,
+                                "fontFamily": "Segoe UI",
+                            }
+                        ],
                     }
                 },
                 "slicer": {
                     "*": {
-                        "header": [{
-                            "fontColor": {"solid": {"color": primary}},
-                            "fontSize": 10,
-                            "bold": True,
-                        }],
+                        "header": [
+                            {
+                                "fontColor": {"solid": {"color": primary}},
+                                "fontSize": 10,
+                                "bold": True,
+                            }
+                        ],
                     }
                 },
                 "barChart": {
@@ -146,21 +157,25 @@ class ThemeGenerator:
         fg = theme.get("foreground", "#000000")
         ratio = _contrast_ratio(fg, bg)
         if ratio < 4.5:
-            failures.append({
-                "pair": f"{fg} on {bg}",
-                "ratio": round(ratio, 2),
-                "required": 4.5,
-                "element": "body text",
-            })
+            failures.append(
+                {
+                    "pair": f"{fg} on {bg}",
+                    "ratio": round(ratio, 2),
+                    "required": 4.5,
+                    "element": "body text",
+                }
+            )
         for i, color in enumerate(theme.get("dataColors", [])):
             r = _contrast_ratio(color, bg)
             if r < 3.0:
-                failures.append({
-                    "pair": f"dataColor[{i}] {color} on {bg}",
-                    "ratio": round(r, 2),
-                    "required": 3.0,
-                    "element": "UI component",
-                })
+                failures.append(
+                    {
+                        "pair": f"dataColor[{i}] {color} on {bg}",
+                        "ratio": round(r, 2),
+                        "required": 3.0,
+                        "element": "UI component",
+                    }
+                )
         return {"passes": len(failures) == 0, "failures": failures}
 
     def fix_contrast(self, theme: dict[str, Any], failures: list[dict]) -> dict[str, Any]:

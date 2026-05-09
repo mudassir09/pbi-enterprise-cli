@@ -11,10 +11,10 @@ class MeasureGenerator:
     def generate(self, description: str, schema: list[dict[str, Any]]) -> dict[str, Any]:
         try:
             import anthropic
+
             client = anthropic.Anthropic()
             schema_text = "\n".join(
-                f"  {c['table']}[{c['name']}] ({c.get('dataType', 'Unknown')})"
-                for c in schema
+                f"  {c['table']}[{c['name']}] ({c.get('dataType', 'Unknown')})" for c in schema
             )
             message = client.messages.create(
                 model="claude-sonnet-4-6",

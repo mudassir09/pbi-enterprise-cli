@@ -17,12 +17,14 @@ def report() -> None:
 
 # ── Pages ──────────────────────────────────────────────────────────────────────
 
+
 @report.command("pages")
 @click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
 @click.pass_context
 def report_pages(ctx: click.Context, pbip: str) -> None:
     """List all pages in a .pbip report."""
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     pages = b.page_list()
     if not pages:
@@ -40,6 +42,7 @@ def report_page_add(ctx: click.Context, pbip: str, name: str) -> None:
     if dry_run_echo(ctx, f"add page '{name}'"):
         return
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     result = b.page_add(name)
     console.print(f"[green]Page added:[/green] '{name}'  (id: {result['name']})")
@@ -54,6 +57,7 @@ def report_page_delete(ctx: click.Context, pbip: str, name: str) -> None:
     if dry_run_echo(ctx, f"delete page '{name}'"):
         return
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     b.page_delete(name)
     console.print(f"[green]Deleted[/green] page '{name}'.")
@@ -68,6 +72,7 @@ def report_clear_page(ctx: click.Context, pbip: str, page: str) -> None:
     if dry_run_echo(ctx, f"clear all visuals on page '{page}'"):
         return
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     b.page_clear(page)
     console.print(f"[green]Cleared[/green] all visuals on '{page}'.")
@@ -75,16 +80,18 @@ def report_clear_page(ctx: click.Context, pbip: str, page: str) -> None:
 
 # ── Scaffold ───────────────────────────────────────────────────────────────────
 
+
 @report.command("scaffold")
-@click.option("--pbip",    required=True, help="Path to the .pbip project folder or file.")
-@click.option("--model",   default="financials",
-              help="Semantic model table name containing the data (default: financials).")
-@click.option("--pages",   default=3, show_default=True, help="Number of pages to create (1-3).")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option(
+    "--model",
+    default="financials",
+    help="Semantic model table name containing the data (default: financials).",
+)
+@click.option("--pages", default=3, show_default=True, help="Number of pages to create (1-3).")
 @click.option("--replace", is_flag=True, help="Delete existing pages before scaffolding.")
 @click.pass_context
-def report_scaffold(
-    ctx: click.Context, pbip: str, model: str, pages: int, replace: bool
-) -> None:
+def report_scaffold(ctx: click.Context, pbip: str, model: str, pages: int, replace: bool) -> None:
     """Scaffold a complete multi-page report in a .pbip project.
 
     Creates up to 3 pages with pre-built visuals tailored for the
@@ -106,10 +113,15 @@ def report_scaffold(
 
     from pbi_cli.backends.pbir_backend import PbirBackend
     from pbi_cli.intelligence.visual_builder import (
-        FieldDef, VisualSpec,
-        build_card, build_bar_chart, build_column_chart,
-        build_line_chart, build_slicer, build_table, build_multi_row_card,
-        AGG_SUM, AGG_COUNT,
+        AGG_SUM,
+        FieldDef,
+        VisualSpec,
+        build_bar_chart,
+        build_card,
+        build_line_chart,
+        build_multi_row_card,
+        build_slicer,
+        build_table,
     )
 
     b = PbirBackend(pbip)
@@ -135,8 +147,8 @@ def report_scaffold(
     GUTTER = 16
     CARD_W, CARD_H = 280, 120
     CHART_W, CHART_H = 600, 360
-    SLIM_W, SLIM_H = 580, 360
-    SLICER_W, SLICER_H = 200, 360
+    SLIM_W = 580
+    SLICER_W = 200
     TABLE_W, TABLE_H = 1248, 300
 
     # ════════════════════════════════════════════════════════════════════════
@@ -152,45 +164,64 @@ def report_scaffold(
 
         # Row 1: KPI cards
         cards = [
-            ("Sales",  field("Sales"),           "Total Sales"),
-            ("Profit", field("Profit"),          "Total Profit"),
-            ("Units",  field("Units Sold"),      "Units Sold"),
-            ("COGS",   field("COGS"),            "Total COGS"),
+            ("Sales", field("Sales"), "Total Sales"),
+            ("Profit", field("Profit"), "Total Profit"),
+            ("Units", field("Units Sold"), "Units Sold"),
+            ("COGS", field("COGS"), "Total COGS"),
         ]
         for i, (_, value_field, title) in enumerate(cards):
-            add(PAGE, VisualSpec(
-                visual_type="card",
-                visual_body=build_card(value_field),
-                x=GUTTER + i * (CARD_W + GUTTER),
-                y=GUTTER,
-                width=CARD_W, height=CARD_H,
-                title=title,
-            ))
+            add(
+                PAGE,
+                VisualSpec(
+                    visual_type="card",
+                    visual_body=build_card(value_field),
+                    x=GUTTER + i * (CARD_W + GUTTER),
+                    y=GUTTER,
+                    width=CARD_W,
+                    height=CARD_H,
+                    title=title,
+                ),
+            )
 
         y2 = GUTTER + CARD_H + GUTTER
         # Sales by Country bar
-        add(PAGE, VisualSpec(
-            visual_type="barChart",
-            visual_body=build_bar_chart(col("Country"), field("Sales")),
-            x=GUTTER, y=y2,
-            width=CHART_W, height=CHART_H,
-            title="Sales by Country",
-        ))
+        add(
+            PAGE,
+            VisualSpec(
+                visual_type="barChart",
+                visual_body=build_bar_chart(col("Country"), field("Sales")),
+                x=GUTTER,
+                y=y2,
+                width=CHART_W,
+                height=CHART_H,
+                title="Sales by Country",
+            ),
+        )
         # Year slicer
-        add(PAGE, VisualSpec(
-            visual_type="slicer",
-            visual_body=build_slicer(col("Year")),
-            x=GUTTER + CHART_W + GUTTER, y=y2,
-            width=SLICER_W, height=CHART_H,
-            title="Year",
-        ))
+        add(
+            PAGE,
+            VisualSpec(
+                visual_type="slicer",
+                visual_body=build_slicer(col("Year")),
+                x=GUTTER + CHART_W + GUTTER,
+                y=y2,
+                width=SLICER_W,
+                height=CHART_H,
+                title="Year",
+            ),
+        )
         # Sales by Month line
-        add(PAGE, VisualSpec(
-            visual_type="lineChart",
-            visual_body=build_line_chart(col("Month Name"), field("Sales")),
-            x=GUTTER + CHART_W + GUTTER + SLICER_W + GUTTER, y=y2,
-            width=SLIM_W, height=CHART_H,
-        ))
+        add(
+            PAGE,
+            VisualSpec(
+                visual_type="lineChart",
+                visual_body=build_line_chart(col("Month Name"), field("Sales")),
+                x=GUTTER + CHART_W + GUTTER + SLICER_W + GUTTER,
+                y=y2,
+                width=SLIM_W,
+                height=CHART_H,
+            ),
+        )
         console.print(f"  [green]OK[/green] {len(cards) + 3} visuals")
 
     # ════════════════════════════════════════════════════════════════════════
@@ -204,36 +235,54 @@ def report_scaffold(
         console.print(f"\n[bold]Page 2:[/bold] {PAGE}")
         b.page_add(PAGE)
 
-        add(PAGE, VisualSpec(
-            visual_type="barChart",
-            visual_body=build_bar_chart(col("Segment"), field("Sales")),
-            x=GUTTER, y=GUTTER,
-            width=CHART_W, height=CHART_H,
-            title="Sales by Segment",
-        ))
-        add(PAGE, VisualSpec(
-            visual_type="barChart",
-            visual_body=build_bar_chart(col("Product"), field("Sales")),
-            x=GUTTER + CHART_W + GUTTER, y=GUTTER,
-            width=CHART_W, height=CHART_H,
-            title="Sales by Product",
-        ))
+        add(
+            PAGE,
+            VisualSpec(
+                visual_type="barChart",
+                visual_body=build_bar_chart(col("Segment"), field("Sales")),
+                x=GUTTER,
+                y=GUTTER,
+                width=CHART_W,
+                height=CHART_H,
+                title="Sales by Segment",
+            ),
+        )
+        add(
+            PAGE,
+            VisualSpec(
+                visual_type="barChart",
+                visual_body=build_bar_chart(col("Product"), field("Sales")),
+                x=GUTTER + CHART_W + GUTTER,
+                y=GUTTER,
+                width=CHART_W,
+                height=CHART_H,
+                title="Sales by Product",
+            ),
+        )
 
         # Summary table
         table_cols = [
-            col("Segment"), col("Country"), col("Product"),
-            field("Sales"), field("Profit"),
+            col("Segment"),
+            col("Country"),
+            col("Product"),
+            field("Sales"),
+            field("Profit"),
             FieldDef(entity=model, property="Units Sold", agg=AGG_SUM),
         ]
         from pbi_cli.intelligence.visual_builder import build_table
-        add(PAGE, VisualSpec(
-            visual_type="tableEx",
-            visual_body=build_table(table_cols),
-            x=GUTTER,
-            y=GUTTER + CHART_H + GUTTER,
-            width=TABLE_W, height=TABLE_H,
-        ))
-        console.print(f"  [green]OK[/green] 3 visuals")
+
+        add(
+            PAGE,
+            VisualSpec(
+                visual_type="tableEx",
+                visual_body=build_table(table_cols),
+                x=GUTTER,
+                y=GUTTER + CHART_H + GUTTER,
+                width=TABLE_W,
+                height=TABLE_H,
+            ),
+        )
+        console.print("  [green]OK[/green] 3 visuals")
 
     # ════════════════════════════════════════════════════════════════════════
     # PAGE 3 — Profit Analysis
@@ -246,43 +295,66 @@ def report_scaffold(
         console.print(f"\n[bold]Page 3:[/bold] {PAGE}")
         b.page_add(PAGE)
 
-        add(PAGE, VisualSpec(
-            visual_type="barChart",
-            visual_body=build_bar_chart(col("Country"), field("Profit")),
-            x=GUTTER, y=GUTTER,
-            width=CHART_W, height=CHART_H,
-            title="Profit by Country",
-        ))
-        add(PAGE, VisualSpec(
-            visual_type="barChart",
-            visual_body=build_bar_chart(col("Segment"), field("Profit")),
-            x=GUTTER + CHART_W + GUTTER, y=GUTTER,
-            width=CHART_W, height=CHART_H,
-            title="Profit by Segment",
-        ))
+        add(
+            PAGE,
+            VisualSpec(
+                visual_type="barChart",
+                visual_body=build_bar_chart(col("Country"), field("Profit")),
+                x=GUTTER,
+                y=GUTTER,
+                width=CHART_W,
+                height=CHART_H,
+                title="Profit by Country",
+            ),
+        )
+        add(
+            PAGE,
+            VisualSpec(
+                visual_type="barChart",
+                visual_body=build_bar_chart(col("Segment"), field("Profit")),
+                x=GUTTER + CHART_W + GUTTER,
+                y=GUTTER,
+                width=CHART_W,
+                height=CHART_H,
+                title="Profit by Segment",
+            ),
+        )
 
         y2 = GUTTER + CHART_H + GUTTER
         summary_fields = [
-            field("Sales"), field("Profit"), field("COGS"),
+            field("Sales"),
+            field("Profit"),
+            field("COGS"),
             FieldDef(entity=model, property="Gross Sales", agg=AGG_SUM),
         ]
         from pbi_cli.intelligence.visual_builder import build_multi_row_card
-        add(PAGE, VisualSpec(
-            visual_type="multiRowCard",
-            visual_body=build_multi_row_card(summary_fields),
-            x=GUTTER, y=y2,
-            width=CHART_W, height=200,
-            title="P&L Summary",
-        ))
-        add(PAGE, VisualSpec(
-            visual_type="lineChart",
-            visual_body=build_line_chart(col("Month Name"), field("Profit")),
-            x=GUTTER + CHART_W + GUTTER, y=y2,
-            width=CHART_W, height=CHART_H,
-        ))
-        console.print(f"  [green]OK[/green] 4 visuals")
 
-    console.print(f"\n[bold green]Report scaffold complete![/bold green]")
+        add(
+            PAGE,
+            VisualSpec(
+                visual_type="multiRowCard",
+                visual_body=build_multi_row_card(summary_fields),
+                x=GUTTER,
+                y=y2,
+                width=CHART_W,
+                height=200,
+                title="P&L Summary",
+            ),
+        )
+        add(
+            PAGE,
+            VisualSpec(
+                visual_type="lineChart",
+                visual_body=build_line_chart(col("Month Name"), field("Profit")),
+                x=GUTTER + CHART_W + GUTTER,
+                y=y2,
+                width=CHART_W,
+                height=CHART_H,
+            ),
+        )
+        console.print("  [green]OK[/green] 4 visuals")
+
+    console.print("\n[bold green]Report scaffold complete![/bold green]")
     console.print(
         "\n[cyan]Next step:[/cyan] In Power BI Desktop, click [bold]Reload[/bold] "
         "when prompted, or close and re-open the .pbip file."
@@ -295,12 +367,14 @@ def report_scaffold(
 
 # ── Bookmarks ──────────────────────────────────────────────────────────────────
 
+
 @report.command("bookmark-list")
 @click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
 @click.pass_context
 def report_bookmark_list(ctx: click.Context, pbip: str) -> None:
     """List all bookmarks in a .pbip report."""
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     bookmarks = b.bookmark_list()
     if not bookmarks:
@@ -326,12 +400,15 @@ def report_bookmark_add(ctx: click.Context, pbip: str, name: str, page: str | No
     if dry_run_echo(ctx, f"add bookmark '{name}'" + (f" on page '{page}'" if page else "")):
         return
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     result = b.bookmark_add(name, page=page)
     console.print(f"[green]Bookmark added:[/green] '{name}'  (id: {result['name']})")
     if page:
         console.print(f"  Linked to page: {page}")
-    console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to capture visual state.")
+    console.print(
+        "[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to capture visual state."
+    )
 
 
 @report.command("bookmark-delete")
@@ -343,13 +420,13 @@ def report_bookmark_delete(ctx: click.Context, pbip: str, name: str) -> None:
     if dry_run_echo(ctx, f"delete bookmark '{name}'"):
         return
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     deleted = b.bookmark_delete(name)
     if deleted:
         console.print(f"[green]Deleted[/green] bookmark '{name}'.")
     else:
         console.print(f"[yellow]Bookmark '{name}' not found.[/yellow]")
-
 
 
 @report.command("bookmark-get")
@@ -360,6 +437,7 @@ def report_bookmark_get(ctx: click.Context, pbip: str, name: str) -> None:
     """Get full details of a single bookmark by display name."""
     from pbi_cli.backends.pbir_backend import PbirBackend
     from pbi_cli.commands._shared import output_json_or_table
+
     b = PbirBackend(pbip)
     bookmarks = b.bookmark_list()
     match = next((bm for bm in bookmarks if bm.get("displayName") == name), None)
@@ -370,10 +448,17 @@ def report_bookmark_get(ctx: click.Context, pbip: str, name: str) -> None:
 
 
 @report.command("bookmark-set-visibility")
-@click.option("--pbip",    required=True, help="Path to the .pbip project folder or file.")
-@click.option("--name",    required=True, help="Display name of the bookmark.")
-@click.option("--visible", is_flag=True, default=True, help="Set bookmark visible in the selection pane (default).")
-@click.option("--hidden",  is_flag=True, default=False, help="Hide bookmark from the selection pane.")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--name", required=True, help="Display name of the bookmark.")
+@click.option(
+    "--visible",
+    is_flag=True,
+    default=True,
+    help="Set bookmark visible in the selection pane (default).",
+)
+@click.option(
+    "--hidden", is_flag=True, default=False, help="Hide bookmark from the selection pane."
+)
 @click.pass_context
 def report_bookmark_set_visibility(
     ctx: click.Context, pbip: str, name: str, visible: bool, hidden: bool
@@ -381,8 +466,10 @@ def report_bookmark_set_visibility(
     """Show or hide a bookmark in the Power BI bookmark selection pane."""
     if dry_run_echo(ctx, f"set visibility of bookmark '{name}'"):
         return
-    from pbi_cli.backends.pbir_backend import PbirBackend
     import json as _json
+
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     bdir = b._ga_bookmarks_dir()
     for entry in bdir.iterdir():
@@ -401,10 +488,15 @@ def report_bookmark_set_visibility(
 
 # ── Drillthrough & Tooltip ─────────────────────────────────────────────────────
 
+
 @report.command("drillthrough-setup")
 @click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
 @click.option("--page", required=True, help="Page name to convert to a drillthrough page.")
-@click.option("--table", required=True, help="Source entity table (e.g. 'financials') for the drillthrough field.")
+@click.option(
+    "--table",
+    required=True,
+    help="Source entity table (e.g. 'financials') for the drillthrough field.",
+)
 @click.pass_context
 def report_drillthrough_setup(ctx: click.Context, pbip: str, page: str, table: str) -> None:
     """Convert a report page into a drillthrough destination.
@@ -419,11 +511,14 @@ def report_drillthrough_setup(ctx: click.Context, pbip: str, page: str, table: s
     if dry_run_echo(ctx, f"set page '{page}' as Drillthrough (source: {table})"):
         return
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     b.page_set_type(page, "Drillthrough", drillthrough_table=table)
     console.print(f"[green]Drillthrough enabled:[/green] '{page}' is now a drillthrough page.")
     console.print(f"  Source entity: [cyan]{table}[/cyan]")
-    console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see the drillthrough option.")
+    console.print(
+        "[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see the drillthrough option."  # noqa: E501
+    )
 
 
 @report.command("tooltip-setup")
@@ -442,10 +537,13 @@ def report_tooltip_setup(ctx: click.Context, pbip: str, page: str) -> None:
     if dry_run_echo(ctx, f"set page '{page}' as ReportTooltip"):
         return
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     b.page_set_type(page, "ReportTooltip")
     console.print(f"[green]Tooltip page enabled:[/green] '{page}' is now a report tooltip page.")
-    console.print("[yellow]Tip:[/yellow] Assign this tooltip to a visual in Power BI Desktop via Format > Tooltip > Page.")
+    console.print(
+        "[yellow]Tip:[/yellow] Assign this tooltip to a visual in Power BI Desktop via Format > Tooltip > Page."  # noqa: E501
+    )
 
 
 @report.command("page-type-reset")
@@ -457,6 +555,7 @@ def report_page_type_reset(ctx: click.Context, pbip: str, page: str) -> None:
     if dry_run_echo(ctx, f"reset page '{page}' to Normal type"):
         return
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     b.page_set_type(page, "Normal")
     console.print(f"[green]Page reset:[/green] '{page}' is now a normal report page.")

@@ -33,7 +33,7 @@ class PbirBackend:
     def __init__(self, pbip_path: str | Path | None = None) -> None:
         self._root: Path | None = None
         self._report_dir: Path | None = None
-        self._format: str = "unknown"   # "pbir_ga" | "old_pbip"
+        self._format: str = "unknown"  # "pbir_ga" | "old_pbip"
         self._report_data: dict[str, Any] = {}  # only used for old_pbip
         if pbip_path:
             self.load(pbip_path)
@@ -130,9 +130,7 @@ class PbirBackend:
         assert self._report_dir
         theme_dir = self._report_dir / "StaticResources" / "SharedResources" / "BaseThemes"
         theme_dir.mkdir(parents=True, exist_ok=True)
-        (theme_dir / "CY24SU10.json").write_text(
-            json.dumps(theme_json, indent=2), encoding="utf-8"
-        )
+        (theme_dir / "CY24SU10.json").write_text(json.dumps(theme_json, indent=2), encoding="utf-8")
 
     # ── PBIR GA implementation ─────────────────────────────────────────────────
     # Pages are stored in folders named by their GUID (= page `name` field).
@@ -204,9 +202,7 @@ class PbirBackend:
             "width": self.PAGE_W,
             "height": self.PAGE_H,
         }
-        (page_dir / "page.json").write_text(
-            json.dumps(page_json, indent=2), encoding="utf-8"
-        )
+        (page_dir / "page.json").write_text(json.dumps(page_json, indent=2), encoding="utf-8")
 
         # Update pages.json
         meta = self._ga_read_pages_json()
@@ -270,16 +266,21 @@ class PbirBackend:
                 continue
             data = json.loads(vj.read_text(encoding="utf-8"))
             pos = data.get("position", {})
-            results.append({
-                "name": data.get("name", vdir.name),
-                "visualType": data.get("visual", {}).get("visualType", ""),
-                "x": pos.get("x", 0), "y": pos.get("y", 0),
-                "width": pos.get("width", 0), "height": pos.get("height", 0),
-            })
+            results.append(
+                {
+                    "name": data.get("name", vdir.name),
+                    "visualType": data.get("visual", {}).get("visualType", ""),
+                    "x": pos.get("x", 0),
+                    "y": pos.get("y", 0),
+                    "width": pos.get("width", 0),
+                    "height": pos.get("height", 0),
+                }
+            )
         return results
 
     def _ga_visual_add(self, page: str, spec: Any) -> dict[str, Any]:
         from pbi_cli.intelligence.visual_builder import spec_to_pbir_visual
+
         vd = self._ga_visuals_dir(page)
         if vd is None:
             self._ga_page_add(page)
@@ -290,9 +291,7 @@ class PbirBackend:
         # Visual folder name = visual name (GUID)
         vdir = vd / spec.name
         vdir.mkdir(exist_ok=True)
-        (vdir / "visual.json").write_text(
-            json.dumps(visual_json, indent=2), encoding="utf-8"
-        )
+        (vdir / "visual.json").write_text(json.dumps(visual_json, indent=2), encoding="utf-8")
         return {"name": spec.name, "visualType": spec.visual_type, "page": page}
 
     def _ga_visual_delete(self, page: str, visual_name: str) -> None:
@@ -321,7 +320,9 @@ class PbirBackend:
                 "baseTheme": {
                     "name": "Fluent2-CY26SU04",
                     "reportVersionAtImport": {
-                        "visual": "2.8.0", "report": "3.2.0", "page": "2.3.1"
+                        "visual": "2.8.0",
+                        "report": "3.2.0",
+                        "page": "2.3.1",
                     },
                     "type": "SharedResources",
                 }
@@ -355,7 +356,9 @@ class PbirBackend:
             "filters": "[]",
             "ordinal": ordinal,
             "visualContainers": [],
-            "config": json.dumps({"defaultVisualInteraction": "includeFilters"}, separators=(",", ":")),
+            "config": json.dumps(
+                {"defaultVisualInteraction": "includeFilters"}, separators=(",", ":")
+            ),
             "width": self.PAGE_W,
             "height": self.PAGE_H,
         }
@@ -366,7 +369,8 @@ class PbirBackend:
     def _old_page_delete(self, display_name: str) -> None:
         sections = self._report_data.get("sections", [])
         self._report_data["sections"] = [
-            s for s in sections
+            s
+            for s in sections
             if s.get("displayName") != display_name and s.get("name") != display_name
         ]
         self._save_old()
@@ -385,18 +389,23 @@ class PbirBackend:
         for vc in section.get("visualContainers", []):
             try:
                 cfg = json.loads(vc.get("config", "{}"))
-                results.append({
-                    "name": cfg.get("name", ""),
-                    "visualType": cfg.get("singleVisual", {}).get("visualType", ""),
-                    "x": vc.get("x", 0), "y": vc.get("y", 0),
-                    "width": vc.get("width", 0), "height": vc.get("height", 0),
-                })
+                results.append(
+                    {
+                        "name": cfg.get("name", ""),
+                        "visualType": cfg.get("singleVisual", {}).get("visualType", ""),
+                        "x": vc.get("x", 0),
+                        "y": vc.get("y", 0),
+                        "width": vc.get("width", 0),
+                        "height": vc.get("height", 0),
+                    }
+                )
             except Exception:
                 pass
         return results
 
     def _old_visual_add(self, page: str, spec: Any) -> dict[str, Any]:
         from pbi_cli.intelligence.visual_builder import spec_to_old_pbip_container
+
         section = self._old_find_section(page)
         if section is None:
             self._old_page_add(page)
@@ -491,9 +500,7 @@ class PbirBackend:
         # Resolve active page GUID
         active_section = ""
         if page:
-            page_info = next(
-                (p for p in self.page_list() if p["displayName"] == page), None
-            )
+            page_info = next((p for p in self.page_list() if p["displayName"] == page), None)
             if page_info:
                 active_section = page_info["name"]
         else:
@@ -541,8 +548,7 @@ class PbirBackend:
                 entry.unlink()
                 meta = self._ga_read_bookmarks_json()
                 meta["items"] = [
-                    item for item in meta.get("items", [])
-                    if item.get("name") != bm_id
+                    item for item in meta.get("items", []) if item.get("name") != bm_id
                 ]
                 self._ga_write_bookmarks_json(meta)
                 return True
@@ -591,11 +597,7 @@ class PbirBackend:
         Returns (queryRef, field_dict) or None. The field_dict can be used
         directly as the FillRule Input expression (Measure, Aggregation, or Column).
         """
-        query_state = (
-            visual_data.get("visual", {})
-            .get("query", {})
-            .get("queryState", {})
-        )
+        query_state = visual_data.get("visual", {}).get("query", {}).get("queryState", {})
         field_lower = field.lower()
         table_lower = table.lower()
         for _role, role_data in query_state.items():
@@ -680,17 +682,21 @@ class PbirBackend:
 
         proj = self._find_projection(data, table, measure)
         query_ref = proj[0] if proj else f"Sum({table}[{measure}])"
-        field_expr = proj[1] if proj else {
-            "Aggregation": {
-                "Expression": {
-                    "Column": {
-                        "Expression": {"SourceRef": {"Entity": table}},
-                        "Property": measure,
-                    }
-                },
-                "Function": 0,
+        field_expr = (
+            proj[1]
+            if proj
+            else {
+                "Aggregation": {
+                    "Expression": {
+                        "Column": {
+                            "Expression": {"SourceRef": {"Entity": table}},
+                            "Property": measure,
+                        }
+                    },
+                    "Function": 0,
+                }
             }
-        }
+        )
 
         # Selector: Desktop always writes both data (wildcard) + metadata
         selector: dict[str, Any] = {
@@ -708,9 +714,7 @@ class PbirBackend:
                     "min": {"color": _color_literal(low_color)},
                     "mid": {"color": _color_literal(mid_color)},
                     "max": {"color": _color_literal(high_color)},
-                    "nullColoringStrategy": {
-                        "strategy": {"Literal": {"Value": "'asZero'"}}
-                    },
+                    "nullColoringStrategy": {"strategy": {"Literal": {"Value": "'asZero'"}}},
                 }
             }
         else:
@@ -718,9 +722,7 @@ class PbirBackend:
                 "linearGradient2": {
                     "min": {"color": _color_literal(low_color)},
                     "max": {"color": _color_literal(high_color)},
-                    "nullColoringStrategy": {
-                        "strategy": {"Literal": {"Value": "'asZero'"}}
-                    },
+                    "nullColoringStrategy": {"strategy": {"Literal": {"Value": "'asZero'"}}},
                 }
             }
 
@@ -737,17 +739,12 @@ class PbirBackend:
         values_obj = objects.setdefault("values", [])
         # Remove ALL existing entries for this field (deduplication)
         values_obj[:] = [
-            v for v in values_obj
-            if v.get("selector", {}).get("metadata") != query_ref
+            v for v in values_obj if v.get("selector", {}).get("metadata") != query_ref
         ]
         values_obj.append(
             {
                 "selector": selector,
-                "properties": {
-                    "backColor": {
-                        "solid": {"color": {"expr": gradient_expr}}
-                    }
-                },
+                "properties": {"backColor": {"solid": {"color": {"expr": gradient_expr}}}},
             }
         )
         vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -782,8 +779,7 @@ class PbirBackend:
         objects = visual.setdefault("objects", {})
         values_obj = objects.setdefault("values", [])
         values_obj[:] = [
-            v for v in values_obj
-            if v.get("selector", {}).get("metadata") != query_ref
+            v for v in values_obj if v.get("selector", {}).get("metadata") != query_ref
         ]
         values_obj.append(
             {
@@ -791,18 +787,10 @@ class PbirBackend:
                 "properties": {
                     "dataBarEnabled": {"expr": {"Literal": {"Value": "true"}}},
                     "positiveColor": {
-                        "solid": {
-                            "color": {
-                                "expr": {"Literal": {"Value": f"'{positive_color}'"}}
-                            }
-                        }
+                        "solid": {"color": {"expr": {"Literal": {"Value": f"'{positive_color}'"}}}}
                     },
                     "negativeColor": {
-                        "solid": {
-                            "color": {
-                                "expr": {"Literal": {"Value": f"'{negative_color}'"}}
-                            }
-                        }
+                        "solid": {"color": {"expr": {"Literal": {"Value": f"'{negative_color}'"}}}}
                     },
                 },
             }

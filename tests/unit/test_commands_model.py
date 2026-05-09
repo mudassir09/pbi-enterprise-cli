@@ -27,6 +27,7 @@ def _run_json(runner, *args):
 
 # ── model info ────────────────────────────────────────────────────────────────
 
+
 class TestModelInfo:
     def test_returns_model_name(self, runner):
         result = _run(runner, "model", "info")
@@ -41,6 +42,7 @@ class TestModelInfo:
 
 # ── model tables ──────────────────────────────────────────────────────────────
 
+
 class TestModelTables:
     def test_lists_tables(self, runner):
         result = _run(runner, "model", "tables")
@@ -54,6 +56,7 @@ class TestModelTables:
 
 
 # ── model columns ─────────────────────────────────────────────────────────────
+
 
 class TestModelColumns:
     def test_lists_all_columns(self, runner):
@@ -73,6 +76,7 @@ class TestModelColumns:
 
 # ── model relationships ───────────────────────────────────────────────────────
 
+
 class TestModelRelationships:
     def test_lists_relationships(self, runner):
         result = _run(runner, "model", "relationships")
@@ -86,6 +90,7 @@ class TestModelRelationships:
 
 # ── model lint ────────────────────────────────────────────────────────────────
 
+
 class TestModelLint:
     def test_lint_runs_without_error(self, runner):
         result = _run(runner, "model", "lint")
@@ -93,6 +98,7 @@ class TestModelLint:
 
 
 # ── model suggest-measures ────────────────────────────────────────────────────
+
 
 class TestModelSuggestMeasures:
     def test_returns_suggestions(self, runner):
@@ -112,6 +118,7 @@ class TestModelSuggestMeasures:
 
 
 # ── model lineage ─────────────────────────────────────────────────────────────
+
 
 class TestModelLineage:
     def test_json_format(self, runner):

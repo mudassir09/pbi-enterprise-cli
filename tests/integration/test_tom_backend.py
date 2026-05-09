@@ -31,6 +31,7 @@ def backend() -> TomBackend:
 
 # ── Connection ────────────────────────────────────────────────────────────────
 
+
 class TestConnection:
     def test_is_connected_after_connect(self, backend):
         assert backend.is_connected()
@@ -41,6 +42,7 @@ class TestConnection:
 
 
 # ── Model info ────────────────────────────────────────────────────────────────
+
 
 class TestModelInfo:
     def test_returns_dict(self, backend):
@@ -59,6 +61,7 @@ class TestModelInfo:
 
 # ── Tables ────────────────────────────────────────────────────────────────────
 
+
 class TestTableList:
     def test_returns_list(self, backend):
         tables = backend.table_list()
@@ -76,6 +79,7 @@ class TestTableList:
 
 
 # ── Columns ───────────────────────────────────────────────────────────────────
+
 
 class TestColumnList:
     def test_returns_list(self, backend):
@@ -101,6 +105,7 @@ class TestColumnList:
 
 # ── Relationships ─────────────────────────────────────────────────────────────
 
+
 class TestRelationshipList:
     def test_returns_list(self, backend):
         rels = backend.relationship_list()
@@ -113,6 +118,7 @@ class TestRelationshipList:
 
 
 # ── Measures (read) ───────────────────────────────────────────────────────────
+
 
 class TestMeasureList:
     def test_returns_list(self, backend):
@@ -141,6 +147,7 @@ class TestMeasureList:
 
 # ── DAX validate ──────────────────────────────────────────────────────────────
 
+
 class TestDaxValidate:
     def test_valid_sum_expression(self, backend):
         table = backend.table_list()[0]["name"]
@@ -160,6 +167,7 @@ class TestDaxValidate:
 
 # ── DAX query ─────────────────────────────────────────────────────────────────
 
+
 class TestDaxQuery:
     def test_simple_row_query(self, backend):
         rows = backend.dax_query('EVALUATE ROW("Result", 1)')
@@ -176,14 +184,13 @@ class TestDaxQuery:
         if not measures:
             pytest.skip("No measures in model")
         m = measures[0]
-        rows = backend.dax_query(
-            f'EVALUATE ROW("Val", [{m["name"]}])'
-        )
+        rows = backend.dax_query(f'EVALUATE ROW("Val", [{m["name"]}])')
         assert isinstance(rows, list)
         assert len(rows) >= 1
 
 
 # ── TMDL export ───────────────────────────────────────────────────────────────
+
 
 class TestTmdlExport:
     def test_export_creates_files(self, backend, tmp_path):
@@ -198,6 +205,7 @@ class TestTmdlExport:
 
 
 # ── Measure write (add → update → delete, cleaned up) ────────────────────────
+
 
 class TestMeasureWrite:
     def test_add_update_delete_measure(self, backend):

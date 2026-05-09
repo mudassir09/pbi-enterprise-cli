@@ -72,6 +72,7 @@ def _load_plugin_rules() -> list[ModuleType]:
         except Exception as exc:
             # Don't crash the whole tool for a bad plugin — just warn
             import warnings
+
             warnings.warn(
                 f"Could not load governance rule plugin {rule_file}: {exc}",
                 stacklevel=1,

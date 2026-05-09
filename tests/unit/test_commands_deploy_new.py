@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -23,10 +22,18 @@ def _run(runner, *args):
 
 class TestDeploySnapshot:
     def test_snapshot_dry_run(self, runner, tmp_path):
-        result = runner.invoke(cli, [
-            "--backend", "mock", "--dry-run",
-            "deploy", "snapshot", "--output", str(tmp_path / "snap"),
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--backend",
+                "mock",
+                "--dry-run",
+                "deploy",
+                "snapshot",
+                "--output",
+                str(tmp_path / "snap"),
+            ],
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
@@ -42,19 +49,34 @@ class TestDeploySnapshot:
             mock_backend.tmdl_export.return_value = {"files": []}
             mock_get.return_value = mock_backend
 
-            result = runner.invoke(cli, [
-                "--backend", "mock",
-                "deploy", "snapshot", "--output", str(out),
-            ])
+            result = runner.invoke(
+                cli,
+                [
+                    "--backend",
+                    "mock",
+                    "deploy",
+                    "snapshot",
+                    "--output",
+                    str(out),
+                ],
+            )
         # Should complete (either success or graceful error with mock backend)
         assert result.exit_code in (0, 1)
 
     def test_snapshot_output_option(self, runner, tmp_path):
         """--output is passed through to the backend."""
-        result = runner.invoke(cli, [
-            "--backend", "mock", "--dry-run",
-            "deploy", "snapshot", "--output", str(tmp_path / "custom_snap"),
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--backend",
+                "mock",
+                "--dry-run",
+                "deploy",
+                "snapshot",
+                "--output",
+                str(tmp_path / "custom_snap"),
+            ],
+        )
         assert result.exit_code == 0
         assert "custom_snap" in result.output
 
@@ -78,17 +100,28 @@ class TestDeployDiffSnapshot:
             }
             mock_get.return_value = mock_backend
 
-            result = runner.invoke(cli, [
-                "--backend", "mock",
-                "deploy", "diff", "--snapshot", str(snap),
-            ])
+            result = runner.invoke(
+                cli,
+                [
+                    "--backend",
+                    "mock",
+                    "deploy",
+                    "diff",
+                    "--snapshot",
+                    str(snap),
+                ],
+            )
         assert result.exit_code == 0
         assert "No changes" in result.output
 
     def test_diff_with_workspace_no_xmla(self, runner):
         result = _run(runner, "deploy", "diff", "--workspace", "Production")
         assert result.exit_code == 0
-        assert "XMLA" in result.output or "not configured" in result.output or "Diffing" in result.output
+        assert (
+            "XMLA" in result.output
+            or "not configured" in result.output
+            or "Diffing" in result.output
+        )
 
 
 class TestDeployPushImproved:
@@ -98,16 +131,30 @@ class TestDeployPushImproved:
         assert "Production" in result.output
 
     def test_push_with_xmla_option(self, runner):
-        result = _run(runner, "deploy", "push",
-                      "--workspace", "Production",
-                      "--xmla", "powerbi://api.powerbi.com/v1.0/myorg/Test")
+        result = _run(
+            runner,
+            "deploy",
+            "push",
+            "--workspace",
+            "Production",
+            "--xmla",
+            "powerbi://api.powerbi.com/v1.0/myorg/Test",
+        )
         assert result.exit_code == 0
 
     def test_push_dry_run(self, runner):
-        result = runner.invoke(cli, [
-            "--backend", "mock", "--dry-run",
-            "deploy", "push", "--workspace", "Staging",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--backend",
+                "mock",
+                "--dry-run",
+                "deploy",
+                "push",
+                "--workspace",
+                "Staging",
+            ],
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
@@ -115,12 +162,14 @@ class TestDeployPushImproved:
 class TestDeployGetXmlaEndpoint:
     def test_returns_none_when_no_config(self, tmp_path, monkeypatch):
         from pbi_cli.commands.deploy import _get_xmla_endpoint
+
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         result = _get_xmla_endpoint()
         assert result is None
 
     def test_returns_endpoint_from_config(self, tmp_path, monkeypatch):
         from pbi_cli.commands.deploy import _get_xmla_endpoint
+
         config_dir = tmp_path / ".pbi-cli"
         config_dir.mkdir()
         config_file = config_dir / "config.toml"
@@ -131,10 +180,10 @@ class TestDeployGetXmlaEndpoint:
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         # Only works if tomllib or tomli is available
         try:
-            import tomllib
+            import tomllib  # noqa: F401
         except ImportError:
             try:
-                import tomli
+                import tomli  # noqa: F401
             except ImportError:
                 pytest.skip("tomllib/tomli not available")
 

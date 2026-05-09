@@ -42,7 +42,9 @@ def dax_validate(ctx: click.Context, expression: str) -> None:
 
 
 @dax.command("test")
-@click.option("--suite", required=True, type=click.Path(exists=True), help="Path to YAML test suite.")
+@click.option(
+    "--suite", required=True, type=click.Path(exists=True), help="Path to YAML test suite."
+)
 @click.pass_context
 def dax_test(ctx: click.Context, suite: str) -> None:
     """Run DAX unit tests from a YAML fixture file."""
@@ -81,13 +83,17 @@ def dax_test(ctx: click.Context, suite: str) -> None:
             # min_rows
             if "min_rows" in assertion:
                 if len(rows) < assertion["min_rows"]:
-                    fail_reasons.append(f"min_rows: expected >= {assertion['min_rows']}, got {len(rows)}")
+                    fail_reasons.append(
+                        f"min_rows: expected >= {assertion['min_rows']}, got {len(rows)}"
+                    )
                     test_failed = True
 
             # max_rows
             if "max_rows" in assertion:
                 if len(rows) > assertion["max_rows"]:
-                    fail_reasons.append(f"max_rows: expected <= {assertion['max_rows']}, got {len(rows)}")
+                    fail_reasons.append(
+                        f"max_rows: expected <= {assertion['max_rows']}, got {len(rows)}"
+                    )
                     test_failed = True
 
             col = assertion.get("column")
@@ -99,17 +105,29 @@ def dax_test(ctx: click.Context, suite: str) -> None:
 
                 # not_blank
                 if assertion.get("not_blank"):
-                    blanks = [v for v in col_values if v is None or (isinstance(v, float) and math.isnan(v))]
+                    blanks = [
+                        v
+                        for v in col_values
+                        if v is None or (isinstance(v, float) and math.isnan(v))
+                    ]
                     if blanks:
-                        fail_reasons.append(f"not_blank: column '{col}' has {len(blanks)} blank values")
+                        fail_reasons.append(
+                            f"not_blank: column '{col}' has {len(blanks)} blank values"
+                        )
                         test_failed = True
 
                 # all_rows_between
                 if "all_rows_between" in assertion:
                     lo, hi = assertion["all_rows_between"]
-                    out_of_range = [v for v in col_values if v is not None and not math.isnan(float(v)) and not (lo <= float(v) <= hi)]
+                    out_of_range = [
+                        v
+                        for v in col_values
+                        if v is not None and not math.isnan(float(v)) and not (lo <= float(v) <= hi)
+                    ]
                     if out_of_range:
-                        fail_reasons.append(f"all_rows_between [{lo},{hi}]: {len(out_of_range)} values out of range")
+                        fail_reasons.append(
+                            f"all_rows_between [{lo},{hi}]: {len(out_of_range)} values out of range"
+                        )
                         test_failed = True
 
                 # expected: value at specific row
@@ -123,17 +141,23 @@ def dax_test(ctx: click.Context, suite: str) -> None:
                     elif tolerance:
                         tol_abs = abs(expected) * tolerance if tolerance < 1 else tolerance
                         if abs(float(actual) - expected) > tol_abs:
-                            fail_reasons.append(f"expected {expected} ± {tol_abs} in '{col}'[{row_idx}], got {actual}")
+                            fail_reasons.append(
+                                f"expected {expected} ± {tol_abs} in '{col}'[{row_idx}], got {actual}"  # noqa: E501
+                            )
                             test_failed = True
                     elif actual != expected:
-                        fail_reasons.append(f"expected {expected!r} in '{col}'[{row_idx}], got {actual!r}")
+                        fail_reasons.append(
+                            f"expected {expected!r} in '{col}'[{row_idx}], got {actual!r}"
+                        )
                         test_failed = True
 
                 # expected_string
                 if "expected_string" in assertion and row_idx < len(rows):
                     actual = rows[row_idx].get(col)
                     if str(actual) != assertion["expected_string"]:
-                        fail_reasons.append(f"expected '{assertion['expected_string']}' in '{col}'[{row_idx}], got '{actual}'")
+                        fail_reasons.append(
+                            f"expected '{assertion['expected_string']}' in '{col}'[{row_idx}], got '{actual}'"  # noqa: E501
+                        )
                         test_failed = True
 
         if test_failed:

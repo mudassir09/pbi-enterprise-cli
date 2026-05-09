@@ -8,7 +8,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 _AUDIT_FILE = Path.home() / ".pbi-cli" / "audit.jsonl"
 
 

@@ -43,9 +43,11 @@ def deploy_push(ctx: click.Context, workspace: str, xmla: str | None) -> None:
             "[yellow]XMLA endpoint not configured.[/yellow]\n"
             "Set it in [bold]~/.pbi-cli/config.toml[/bold]:\n"
             "  [xmla]\n"
-            "  endpoint = \"powerbi://api.powerbi.com/v1.0/myorg/MyWorkspace\""
+            '  endpoint = "powerbi://api.powerbi.com/v1.0/myorg/MyWorkspace"'
         )
-        console.print("\n[yellow]XMLA backend required (v6.0). Install pbi-cli-tool[server].[/yellow]")
+        console.print(
+            "\n[yellow]XMLA backend required (v6.0). Install pbi-cli-tool[server].[/yellow]"
+        )
         return
 
     console.print(f"  Endpoint: {endpoint}")
@@ -83,11 +85,15 @@ def deploy_diff(ctx: click.Context, workspace: str | None, snapshot: str | None)
         console.print(f"[cyan]Diffing against workspace:[/cyan] {workspace}")
         endpoint = _get_xmla_endpoint()
         if not endpoint:
-            console.print("[yellow]XMLA endpoint not configured — cannot diff against workspace.[/yellow]")
+            console.print(
+                "[yellow]XMLA endpoint not configured — cannot diff against workspace.[/yellow]"
+            )
             console.print("Use --snapshot to diff against a local TMDL snapshot instead.")
             return
         console.print("[yellow]XMLA diff not yet implemented (XMLA backend required).[/yellow]")
-        console.print("Tip: Use 'pbi deploy snapshot' to capture a baseline, then 'pbi deploy diff --snapshot'.")
+        console.print(
+            "Tip: Use 'pbi deploy snapshot' to capture a baseline, then 'pbi deploy diff --snapshot'."  # noqa: E501
+        )
     else:
         raise click.UsageError("Provide --snapshot or --workspace.")
 
@@ -122,11 +128,11 @@ def deploy_snapshot(ctx: click.Context, output: str | None) -> None:
     backend = get_backend(ctx)
     try:
         out_path.mkdir(parents=True, exist_ok=True)
-        result = backend.tmdl_export(str(out_path))
+        backend.tmdl_export(str(out_path))
         file_count = len(list(out_path.rglob("*.tmdl")))
         console.print(f"[green]Snapshot saved:[/green] {out_path}")
         console.print(f"  Files: {file_count} .tmdl file(s)")
-        console.print(f"\nCompare later with:")
+        console.print("\nCompare later with:")
         console.print(f"  pbi deploy diff --snapshot {out_path}")
         console.print(f"  pbi model diff --snapshot {out_path}")
     except Exception as e:
@@ -156,7 +162,7 @@ def deploy_promote(ctx: click.Context, from_workspace: str, to_workspace: str) -
             "[yellow]XMLA endpoint not configured.[/yellow]\n"
             "Set it in [bold]~/.pbi-cli/config.toml[/bold]:\n"
             "  [xmla]\n"
-            "  endpoint = \"powerbi://api.powerbi.com/v1.0/myorg/MyWorkspace\""
+            '  endpoint = "powerbi://api.powerbi.com/v1.0/myorg/MyWorkspace"'
         )
     console.print("[yellow]Promotion (XMLA backend required — v6.0).[/yellow]")
     console.print("Steps that will run when XMLA is connected:")
@@ -170,6 +176,7 @@ def _get_xmla_endpoint() -> str | None:
     """Read XMLA endpoint from ~/.pbi-cli/config.toml if available."""
     try:
         from pathlib import Path
+
         config_path = Path.home() / ".pbi-cli" / "config.toml"
         if not config_path.exists():
             return None

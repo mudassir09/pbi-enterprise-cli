@@ -57,6 +57,7 @@ def model_relationships(ctx: click.Context) -> None:
 def model_lint(ctx: click.Context) -> None:
     """Check naming conventions (PascalCase tables, [Measure] brackets, _ hidden prefix)."""
     from pbi_cli.governance.engine import GovernanceEngine
+
     backend = get_backend(ctx)
     engine = GovernanceEngine(backend)
     violations = engine.run_naming_rules()
@@ -87,7 +88,7 @@ def model_lineage(ctx: click.Context, fmt: str) -> None:
     if fmt == "mermaid":
         console.print("graph TD")
         for m in measures:
-            console.print(f"    {m['table']}_{m['name'].replace(' ','_')}[{m['name']}]")
+            console.print(f"    {m['table']}_{m['name'].replace(' ', '_')}[{m['name']}]")
     else:
         output_json_or_table(measures, ctx, title="Measure Lineage")
 
@@ -105,11 +106,16 @@ def model_hierarchies(ctx: click.Context, table: str | None) -> None:
 @model.command("hierarchy-add")
 @click.option("--table", required=True, help="Table to add hierarchy to.")
 @click.option("--name", required=True, help="Hierarchy name.")
-@click.option("--levels", required=True, help='JSON array: [{"name":"Year","column":"Year"},{"name":"Month","column":"Month Name"}]')
+@click.option(
+    "--levels",
+    required=True,
+    help='JSON array: [{"name":"Year","column":"Year"},{"name":"Month","column":"Month Name"}]',
+)
 @click.pass_context
 def model_hierarchy_add(ctx: click.Context, table: str, name: str, levels: str) -> None:
     """Add a hierarchy to a table."""
     import json
+
     if dry_run_echo(ctx, f"add hierarchy '{name}' to '{table}'"):
         return
     backend = get_backend(ctx)
@@ -145,7 +151,12 @@ def model_calc_groups(ctx: click.Context) -> None:
 
 @model.command("calc-group-add")
 @click.option("--name", required=True, help="Name of the new calculation group table.")
-@click.option("--precedence", default=0, show_default=True, help="Calculation group precedence (higher = evaluated first).")
+@click.option(
+    "--precedence",
+    default=0,
+    show_default=True,
+    help="Calculation group precedence (higher = evaluated first).",
+)
 @click.pass_context
 def model_calc_group_add(ctx: click.Context, name: str, precedence: int) -> None:
     """Create a new calculation group table."""
@@ -162,12 +173,16 @@ def model_calc_group_add(ctx: click.Context, name: str, precedence: int) -> None
 @click.option("--expression", required=True, help="DAX expression for the calculation item.")
 @click.option("--ordinal", default=0, show_default=True, help="Display order.")
 @click.pass_context
-def model_calc_item_add(ctx: click.Context, group: str, name: str, expression: str, ordinal: int) -> None:
+def model_calc_item_add(
+    ctx: click.Context, group: str, name: str, expression: str, ordinal: int
+) -> None:
     """Add a calculation item to a calculation group."""
     if dry_run_echo(ctx, f"add calc item '{name}' to group '{group}'"):
         return
     backend = get_backend(ctx)
-    result = backend.calc_item_add(group_table=group, name=name, expression=expression, ordinal=ordinal)
+    result = backend.calc_item_add(
+        group_table=group, name=name, expression=expression, ordinal=ordinal
+    )
     output_json_or_table(result, ctx, title="Calculation Item Added")
 
 
@@ -200,15 +215,23 @@ def model_stats(ctx: click.Context) -> None:
     hidden_measures = [m for m in measures if m.get("isHidden")]
 
     # Relationship complexity: count many-to-many and bidirectional
-    m2m = [r for r in relationships if r.get("fromCardinality") == "Many" and r.get("toCardinality") == "Many"]
+    m2m = [
+        r
+        for r in relationships
+        if r.get("fromCardinality") == "Many" and r.get("toCardinality") == "Many"
+    ]
     bidir = [r for r in relationships if r.get("crossFilteringBehavior") == "BothDirections"]
 
     # Warnings
     warnings: list[str] = []
     if m2m:
-        warnings.append(f"{len(m2m)} many-to-many relationship(s) — may cause unexpected aggregation")
+        warnings.append(
+            f"{len(m2m)} many-to-many relationship(s) — may cause unexpected aggregation"
+        )
     if bidir:
-        warnings.append(f"{len(bidir)} bidirectional relationship(s) — can degrade query performance")
+        warnings.append(
+            f"{len(bidir)} bidirectional relationship(s) — can degrade query performance"
+        )
     no_desc = [m for m in measures if not m.get("description")]
     if no_desc:
         warnings.append(f"{len(no_desc)} measure(s) missing descriptions")
@@ -218,11 +241,7 @@ def model_stats(ctx: click.Context) -> None:
 
     # Complexity score: simple heuristic
     complexity = (
-        len(tables) * 2
-        + len(relationships)
-        + len(measures) * 3
-        + len(m2m) * 10
-        + len(bidir) * 5
+        len(tables) * 2 + len(relationships) + len(measures) * 3 + len(m2m) * 10 + len(bidir) * 5
     )
     complexity_label = "Low" if complexity < 100 else "Medium" if complexity < 300 else "High"
 
@@ -243,10 +262,12 @@ def model_stats(ctx: click.Context) -> None:
 
     if ctx.obj and ctx.obj.get("output_json"):
         import json as _json
+
         console.print(_json.dumps(stats, indent=2))
         return
 
     from rich.table import Table as RichTable
+
     tbl = RichTable(title="Model Statistics", show_header=True, header_style="bold cyan")
     tbl.add_column("Metric", style="bold")
     tbl.add_column("Value")
@@ -271,7 +292,9 @@ def model_stats(ctx: click.Context) -> None:
 
 
 @model.command("diff")
-@click.option("--snapshot", required=True, help="Path to a TMDL snapshot directory to compare against.")
+@click.option(
+    "--snapshot", required=True, help="Path to a TMDL snapshot directory to compare against."
+)
 @click.pass_context
 def model_diff(ctx: click.Context, snapshot: str) -> None:
     """Compare current model against a saved TMDL snapshot and show what changed."""
@@ -281,13 +304,19 @@ def model_diff(ctx: click.Context, snapshot: str) -> None:
         console.print("[green]No changes detected[/green] — model matches snapshot.")
         return
     output_json_or_table(result, ctx, title="Model Diff")
-    console.print(f"[yellow]Changes:[/yellow] {len(result['added'])} added, {len(result['removed'])} removed, {len(result['changed'])} modified")
+    console.print(
+        f"[yellow]Changes:[/yellow] {len(result['added'])} added, {len(result['removed'])} removed, {len(result['changed'])} modified"  # noqa: E501
+    )
 
 
 @model.command("impact")
-@click.option("--measure",  default=None, help="Measure name to trace impact for.")
-@click.option("--column",   default=None, help="Column name (format: Table[Column]) to trace impact for.")
-@click.option("--pbip",     default=None, help="Optional .pbip path to also scan report visuals for references.")
+@click.option("--measure", default=None, help="Measure name to trace impact for.")
+@click.option(
+    "--column", default=None, help="Column name (format: Table[Column]) to trace impact for."
+)
+@click.option(
+    "--pbip", default=None, help="Optional .pbip path to also scan report visuals for references."
+)
 @click.pass_context
 def model_impact(
     ctx: click.Context, measure: str | None, column: str | None, pbip: str | None
@@ -318,12 +347,14 @@ def model_impact(
             # Check if target is referenced in the DAX expression
             search_terms = _impact_search_terms(target_name, is_measure=bool(measure))
             if any(term.lower() in expr.lower() for term in search_terms):
-                dax_dependents.append({
-                    "type": "measure",
-                    "table": m.get("table", ""),
-                    "name": m.get("name", ""),
-                    "expression_snippet": expr[:120].replace("\n", " "),
-                })
+                dax_dependents.append(
+                    {
+                        "type": "measure",
+                        "table": m.get("table", ""),
+                        "name": m.get("name", ""),
+                        "expression_snippet": expr[:120].replace("\n", " "),
+                    }
+                )
     except Exception as e:
         console.print(f"[yellow]Could not scan DAX expressions: {e}[/yellow]")
 
@@ -352,12 +383,15 @@ def model_impact(
         if visual_refs:
             console.print(f"\n[cyan]Report visual references[/cyan] ({len(visual_refs)}):")
             for ref in visual_refs:
-                console.print(f"  Page '{ref['page']}' -> {ref['visual_type']} ({ref['visual_name']})")
+                console.print(
+                    f"  Page '{ref['page']}' -> {ref['visual_type']} ({ref['visual_name']})"
+                )
         else:
             console.print("[green]No report visual references found.[/green]")
 
     if ctx.obj and ctx.obj.get("output_json"):
         import json as _json
+
         result = {
             "target": target_name,
             "type": "measure" if measure else "column",
@@ -432,11 +466,13 @@ def _scan_pbir_for_field(pbip: str, name: str, is_measure: bool) -> list[dict]:
                 content = _json.dumps(vdata)
                 # Look for the property name in the JSON content
                 if f'"Property": "{prop_name}"' in content:
-                    results.append({
-                        "page": page_name,
-                        "visual_name": vdata.get("name", vdir.name),
-                        "visual_type": vdata.get("visual", {}).get("visualType", "unknown"),
-                    })
+                    results.append(
+                        {
+                            "page": page_name,
+                            "visual_name": vdata.get("name", vdir.name),
+                            "visual_type": vdata.get("visual", {}).get("visualType", "unknown"),
+                        }
+                    )
             except Exception:
                 pass
     return results
@@ -444,17 +480,20 @@ def _scan_pbir_for_field(pbip: str, name: str, is_measure: bool) -> list[dict]:
 
 def _build_measure_suggestions(tables: list, columns: list) -> list[dict]:
     suggestions = []
-    date_cols = [c for c in columns if c.get("dataType") in ("DateTime", "Date")]
     numeric_cols = [c for c in columns if c.get("dataType") in ("Decimal", "Double", "Int64")]
     for col in numeric_cols[:3]:
-        suggestions.append({
-            "name": f"YTD {col['name']}",
-            "expression": f"TOTALYTD(SUM({col['table']}[{col['name']}]), Calendar[Date])",
-            "category": "Time Intelligence",
-        })
-        suggestions.append({
-            "name": f"MoM {col['name']} %",
-            "expression": f"DIVIDE(SUM({col['table']}[{col['name']}]) - CALCULATE(SUM({col['table']}[{col['name']}]), DATEADD(Calendar[Date], -1, MONTH)), CALCULATE(SUM({col['table']}[{col['name']}]), DATEADD(Calendar[Date], -1, MONTH)))",
-            "category": "Time Intelligence",
-        })
+        suggestions.append(
+            {
+                "name": f"YTD {col['name']}",
+                "expression": f"TOTALYTD(SUM({col['table']}[{col['name']}]), Calendar[Date])",
+                "category": "Time Intelligence",
+            }
+        )
+        suggestions.append(
+            {
+                "name": f"MoM {col['name']} %",
+                "expression": f"DIVIDE(SUM({col['table']}[{col['name']}]) - CALCULATE(SUM({col['table']}[{col['name']}]), DATEADD(Calendar[Date], -1, MONTH)), CALCULATE(SUM({col['table']}[{col['name']}]), DATEADD(Calendar[Date], -1, MONTH)))",  # noqa: E501
+                "category": "Time Intelligence",
+            }
+        )
     return suggestions

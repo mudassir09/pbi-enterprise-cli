@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from pbi_cli.backends.mock_backend import MockTomBackend
-from pbi_cli.docs_gen.markdown import MarkdownDocsGenerator
 from pbi_cli.docs_gen.confluence import ConfluenceDocsGenerator
+from pbi_cli.docs_gen.markdown import MarkdownDocsGenerator
 
 
 @pytest.fixture()
@@ -17,6 +17,7 @@ def backend() -> MockTomBackend:
 
 
 # ── MarkdownDocsGenerator ─────────────────────────────────────────────────────
+
 
 class TestMarkdownDocsGenerator:
     def test_generates_h1_title(self, backend):
@@ -55,6 +56,7 @@ class TestMarkdownDocsGenerator:
 
 
 # ── ConfluenceDocsGenerator ───────────────────────────────────────────────────
+
 
 class TestConfluenceDocsGenerator:
     def test_generates_content(self, backend):

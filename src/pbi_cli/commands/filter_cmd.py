@@ -20,6 +20,7 @@ def filter_cmd() -> None:
 
 def _page_json_path(pbip: str, page: str) -> Path:
     from pbi_cli.backends.pbir_backend import PbirBackend
+
     b = PbirBackend(pbip)
     pages = b.page_list()
     match = next((p for p in pages if p["displayName"] == page), None)
@@ -64,14 +65,21 @@ def filter_list(ctx: click.Context, pbip: str, page: str) -> None:
 @click.option("--table", required=True, help="Table containing the date column.")
 @click.option("--column", required=True, help="Date column name.")
 @click.option("--last", type=int, required=True, help="Number of time units (e.g. 30).")
-@click.option("--unit", type=click.Choice(["Days", "Weeks", "Months", "Quarters", "Years"]),
-              default="Days", show_default=True)
+@click.option(
+    "--unit",
+    type=click.Choice(["Days", "Weeks", "Months", "Quarters", "Years"]),
+    default="Days",
+    show_default=True,
+)
 @click.pass_context
 def filter_add_relative_date(
     ctx: click.Context,
-    pbip: str, page: str,
-    table: str, column: str,
-    last: int, unit: str,
+    pbip: str,
+    page: str,
+    table: str,
+    column: str,
+    last: int,
+    unit: str,
 ) -> None:
     """Add a relative-date filter to a page (e.g. 'last 30 days').
 
@@ -98,7 +106,9 @@ def filter_add_relative_date(
 
     pj = _page_json_path(pbip, page)
     _append_filter(pj, filter_obj)
-    console.print(f"[green]Filter added:[/green] last {last} {unit} on {table}[{column}] -> page '{page}'")
+    console.print(
+        f"[green]Filter added:[/green] last {last} {unit} on {table}[{column}] -> page '{page}'"
+    )
 
 
 @filter_cmd.command("add-topn")
@@ -113,10 +123,13 @@ def filter_add_relative_date(
 @click.pass_context
 def filter_add_topn(
     ctx: click.Context,
-    pbip: str, page: str,
-    table: str, column: str,
+    pbip: str,
+    page: str,
+    table: str,
+    column: str,
     n: int,
-    by_table: str, by_measure: str,
+    by_table: str,
+    by_measure: str,
     direction: str,
 ) -> None:
     """Add a TopN filter to keep only the top (or bottom) N items by a measure.
@@ -151,7 +164,9 @@ def filter_add_topn(
 
     pj = _page_json_path(pbip, page)
     _append_filter(pj, filter_obj)
-    console.print(f"[green]Filter added:[/green] {direction} {n} {table}[{column}] by '{by_measure}' -> page '{page}'")
+    console.print(
+        f"[green]Filter added:[/green] {direction} {n} {table}[{column}] by '{by_measure}' -> page '{page}'"  # noqa: E501
+    )
 
 
 @filter_cmd.command("add-value")
@@ -163,8 +178,10 @@ def filter_add_topn(
 @click.pass_context
 def filter_add_value(
     ctx: click.Context,
-    pbip: str, page: str,
-    table: str, column: str,
+    pbip: str,
+    page: str,
+    table: str,
+    column: str,
     values: str,
 ) -> None:
     """Add a basic value-in filter to a page.
@@ -179,8 +196,7 @@ def filter_add_value(
 
     value_list = [v.strip() for v in values.split(",") if v.strip()]
     filter_conditions = [
-        {"operator": "Is", "value": {"Literal": {"Value": f"'{v}'"}}}
-        for v in value_list
+        {"operator": "Is", "value": {"Literal": {"Value": f"'{v}'"}}} for v in value_list
     ]
 
     filter_obj = {
@@ -197,7 +213,9 @@ def filter_add_value(
 
     pj = _page_json_path(pbip, page)
     _append_filter(pj, filter_obj)
-    console.print(f"[green]Filter added:[/green] {table}[{column}] in {value_list} -> page '{page}'")
+    console.print(
+        f"[green]Filter added:[/green] {table}[{column}] in {value_list} -> page '{page}'"
+    )
 
 
 @filter_cmd.command("clear")

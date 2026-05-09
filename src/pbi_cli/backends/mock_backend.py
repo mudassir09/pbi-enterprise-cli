@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_FIXTURE: dict[str, Any] = {
     "model": {"name": "MockModel", "compatibility_level": 1600},
     "tables": [
@@ -40,8 +39,18 @@ DEFAULT_FIXTURE: dict[str, Any] = {
         {"from": "Sales[DateKey]", "to": "Calendar[DateKey]", "cardinality": "ManyToOne"},
     ],
     "measures": [
-        {"table": "Sales", "name": "Total Revenue", "expression": "SUM(Sales[Revenue])", "formatString": "#,0.00"},
-        {"table": "Sales", "name": "Total Units", "expression": "SUM(Sales[Units])", "formatString": "#,0"},
+        {
+            "table": "Sales",
+            "name": "Total Revenue",
+            "expression": "SUM(Sales[Revenue])",
+            "formatString": "#,0.00",
+        },
+        {
+            "table": "Sales",
+            "name": "Total Units",
+            "expression": "SUM(Sales[Units])",
+            "formatString": "#,0",
+        },
     ],
 }
 
@@ -53,7 +62,9 @@ class MockTomBackend:
     All writes go to in-memory state and are inspectable via get_state().
     """
 
-    def __init__(self, fixture: dict[str, Any] | None = None, fixture_path: Path | None = None) -> None:
+    def __init__(
+        self, fixture: dict[str, Any] | None = None, fixture_path: Path | None = None
+    ) -> None:
         if fixture_path is not None:
             self._state: dict[str, Any] = json.loads(fixture_path.read_text(encoding="utf-8"))
         elif fixture is not None:
@@ -121,14 +132,18 @@ class MockTomBackend:
                 if new_name:
                     m["name"] = new_name
                 m.update(kwargs)
-                self._write_log.append({"op": "measure_update", "data": {"table": table, "name": name, **kwargs}})
+                self._write_log.append(
+                    {"op": "measure_update", "data": {"table": table, "name": name, **kwargs}}
+                )
                 return dict(m)
         raise KeyError(f"Measure '{table}'['{name}'] not found.")
 
     def measure_delete(self, table: str, name: str) -> None:
         measures = self._state.get("measures", [])
         before = len(measures)
-        self._state["measures"] = [m for m in measures if not (m["table"] == table and m["name"] == name)]
+        self._state["measures"] = [
+            m for m in measures if not (m["table"] == table and m["name"] == name)
+        ]
         if len(self._state["measures"]) == before:
             raise KeyError(f"Measure '{table}'['{name}'] not found.")
         self._write_log.append({"op": "measure_delete", "data": {"table": table, "name": name}})
@@ -156,12 +171,16 @@ class MockTomBackend:
 
     def column_delete(self, table: str, name: str) -> None:
         cols = self._state.get("columns", [])
-        self._state["columns"] = [c for c in cols if not (c["table"] == table and c["name"] == name)]
+        self._state["columns"] = [
+            c for c in cols if not (c["table"] == table and c["name"] == name)
+        ]
         self._write_log.append({"op": "column_delete", "data": {"table": table, "name": name}})
 
     # --- Relationships ---
 
-    def relationship_add(self, from_table: str, from_column: str, to_table: str, to_column: str, **kwargs: Any) -> dict[str, Any]:
+    def relationship_add(
+        self, from_table: str, from_column: str, to_table: str, to_column: str, **kwargs: Any
+    ) -> dict[str, Any]:
         record = {
             "from": f"{from_table}[{from_column}]",
             "to": f"{to_table}[{to_column}]",
@@ -188,7 +207,8 @@ class MockTomBackend:
 
     def hierarchy_delete(self, table: str, name: str) -> None:
         self._state["hierarchies"] = [
-            h for h in self._state.get("hierarchies", [])
+            h
+            for h in self._state.get("hierarchies", [])
             if not (h["table"] == table and h["name"] == name)
         ]
         self._write_log.append({"op": "hierarchy_delete", "data": {"table": table, "name": name}})
@@ -204,7 +224,9 @@ class MockTomBackend:
         self._write_log.append({"op": "calc_group_add", "data": record})
         return dict(record)
 
-    def calc_item_add(self, group_table: str, name: str, expression: str, ordinal: int = 0) -> dict[str, Any]:
+    def calc_item_add(
+        self, group_table: str, name: str, expression: str, ordinal: int = 0
+    ) -> dict[str, Any]:
         record = {"group": group_table, "name": name, "expression": expression, "ordinal": ordinal}
         for cg in self._state.get("calc_groups", []):
             if cg["table"] == group_table:
@@ -216,7 +238,9 @@ class MockTomBackend:
         for cg in self._state.get("calc_groups", []):
             if cg["table"] == group_table:
                 cg["items"] = [i for i in cg.get("items", []) if i["name"] != name]
-        self._write_log.append({"op": "calc_item_delete", "data": {"group": group_table, "name": name}})
+        self._write_log.append(
+            {"op": "calc_item_delete", "data": {"group": group_table, "name": name}}
+        )
 
     # --- RLS Roles ---
 
@@ -224,7 +248,11 @@ class MockTomBackend:
         return list(self._state.get("roles", []))
 
     def role_add(self, name: str, table: str, filter_expression: str) -> dict[str, Any]:
-        record = {"name": name, "modelPermission": "Read", "tablePermissions": [{"table": table, "filterExpression": filter_expression}]}
+        record = {
+            "name": name,
+            "modelPermission": "Read",
+            "tablePermissions": [{"table": table, "filterExpression": filter_expression}],
+        }
         self._state.setdefault("roles", []).append(record)
         self._write_log.append({"op": "role_add", "data": record})
         return dict(record)
@@ -234,7 +262,11 @@ class MockTomBackend:
         self._write_log.append({"op": "role_delete", "data": {"name": name}})
 
     def role_test(self, role_name: str, dax_expression: str) -> dict[str, Any]:
-        return {"role": role_name, "rowCount": 1, "rows": [{"__mock": True, "expression": dax_expression}]}
+        return {
+            "role": role_name,
+            "rowCount": 1,
+            "rows": [{"__mock": True, "expression": dax_expression}],
+        }
 
     # --- Partitions ---
 
@@ -252,7 +284,8 @@ class MockTomBackend:
 
     def partition_delete(self, table: str, name: str) -> None:
         self._state["partitions"] = [
-            p for p in self._state.get("partitions", [])
+            p
+            for p in self._state.get("partitions", [])
             if not (p["table"] == table and p["name"] == name)
         ]
         self._write_log.append({"op": "partition_delete", "data": {"table": table, "name": name}})
@@ -264,7 +297,14 @@ class MockTomBackend:
     # --- Model Diff ---
 
     def model_diff(self, snapshot_path: str) -> dict[str, Any]:
-        return {"snapshot": snapshot_path, "added": [], "removed": [], "changed": [], "unchanged_count": 0, "has_changes": False}
+        return {
+            "snapshot": snapshot_path,
+            "added": [],
+            "removed": [],
+            "changed": [],
+            "unchanged_count": 0,
+            "has_changes": False,
+        }
 
     # --- DAX ---
 

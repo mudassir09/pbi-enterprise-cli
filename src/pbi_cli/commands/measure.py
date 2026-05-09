@@ -5,8 +5,13 @@ from __future__ import annotations
 import click
 from rich.console import Console
 
-from pbi_cli.commands._shared import dry_run_echo, get_backend, output_json_or_table, snapshot_before_write
 from pbi_cli._audit import write_audit_entry
+from pbi_cli.commands._shared import (
+    dry_run_echo,
+    get_backend,
+    output_json_or_table,
+    snapshot_before_write,
+)
 
 console = Console()
 
@@ -56,7 +61,7 @@ def measure_add(
     if description:
         kwargs["description"] = description
     result = backend.measure_add(table=table, name=name, expression=expression, **kwargs)
-    write_audit_entry(f"measure add", after=result)
+    write_audit_entry("measure add", after=result)
     if not (ctx.obj and ctx.obj.get("output_json")):
         console.print(f"[green]Added[/green] measure '{name}' to '{table}'")
     output_json_or_table(result, ctx)
@@ -125,6 +130,7 @@ def measure_delete(ctx: click.Context, table: str, name: str) -> None:
 def measure_generate(ctx: click.Context, description: str, table: str, name: str) -> None:
     """Generate a DAX measure from a natural language description using Claude."""
     from pbi_cli.intelligence.measure_generator import MeasureGenerator
+
     console.print(f"[cyan]Generating DAX for:[/cyan] {description}")
     backend = get_backend(ctx)
     schema = backend.column_list() if backend.is_connected() else []
@@ -150,7 +156,9 @@ def measure_generate(ctx: click.Context, description: str, table: str, name: str
     if dry_run_echo(ctx, f"add measure '{name}' to '{table}'", expression):
         return
     backend.measure_add(table=table, name=name, expression=expression)
-    write_audit_entry("measure generate", after={"table": table, "name": name, "expression": expression})
+    write_audit_entry(
+        "measure generate", after={"table": table, "name": name, "expression": expression}
+    )
     console.print(f"[green]Written[/green] measure '{name}' to '{table}'")
 
 
@@ -164,9 +172,13 @@ def measure_audit(ctx: click.Context) -> None:
     for m in measures:
         expr = m.get("expression", "")
         if not m.get("formatString"):
-            issues.append({"measure": m["name"], "issue": "missing FORMAT string", "severity": "warning"})
+            issues.append(
+                {"measure": m["name"], "issue": "missing FORMAT string", "severity": "warning"}
+            )
         if "NOW()" in expr.upper() or "TODAY()" in expr.upper():
-            issues.append({"measure": m["name"], "issue": "hardcoded date function", "severity": "warning"})
+            issues.append(
+                {"measure": m["name"], "issue": "hardcoded date function", "severity": "warning"}
+            )
     if issues:
         output_json_or_table(issues, ctx, title="Measure Audit Issues")
     else:

@@ -27,6 +27,7 @@ class TestWatchCommand:
     def test_watch_missing_watchdog_gives_helpful_error(self, runner, monkeypatch):
         """When watchdog is not installed, show a clear error message."""
         import builtins
+
         real_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
@@ -50,6 +51,7 @@ class TestWatchRunChecks:
     def test_run_checks_govern_subprocess(self, tmp_path, monkeypatch):
         """Ensure _run_checks builds the right subprocess command."""
         import subprocess
+
         calls = []
 
         def mock_run(cmd, **kwargs):
@@ -59,7 +61,6 @@ class TestWatchRunChecks:
         monkeypatch.setattr(subprocess, "run", mock_run)
 
         # Directly test the inner function by importing through the module
-        import importlib
         import pbi_cli.commands.watch as watch_mod
 
         # We can't easily call _run_checks directly since it's a closure,

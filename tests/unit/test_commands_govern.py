@@ -21,6 +21,7 @@ def _run(runner, *args):
 
 # ── govern init ───────────────────────────────────────────────────────────────
 
+
 class TestGovernInit:
     def test_creates_config_file(self, runner, tmp_path, monkeypatch):
         monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
@@ -40,6 +41,7 @@ class TestGovernInit:
 
 
 # ── govern check ──────────────────────────────────────────────────────────────
+
 
 class TestGovernCheck:
     def test_check_returns_violations(self, runner):
@@ -68,14 +70,22 @@ class TestGovernCheck:
         monkeypatch.setattr(
             eng.GovernanceEngine,
             "run_all",
-            lambda self: [{"rule": "test", "severity": "error", "object": "X",
-                           "message": "Error", "autoFixable": False}],
+            lambda self: [
+                {
+                    "rule": "test",
+                    "severity": "error",
+                    "object": "X",
+                    "message": "Error",
+                    "autoFixable": False,
+                }
+            ],
         )
         result = _run(runner, "govern", "check")
         assert result.exit_code == 1
 
 
 # ── govern fix ────────────────────────────────────────────────────────────────
+
 
 class TestGovernFix:
     def test_fix_without_auto_lists_fixable(self, runner):
@@ -84,9 +94,7 @@ class TestGovernFix:
         assert "--auto" in result.output
 
     def test_fix_dry_run(self, runner):
-        result = runner.invoke(cli, [
-            "--backend", "mock", "--dry-run", "govern", "fix", "--auto"
-        ])
+        result = runner.invoke(cli, ["--backend", "mock", "--dry-run", "govern", "fix", "--auto"])
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 

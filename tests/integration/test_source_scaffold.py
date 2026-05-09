@@ -2,12 +2,10 @@
 
 import json
 import tempfile
-from pathlib import Path
 
 from click.testing import CliRunner
 
 from pbi_cli.cli import cli
-
 
 SAMPLE_PROFILE = [
     {
@@ -36,7 +34,9 @@ def test_source_scaffold_creates_tables():
         json.dump(SAMPLE_PROFILE, f)
         profile_path = f.name
 
-    result = runner.invoke(cli, ["--backend", "mock", "source", "scaffold", "--profile", profile_path])
+    result = runner.invoke(
+        cli, ["--backend", "mock", "source", "scaffold", "--profile", profile_path]
+    )
     assert result.exit_code == 0, result.output
 
 
@@ -46,6 +46,8 @@ def test_dry_run_does_not_write():
         json.dump(SAMPLE_PROFILE, f)
         profile_path = f.name
 
-    result = runner.invoke(cli, ["--dry-run", "--backend", "mock", "source", "scaffold", "--profile", profile_path])
+    result = runner.invoke(
+        cli, ["--dry-run", "--backend", "mock", "source", "scaffold", "--profile", profile_path]
+    )
     assert result.exit_code == 0
     assert "DRY RUN" in result.output

@@ -19,10 +19,17 @@ def _run(runner, *args):
 
 class TestDatabaseExportTmdl:
     def test_export_dry_run(self, runner, tmp_path):
-        result = runner.invoke(cli, [
-            "--backend", "mock", "--dry-run",
-            "database", "export-tmdl", str(tmp_path / "tmdl"),
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--backend",
+                "mock",
+                "--dry-run",
+                "database",
+                "export-tmdl",
+                str(tmp_path / "tmdl"),
+            ],
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
@@ -35,10 +42,17 @@ class TestDatabaseExportTmdl:
 
 class TestDatabaseImportTmdl:
     def test_import_dry_run(self, runner, tmp_path):
-        result = runner.invoke(cli, [
-            "--backend", "mock", "--dry-run",
-            "database", "import-tmdl", str(tmp_path),
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--backend",
+                "mock",
+                "--dry-run",
+                "database",
+                "import-tmdl",
+                str(tmp_path),
+            ],
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 

@@ -17,6 +17,7 @@ def runner() -> CliRunner:
 
 # ── doctor ────────────────────────────────────────────────────────────────────
 
+
 class TestDoctor:
     def test_doctor_runs(self, runner):
         result = runner.invoke(cli, ["doctor"])
@@ -39,6 +40,7 @@ class TestDoctor:
 
 # ── undo ──────────────────────────────────────────────────────────────────────
 
+
 class TestUndo:
     def test_undo_no_snapshots_exits_cleanly(self, runner, tmp_path, monkeypatch):
         monkeypatch.setattr("pbi_cli._snapshot._SNAPSHOT_DIR", tmp_path / "snapshots")
@@ -51,7 +53,9 @@ class TestUndo:
         snap_dir.mkdir()
         snap_file = snap_dir / "20250101T000000000000.json"
         snap_file.write_text(
-            json.dumps({"measures": [], "tables": [], "columns": [], "relationships": [], "model": {}}),
+            json.dumps(
+                {"measures": [], "tables": [], "columns": [], "relationships": [], "model": {}}
+            ),
             encoding="utf-8",
         )
         monkeypatch.setattr("pbi_cli._snapshot._SNAPSHOT_DIR", snap_dir)
@@ -62,6 +66,7 @@ class TestUndo:
 
 
 # ── skill-validate ────────────────────────────────────────────────────────────
+
 
 class TestSkillValidate:
     def _write_skill(self, tmp_path, content: str) -> str:
@@ -144,6 +149,7 @@ No code examples here.
 
 # ── completions ───────────────────────────────────────────────────────────────
 
+
 class TestCompletions:
     def test_completions_bash(self, runner):
         result = runner.invoke(cli, ["completions", "--shell", "bash"])
@@ -166,6 +172,7 @@ class TestCompletions:
 
 
 # ── version ───────────────────────────────────────────────────────────────────
+
 
 class TestVersion:
     def test_version_flag(self, runner):

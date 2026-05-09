@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import readline
-import rlcompleter
-import traceback
 from pathlib import Path
 from typing import Any
 
@@ -15,22 +13,52 @@ console = Console()
 
 _HISTORY_FILE = Path.home() / ".pbi-cli" / "repl_history"
 _COMMANDS = [
-    "model info", "model tables", "model columns", "model relationships",
-    "model lint", "model stats",
-    "measure list", "measure add", "measure update", "measure delete", "measure generate",
-    "dax query", "dax validate", "dax test",
-    "source profile", "source scaffold",
-    "report pages", "report page-add", "report page-delete",
-    "report bookmark-list", "report bookmark-add", "report bookmark-delete",
-    "visual list", "visual add",
-    "govern check", "govern fix", "govern rules",
-    "security roles", "security role-add",
-    "partition list", "partition add", "partition refresh",
-    "trace start", "trace stop", "trace fetch",
-    "connections list", "connections last",
-    "deploy snapshot", "deploy diff",
-    "database export-tmdl", "database import-tmdl", "database diff-tmdl",
-    "doctor", "help", "exit", "quit",
+    "model info",
+    "model tables",
+    "model columns",
+    "model relationships",
+    "model lint",
+    "model stats",
+    "measure list",
+    "measure add",
+    "measure update",
+    "measure delete",
+    "measure generate",
+    "dax query",
+    "dax validate",
+    "dax test",
+    "source profile",
+    "source scaffold",
+    "report pages",
+    "report page-add",
+    "report page-delete",
+    "report bookmark-list",
+    "report bookmark-add",
+    "report bookmark-delete",
+    "visual list",
+    "visual add",
+    "govern check",
+    "govern fix",
+    "govern rules",
+    "security roles",
+    "security role-add",
+    "partition list",
+    "partition add",
+    "partition refresh",
+    "trace start",
+    "trace stop",
+    "trace fetch",
+    "connections list",
+    "connections last",
+    "deploy snapshot",
+    "deploy diff",
+    "database export-tmdl",
+    "database import-tmdl",
+    "database diff-tmdl",
+    "doctor",
+    "help",
+    "exit",
+    "quit",
 ]
 
 
@@ -71,9 +99,12 @@ def _save_history() -> None:
 
 
 @click.command("repl")
-@click.option("--backend", default="desktop",
-              type=click.Choice(["desktop", "xmla", "mock"]),
-              help="Backend to connect to.")
+@click.option(
+    "--backend",
+    default="desktop",
+    type=click.Choice(["desktop", "xmla", "mock"]),
+    help="Backend to connect to.",
+)
 @click.option("--port", default=None, type=int, help="Desktop server port.")
 @click.option("--no-history", is_flag=True, help="Disable command history persistence.")
 @click.pass_context
@@ -97,7 +128,6 @@ def repl(ctx: click.Context, backend: str, port: int | None, no_history: bool) -
       pbi> measure list --table Sales
       pbi> dax query "EVALUATE {[Total Revenue]}"
     """
-    from pbi_cli.commands._shared import get_backend as _get_backend
 
     # Set up readline completion
     completer = _PbiCompleter(_COMMANDS)
@@ -119,6 +149,7 @@ def repl(ctx: click.Context, backend: str, port: int | None, no_history: bool) -
     session_backend: Any = None
     if backend == "mock":
         from pbi_cli.backends.mock_backend import MockTomBackend
+
         session_backend = MockTomBackend()
         session_backend.connect()
         model_name = session_backend.model_info().get("name", "MockModel")
@@ -129,7 +160,6 @@ def repl(ctx: click.Context, backend: str, port: int | None, no_history: bool) -
     try:
         while True:
             try:
-                prompt = f"[bold cyan]pbi>[/bold cyan] "
                 # Use plain input() since rich can't handle readline input
                 line = input("pbi> ").strip()
             except (EOFError, KeyboardInterrupt):
@@ -154,7 +184,9 @@ def repl(ctx: click.Context, backend: str, port: int | None, no_history: bool) -
 
 def _print_banner(backend: str) -> None:
     console.print("\n[bold blue]pbi-cli interactive REPL[/bold blue]")
-    console.print(f"  Backend: [cyan]{backend}[/cyan]  |  Tab: complete  |  ↑↓: history  |  Ctrl+D: exit\n")
+    console.print(
+        f"  Backend: [cyan]{backend}[/cyan]  |  Tab: complete  |  ↑↓: history  |  Ctrl+D: exit\n"
+    )
 
 
 def _print_help() -> None:
@@ -166,12 +198,12 @@ def _print_help() -> None:
 def _dispatch(ctx: click.Context, line: str, session_backend: Any) -> None:
     """Parse and execute a REPL line by delegating to the main CLI."""
     import subprocess
-    import sys
+
     args = ["pbi"] + line.split()
     # Pass current backend flag
     backend = ctx.obj.get("backend", "desktop")
     args = ["pbi", "--backend", backend] + line.split()
     try:
-        result = subprocess.run(args, capture_output=False)
+        subprocess.run(args, capture_output=False)
     except Exception as exc:
         console.print(f"[red]Error:[/red] {exc}")

@@ -24,10 +24,18 @@ class TestDeployPush:
         assert "MyWorkspace" in result.output
 
     def test_push_dry_run(self, runner):
-        result = runner.invoke(cli, [
-            "--backend", "mock", "--dry-run",
-            "deploy", "push", "--workspace", "TestWS",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--backend",
+                "mock",
+                "--dry-run",
+                "deploy",
+                "push",
+                "--workspace",
+                "TestWS",
+            ],
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
@@ -41,11 +49,20 @@ class TestDeployDiff:
 
 class TestDeployPromote:
     def test_promote_dry_run(self, runner):
-        result = runner.invoke(cli, [
-            "--backend", "mock", "--dry-run",
-            "deploy", "promote",
-            "--from", "Dev", "--to", "Prod",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--backend",
+                "mock",
+                "--dry-run",
+                "deploy",
+                "promote",
+                "--from",
+                "Dev",
+                "--to",
+                "Prod",
+            ],
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 

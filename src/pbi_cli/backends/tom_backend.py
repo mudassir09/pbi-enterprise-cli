@@ -18,6 +18,7 @@ _DLL_DIR = Path(__file__).parent.parent / "dlls"
 def _load_amo() -> None:
     """Add AMO DLL directory to path and load assemblies."""
     import clr  # type: ignore[import]
+
     dll_dir = str(_DLL_DIR)
     if dll_dir not in sys.path:
         sys.path.append(dll_dir)
@@ -31,16 +32,16 @@ def find_pbi_port() -> int | None:
     try:
         tasklist = subprocess.run(
             ["tasklist", "/FI", "IMAGENAME eq msmdsrv.exe", "/FO", "CSV"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         pid_match = re.search(r'"msmdsrv\.exe","(\d+)"', tasklist.stdout)
         if not pid_match:
             return None
         pid = pid_match.group(1)
 
-        netstat = subprocess.run(
-            ["netstat", "-ano"], capture_output=True, text=True, timeout=5
-        )
+        netstat = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, timeout=5)
         for line in netstat.stdout.splitlines():
             if pid in line and "LISTENING" in line:
                 m = re.search(r"(?:127\.0\.0\.1|0\.0\.0\.0):(\d+)", line)
@@ -135,13 +136,15 @@ class TomBackend:
             for col in t.Columns:
                 if col.IsHidden or col.Type.ToString() == "RowNumber":
                     continue
-                results.append({
-                    "table": t.Name,
-                    "name": col.Name,
-                    "dataType": col.DataType.ToString(),
-                    "isHidden": col.IsHidden,
-                    "description": col.Description or "",
-                })
+                results.append(
+                    {
+                        "table": t.Name,
+                        "name": col.Name,
+                        "dataType": col.DataType.ToString(),
+                        "isHidden": col.IsHidden,
+                        "description": col.Description or "",
+                    }
+                )
         return results
 
     def relationship_list(self) -> list[dict[str, Any]]:
@@ -165,19 +168,22 @@ class TomBackend:
             if table and t.Name != table:
                 continue
             for m in t.Measures:
-                results.append({
-                    "table": t.Name,
-                    "name": m.Name,
-                    "expression": m.Expression,
-                    "formatString": m.FormatString or "",
-                    "description": m.Description or "",
-                    "isHidden": m.IsHidden,
-                })
+                results.append(
+                    {
+                        "table": t.Name,
+                        "name": m.Name,
+                        "expression": m.Expression,
+                        "formatString": m.FormatString or "",
+                        "description": m.Description or "",
+                        "isHidden": m.IsHidden,
+                    }
+                )
         return results
 
     def measure_add(self, table: str, name: str, expression: str, **kwargs: Any) -> dict[str, Any]:
         self._require_connection()
         from Microsoft.AnalysisServices.Tabular import Measure  # type: ignore[import]
+
         target = self._model.Tables.Find(table)
         if not target:
             raise ValueError(f"Table '{table}' not found.")
@@ -225,6 +231,7 @@ class TomBackend:
     def table_add(self, name: str, **kwargs: Any) -> dict[str, Any]:
         self._require_connection()
         from Microsoft.AnalysisServices.Tabular import Table  # type: ignore[import]
+
         t = Table()
         t.Name = name
         self._model.Tables.Add(t)
@@ -243,6 +250,7 @@ class TomBackend:
     def column_add(self, table: str, name: str, data_type: str, **kwargs: Any) -> dict[str, Any]:
         self._require_connection()
         from Microsoft.AnalysisServices.Tabular import DataColumn, DataType  # type: ignore[import]
+
         target = self._model.Tables.Find(table)
         if not target:
             raise ValueError(f"Table '{table}' not found.")
@@ -264,9 +272,14 @@ class TomBackend:
 
     # --- Relationships ---
 
-    def relationship_add(self, from_table: str, from_column: str, to_table: str, to_column: str, **kwargs: Any) -> dict[str, Any]:
+    def relationship_add(
+        self, from_table: str, from_column: str, to_table: str, to_column: str, **kwargs: Any
+    ) -> dict[str, Any]:
         self._require_connection()
-        from Microsoft.AnalysisServices.Tabular import SingleColumnRelationship  # type: ignore[import]
+        from Microsoft.AnalysisServices.Tabular import (
+            SingleColumnRelationship,  # type: ignore[import]
+        )
+
         ft = self._model.Tables.Find(from_table)
         tt = self._model.Tables.Find(to_table)
         if not ft or not tt:
@@ -282,7 +295,11 @@ class TomBackend:
 
     def dax_query(self, expression: str) -> list[dict[str, Any]]:
         self._require_connection()
-        from Microsoft.AnalysisServices.AdomdClient import AdomdConnection, AdomdCommand  # type: ignore[import]
+        from Microsoft.AnalysisServices.AdomdClient import (  # type: ignore[import]
+            AdomdCommand,
+            AdomdConnection,
+        )
+
         conn_str = f"Data Source=localhost:{self._port}"
         conn = AdomdConnection(conn_str)
         try:
@@ -298,7 +315,11 @@ class TomBackend:
                     try:
                         val = reader.GetValue(i)
                         # Convert .NET types to Python primitives
-                        row[c] = float(val) if hasattr(val, "ToString") and not isinstance(val, str) else val
+                        row[c] = (
+                            float(val)
+                            if hasattr(val, "ToString") and not isinstance(val, str)
+                            else val
+                        )
                     except Exception:
                         row[c] = None
                 rows.append(row)
@@ -311,7 +332,7 @@ class TomBackend:
         self._require_connection()
         # Wrap in EVALUATE to test parse — use a DAX query that returns nothing if invalid
         try:
-            test_expr = f"EVALUATE ROW(\"__test\", {expression})"
+            test_expr = f'EVALUATE ROW("__test", {expression})'
             self.dax_query(test_expr)
             return {"valid": True, "expression": expression}
         except Exception as e:
@@ -336,6 +357,7 @@ class TomBackend:
     def hierarchy_add(self, table: str, name: str, levels: list[dict[str, Any]]) -> dict[str, Any]:
         self._require_connection()
         from Microsoft.AnalysisServices.Tabular import Hierarchy, Level  # type: ignore[import]
+
         t = self._model.Tables.Find(table)
         if not t:
             raise ValueError(f"Table '{table}' not found.")
@@ -372,14 +394,20 @@ class TomBackend:
                 {"name": ci.Name, "expression": ci.Expression, "ordinal": ci.Ordinal}
                 for ci in t.CalculationGroup.CalculationItems
             ]
-            results.append({"table": t.Name, "precedence": t.CalculationGroup.Precedence, "items": items})
+            results.append(
+                {"table": t.Name, "precedence": t.CalculationGroup.Precedence, "items": items}
+            )
         return results
 
     def calc_group_add(self, name: str, precedence: int = 0) -> dict[str, Any]:
         self._require_connection()
         from Microsoft.AnalysisServices.Tabular import (  # type: ignore[import]
-            Table, CalculationGroup, CalculationGroupColumn, DataType,
+            CalculationGroup,
+            CalculationGroupColumn,
+            DataType,
+            Table,
         )
+
         t = Table()
         t.Name = name
         cg = CalculationGroup()
@@ -393,9 +421,12 @@ class TomBackend:
         self._model.SaveChanges()
         return {"table": name, "precedence": precedence, "items": []}
 
-    def calc_item_add(self, group_table: str, name: str, expression: str, ordinal: int = 0) -> dict[str, Any]:
+    def calc_item_add(
+        self, group_table: str, name: str, expression: str, ordinal: int = 0
+    ) -> dict[str, Any]:
         self._require_connection()
         from Microsoft.AnalysisServices.Tabular import CalculationItem  # type: ignore[import]
+
         t = self._model.Tables.Find(group_table)
         if not t or not t.CalculationGroup:
             raise ValueError(f"Calculation group '{group_table}' not found.")
@@ -427,18 +458,23 @@ class TomBackend:
                 {"table": tp.Table.Name, "filterExpression": tp.FilterExpression or ""}
                 for tp in role.TablePermissions
             ]
-            results.append({
-                "name": role.Name,
-                "modelPermission": role.ModelPermission.ToString(),
-                "tablePermissions": table_perms,
-            })
+            results.append(
+                {
+                    "name": role.Name,
+                    "modelPermission": role.ModelPermission.ToString(),
+                    "tablePermissions": table_perms,
+                }
+            )
         return results
 
     def role_add(self, name: str, table: str, filter_expression: str) -> dict[str, Any]:
         self._require_connection()
         from Microsoft.AnalysisServices.Tabular import (  # type: ignore[import]
-            ModelRole, ModelPermission, TablePermission,
+            ModelPermission,
+            ModelRole,
+            TablePermission,
         )
+
         role = ModelRole()
         role.Name = name
         role.ModelPermission = ModelPermission.Read
@@ -462,7 +498,11 @@ class TomBackend:
     def role_test(self, role_name: str, dax_expression: str) -> dict[str, Any]:
         """Execute a DAX query with a specific role applied to verify RLS filtering."""
         self._require_connection()
-        from Microsoft.AnalysisServices.AdomdClient import AdomdConnection, AdomdCommand  # type: ignore[import]
+        from Microsoft.AnalysisServices.AdomdClient import (  # type: ignore[import]
+            AdomdCommand,
+            AdomdConnection,
+        )
+
         conn_str = f"Data Source=localhost:{self._port};Roles={role_name}"
         conn = AdomdConnection(conn_str)
         try:
@@ -476,7 +516,11 @@ class TomBackend:
                 for i, c in enumerate(cols):
                     try:
                         val = reader.GetValue(i)
-                        row[c] = float(val) if hasattr(val, "ToString") and not isinstance(val, str) else val
+                        row[c] = (
+                            float(val)
+                            if hasattr(val, "ToString") and not isinstance(val, str)
+                            else val
+                        )
                     except Exception:
                         row[c] = None
                 rows.append(row)
@@ -498,18 +542,24 @@ class TomBackend:
                 src = p.Source
                 if src is not None:
                     source_expr = getattr(src, "Expression", "") or getattr(src, "Query", "") or ""
-                results.append({
-                    "table": t.Name,
-                    "name": p.Name,
-                    "mode": p.Mode.ToString(),
-                    "state": p.State.ToString(),
-                    "source": source_expr,
-                })
+                results.append(
+                    {
+                        "table": t.Name,
+                        "name": p.Name,
+                        "mode": p.Mode.ToString(),
+                        "state": p.State.ToString(),
+                        "source": source_expr,
+                    }
+                )
         return results
 
     def partition_add(self, table: str, name: str, query: str) -> dict[str, Any]:
         self._require_connection()
-        from Microsoft.AnalysisServices.Tabular import Partition, MPartitionSource  # type: ignore[import]
+        from Microsoft.AnalysisServices.Tabular import (  # type: ignore[import]
+            MPartitionSource,
+            Partition,
+        )
+
         t = self._model.Tables.Find(table)
         if not t:
             raise ValueError(f"Table '{table}' not found.")
@@ -534,6 +584,7 @@ class TomBackend:
     def partition_refresh(self, table: str, name: str) -> dict[str, Any]:
         self._require_connection()
         from Microsoft.AnalysisServices.Tabular import RefreshType  # type: ignore[import]
+
         t = self._model.Tables.Find(table)
         if not t:
             raise ValueError(f"Table '{table}' not found.")
@@ -548,7 +599,9 @@ class TomBackend:
 
     def model_diff(self, snapshot_path: str) -> dict[str, Any]:
         """Compare the current model against a TMDL snapshot directory."""
-        import tempfile, pathlib
+        import pathlib
+        import tempfile
+
         snap = pathlib.Path(snapshot_path)
         if not snap.exists():
             raise FileNotFoundError(f"Snapshot path not found: {snapshot_path}")
@@ -556,13 +609,11 @@ class TomBackend:
         with tempfile.TemporaryDirectory() as tmp:
             self.tmdl_export(tmp)
             current: dict[str, str] = {
-                f.name: f.read_text(encoding="utf-8")
-                for f in pathlib.Path(tmp).rglob("*.tmdl")
+                f.name: f.read_text(encoding="utf-8") for f in pathlib.Path(tmp).rglob("*.tmdl")
             }
 
         baseline: dict[str, str] = {
-            f.name: f.read_text(encoding="utf-8")
-            for f in snap.rglob("*.tmdl")
+            f.name: f.read_text(encoding="utf-8") for f in snap.rglob("*.tmdl")
         }
 
         added = sorted(k for k in current if k not in baseline)
@@ -584,11 +635,13 @@ class TomBackend:
     def tmdl_export(self, path: str) -> None:
         self._require_connection()
         from Microsoft.AnalysisServices.Tabular import TmdlSerializer  # type: ignore[import]
+
         TmdlSerializer.SerializeDatabaseToFolder(self._db, path)
 
     def tmdl_import(self, path: str) -> None:
         self._require_connection()
         from Microsoft.AnalysisServices.Tabular import TmdlSerializer  # type: ignore[import]
+
         TmdlSerializer.DeserializeDatabaseFromFolder(path, self._db)
         self._model.SaveChanges()
 

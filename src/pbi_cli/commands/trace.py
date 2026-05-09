@@ -26,8 +26,11 @@ def trace() -> None:
 
 
 @trace.command("start")
-@click.option("--events", default="QueryBegin,QueryEnd,ProgressReportEnd",
-              help="Comma-separated trace event classes to capture.")
+@click.option(
+    "--events",
+    default="QueryBegin,QueryEnd,ProgressReportEnd",
+    help="Comma-separated trace event classes to capture.",
+)
 @click.pass_context
 def trace_start(ctx: click.Context, events: str) -> None:
     """Start capturing DAX query trace events.
@@ -90,6 +93,7 @@ def trace_clear() -> None:
 
 # ── Benchmarking ───────────────────────────────────────────────────────────────
 
+
 @click.command("benchmark")
 @click.argument("expression")
 @click.option("--runs", default=5, show_default=True, help="Number of executions to average.")
@@ -105,7 +109,9 @@ def benchmark(ctx: click.Context, expression: str, runs: int, warmup: int) -> No
     backend = get_backend(ctx)
     timings: list[float] = []
 
-    console.print(f"[cyan]Benchmarking DAX:[/cyan] {expression[:80]}{'...' if len(expression) > 80 else ''}")
+    console.print(
+        f"[cyan]Benchmarking DAX:[/cyan] {expression[:80]}{'...' if len(expression) > 80 else ''}"
+    )
 
     if warmup:
         console.print(f"[dim]Warm-up ({warmup} run(s))...[/dim]")
@@ -118,7 +124,7 @@ def benchmark(ctx: click.Context, expression: str, runs: int, warmup: int) -> No
         backend.dax_query(expression)
         elapsed = (time.perf_counter() - t0) * 1000
         timings.append(elapsed)
-        console.print(f"  Run {i+1}: {elapsed:.1f} ms")
+        console.print(f"  Run {i + 1}: {elapsed:.1f} ms")
 
     avg = sum(timings) / len(timings)
     mn = min(timings)

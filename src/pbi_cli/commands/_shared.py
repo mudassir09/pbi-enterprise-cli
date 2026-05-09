@@ -14,8 +14,8 @@ console = Console()
 
 def get_backend(ctx: click.Context) -> Any:
     """Get or create the backend from context, auto-connecting if needed."""
-    from pbi_cli.backends.tom_backend import TomBackend
     from pbi_cli.backends.mock_backend import MockTomBackend
+    from pbi_cli.backends.tom_backend import TomBackend
     from pbi_cli.backends.xmla_backend import XmlaBackend
 
     obj = ctx.obj or {}
@@ -82,6 +82,7 @@ def snapshot_before_write(ctx: click.Context) -> None:
         if backend is None or not backend.is_connected():
             return
         from pbi_cli._snapshot import capture_snapshot
+
         capture_snapshot(backend)
     except Exception:
         pass  # Never let snapshot failure block a write

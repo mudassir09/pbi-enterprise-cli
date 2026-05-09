@@ -16,6 +16,7 @@ _REPORT_DIR = Path(r"C:\Users\GGPC\Documents\financials.Report")
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def runner() -> CliRunner:
     return CliRunner()
@@ -43,6 +44,7 @@ def _run(runner, *args):
 
 # ── Bookmark tests ─────────────────────────────────────────────────────────────
 
+
 class TestBookmarkCommands:
     def test_bookmark_list_no_bookmarks(self, runner, pbip_copy):
         result = _run(runner, "report", "bookmark-list", "--pbip", pbip_copy)
@@ -51,8 +53,7 @@ class TestBookmarkCommands:
         assert result.output
 
     def test_bookmark_add_and_list(self, runner, pbip_copy):
-        add = _run(runner, "report", "bookmark-add",
-                   "--pbip", pbip_copy, "--name", "Test Bookmark")
+        add = _run(runner, "report", "bookmark-add", "--pbip", pbip_copy, "--name", "Test Bookmark")
         assert add.exit_code == 0
         assert "Test Bookmark" in add.output
 
@@ -62,36 +63,54 @@ class TestBookmarkCommands:
         assert any(b["displayName"] == "Test Bookmark" for b in data)
 
     def test_bookmark_add_with_page(self, runner, pbip_copy):
-        result = _run(runner, "report", "bookmark-add",
-                      "--pbip", pbip_copy, "--name", "Q4 View",
-                      "--page", "Executive Summary")
+        result = _run(
+            runner,
+            "report",
+            "bookmark-add",
+            "--pbip",
+            pbip_copy,
+            "--name",
+            "Q4 View",
+            "--page",
+            "Executive Summary",
+        )
         assert result.exit_code == 0
         assert "Q4 View" in result.output
 
     def test_bookmark_delete(self, runner, pbip_copy):
-        _run(runner, "report", "bookmark-add",
-             "--pbip", pbip_copy, "--name", "ToDelete")
-        result = _run(runner, "report", "bookmark-delete",
-                      "--pbip", pbip_copy, "--name", "ToDelete")
+        _run(runner, "report", "bookmark-add", "--pbip", pbip_copy, "--name", "ToDelete")
+        result = _run(
+            runner, "report", "bookmark-delete", "--pbip", pbip_copy, "--name", "ToDelete"
+        )
         assert result.exit_code == 0
         assert "Deleted" in result.output
 
     def test_bookmark_delete_missing(self, runner, pbip_copy):
-        result = _run(runner, "report", "bookmark-delete",
-                      "--pbip", pbip_copy, "--name", "DoesNotExist_XYZ")
+        result = _run(
+            runner, "report", "bookmark-delete", "--pbip", pbip_copy, "--name", "DoesNotExist_XYZ"
+        )
         assert result.exit_code == 0
         assert "not found" in result.output.lower()
 
     def test_bookmark_add_dry_run(self, runner, pbip_copy):
-        result = runner.invoke(cli, [
-            "--dry-run", "report", "bookmark-add",
-            "--pbip", pbip_copy, "--name", "DryRunBM",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--dry-run",
+                "report",
+                "bookmark-add",
+                "--pbip",
+                pbip_copy,
+                "--name",
+                "DryRunBM",
+            ],
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
 
 # ── Bookmark file-format assertions ──────────────────────────────────────────
+
 
 class TestBookmarkFileFormat:
     """Assert the on-disk PBIR format matches what Power BI Desktop expects."""
@@ -99,6 +118,7 @@ class TestBookmarkFileFormat:
     def test_bookmark_is_flat_file_not_subfolder(self, runner, pbip_copy):
         """bookmark must be written as {id}.bookmark.json, not {id}/bookmark.json."""
         from pbi_cli.backends.pbir_backend import PbirBackend
+
         b = PbirBackend(pbip_copy)
         result = b.bookmark_add("Format Check BM")
         bm_id = result["name"]
@@ -112,6 +132,7 @@ class TestBookmarkFileFormat:
     def test_bookmark_schema_version_is_2_1_0(self, runner, pbip_copy):
         """Desktop uses schema 2.1.0, not 1.0.0."""
         from pbi_cli.backends.pbir_backend import PbirBackend
+
         b = PbirBackend(pbip_copy)
         b.bookmark_add("Schema Version BM")
         bdir = b._ga_bookmarks_dir()
@@ -123,6 +144,7 @@ class TestBookmarkFileFormat:
     def test_bookmark_exploration_state_version_is_1_3(self, runner, pbip_copy):
         """explorationState.version must be '1.3', not '0.0'."""
         from pbi_cli.backends.pbir_backend import PbirBackend
+
         b = PbirBackend(pbip_copy)
         b.bookmark_add("Version Check BM")
         bdir = b._ga_bookmarks_dir()
@@ -135,6 +157,7 @@ class TestBookmarkFileFormat:
     def test_bookmark_has_options_field(self, runner, pbip_copy):
         """Desktop always writes options.targetVisualNames."""
         from pbi_cli.backends.pbir_backend import PbirBackend
+
         b = PbirBackend(pbip_copy)
         b.bookmark_add("Options Check BM")
         bdir = b._ga_bookmarks_dir()
@@ -146,6 +169,7 @@ class TestBookmarkFileFormat:
     def test_bookmarks_index_uses_items_not_bookmark_order(self, runner, pbip_copy):
         """bookmarks.json must use 'items' array, not 'bookmarkOrder'."""
         from pbi_cli.backends.pbir_backend import PbirBackend
+
         b = PbirBackend(pbip_copy)
         b.bookmark_add("Index Check BM")
         bdir = b._ga_bookmarks_dir()
@@ -156,6 +180,7 @@ class TestBookmarkFileFormat:
     def test_bookmark_delete_removes_flat_file(self, runner, pbip_copy):
         """Deleting a bookmark must remove the flat .bookmark.json file."""
         from pbi_cli.backends.pbir_backend import PbirBackend
+
         b = PbirBackend(pbip_copy)
         result = b.bookmark_add("Delete Me BM")
         bm_id = result["name"]
@@ -168,6 +193,7 @@ class TestBookmarkFileFormat:
     def test_bookmark_active_section_resolves_to_page_id(self, runner, pbip_copy):
         """activeSection must be the page GUID, not the display name."""
         from pbi_cli.backends.pbir_backend import PbirBackend
+
         b = PbirBackend(pbip_copy)
         pages = b.page_list()
         target = pages[0]
@@ -186,44 +212,67 @@ class TestBookmarkFileFormat:
 
 # ── Drillthrough / Tooltip tests ──────────────────────────────────────────────
 
+
 class TestDrillthroughTooltip:
     def test_drillthrough_setup(self, runner, pbip_copy):
-        result = _run(runner, "report", "drillthrough-setup",
-                      "--pbip", pbip_copy,
-                      "--page", "Profit Analysis",
-                      "--table", "financials")
+        result = _run(
+            runner,
+            "report",
+            "drillthrough-setup",
+            "--pbip",
+            pbip_copy,
+            "--page",
+            "Profit Analysis",
+            "--table",
+            "financials",
+        )
         assert result.exit_code == 0
         assert "Drillthrough" in result.output
 
     def test_tooltip_setup(self, runner, pbip_copy):
-        result = _run(runner, "report", "tooltip-setup",
-                      "--pbip", pbip_copy,
-                      "--page", "Sales Analysis")
+        result = _run(
+            runner, "report", "tooltip-setup", "--pbip", pbip_copy, "--page", "Sales Analysis"
+        )
         assert result.exit_code == 0
         assert "tooltip" in result.output.lower()
 
     def test_page_type_reset(self, runner, pbip_copy):
         # First set as tooltip, then reset
-        _run(runner, "report", "tooltip-setup",
-             "--pbip", pbip_copy, "--page", "Sales Analysis")
-        result = _run(runner, "report", "page-type-reset",
-                      "--pbip", pbip_copy, "--page", "Sales Analysis")
+        _run(runner, "report", "tooltip-setup", "--pbip", pbip_copy, "--page", "Sales Analysis")
+        result = _run(
+            runner, "report", "page-type-reset", "--pbip", pbip_copy, "--page", "Sales Analysis"
+        )
         assert result.exit_code == 0
         assert "reset" in result.output.lower()
 
     def test_drillthrough_setup_dry_run(self, runner, pbip_copy):
-        result = runner.invoke(cli, [
-            "--dry-run", "report", "drillthrough-setup",
-            "--pbip", pbip_copy,
-            "--page", "Profit Analysis",
-            "--table", "financials",
-        ])
+        result = runner.invoke(
+            cli,
+            [
+                "--dry-run",
+                "report",
+                "drillthrough-setup",
+                "--pbip",
+                pbip_copy,
+                "--page",
+                "Profit Analysis",
+                "--table",
+                "financials",
+            ],
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
     def test_drillthrough_setup_invalid_page(self, runner, pbip_copy):
-        result = _run(runner, "report", "drillthrough-setup",
-                      "--pbip", pbip_copy,
-                      "--page", "NonExistentPage_XYZ",
-                      "--table", "financials")
+        result = _run(
+            runner,
+            "report",
+            "drillthrough-setup",
+            "--pbip",
+            pbip_copy,
+            "--page",
+            "NonExistentPage_XYZ",
+            "--table",
+            "financials",
+        )
         assert result.exit_code != 0

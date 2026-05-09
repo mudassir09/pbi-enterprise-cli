@@ -21,6 +21,7 @@ def _run(runner, *args):
 
 # ── docs generate ─────────────────────────────────────────────────────────────
 
+
 class TestDocsGenerate:
     def test_markdown_outputs_to_console(self, runner):
         result = _run(runner, "docs", "generate", "--format", "markdown")
@@ -46,6 +47,7 @@ class TestDocsGenerate:
 
 # ── docs audit-log ────────────────────────────────────────────────────────────
 
+
 class TestDocsAuditLog:
     def test_empty_audit_log_message(self, runner, tmp_path, monkeypatch):
         monkeypatch.setattr("pbi_cli._audit._AUDIT_FILE", tmp_path / "audit.jsonl")
@@ -56,8 +58,10 @@ class TestDocsAuditLog:
     def test_audit_log_with_entries(self, runner, tmp_path, monkeypatch):
         audit_file = tmp_path / "audit.jsonl"
         audit_file.write_text(
-            json.dumps({"timestamp": "2025-01-01T00:00:00", "command": "measure add",
-                        "user": "test"}) + "\n",
+            json.dumps(
+                {"timestamp": "2025-01-01T00:00:00", "command": "measure add", "user": "test"}
+            )
+            + "\n",
             encoding="utf-8",
         )
         monkeypatch.setattr("pbi_cli._audit._AUDIT_FILE", audit_file)

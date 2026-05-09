@@ -2,23 +2,25 @@
 
 from __future__ import annotations
 
-RULE_ID = "measure-description-required"
-
 from typing import Any
+
+RULE_ID = "measure-description-required"
 
 
 def check(backend: Any) -> list[dict[str, Any]]:
     violations = []
     for measure in backend.measure_list():
         if not measure.get("description"):
-            violations.append({
-                "rule": "measure-description-required",
-                "object": f"Measure '{measure['name']}'",
-                "message": f"Measure '{measure['name']}' is missing a description",
-                "severity": "warning",
-                "autoFixable": True,
-                "table": measure.get("table", ""),
-            })
+            violations.append(
+                {
+                    "rule": "measure-description-required",
+                    "object": f"Measure '{measure['name']}'",
+                    "message": f"Measure '{measure['name']}' is missing a description",
+                    "severity": "warning",
+                    "autoFixable": True,
+                    "table": measure.get("table", ""),
+                }
+            )
     return violations
 
 

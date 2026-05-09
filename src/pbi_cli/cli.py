@@ -1,7 +1,5 @@
 """Main CLI entry point for pbi-cli."""
 
-import json
-import sys
 from pathlib import Path
 
 import click
@@ -9,10 +7,29 @@ from rich.console import Console
 
 from pbi_cli import __version__
 from pbi_cli.commands import (
-    dax, database, deploy, docs, govern, layout,
-    measure, model, report, server_cmd, source, theme, visual, watch,
-    security, partition, filter_cmd,
-    trace, connections, skills_cmd, calendar_cmd, repl, custom_visual,
+    calendar_cmd,
+    connections,
+    custom_visual,
+    database,
+    dax,
+    deploy,
+    docs,
+    filter_cmd,
+    govern,
+    layout,
+    measure,
+    model,
+    partition,
+    repl,
+    report,
+    security,
+    server_cmd,
+    skills_cmd,
+    source,
+    theme,
+    trace,
+    visual,
+    watch,
 )
 
 console = Console()
@@ -102,6 +119,7 @@ cli.add_command(custom_visual.custom_visual)
 def connect(ctx: click.Context, port: int | None) -> None:
     """Connect to the running Power BI Desktop instance and show model info."""
     from pbi_cli.backends.tom_backend import TomBackend, find_pbi_port
+
     detected = port or find_pbi_port()
     if not detected:
         console.print("[red]No running Power BI Desktop found.[/red]")
@@ -111,7 +129,9 @@ def connect(ctx: click.Context, port: int | None) -> None:
     b = TomBackend()
     b.connect(port=detected)
     info = b.model_info()
-    console.print(f"[green]Connected![/green] Model: [bold]{info['name']}[/bold]  (CompatibilityLevel {info['compatibilityLevel']})")
+    console.print(
+        f"[green]Connected![/green] Model: [bold]{info['name']}[/bold]  (CompatibilityLevel {info['compatibilityLevel']})"  # noqa: E501
+    )
     tables = b.table_list()
     console.print(f"Tables: {', '.join(t['name'] for t in tables)}")
     b.disconnect()
@@ -122,6 +142,7 @@ def connect(ctx: click.Context, port: int | None) -> None:
 def doctor(ctx: click.Context) -> None:
     """Diagnose setup issues: pythonnet, DLL compatibility, XMLA connectivity."""
     from pbi_cli.commands._doctor import run_doctor
+
     run_doctor(ctx.obj.get("output_json", False))
 
 
@@ -131,6 +152,7 @@ def doctor(ctx: click.Context) -> None:
 def undo(ctx: click.Context, yes: bool) -> None:
     """Revert the last write command using the auto-snapshot."""
     from pbi_cli._snapshot import latest_snapshot, restore_snapshot
+
     snapshot = latest_snapshot()
     if not snapshot:
         console.print("[yellow]No snapshots found. Nothing to undo.[/yellow]")
@@ -139,9 +161,12 @@ def undo(ctx: click.Context, yes: bool) -> None:
 
     console.print(f"[cyan]Latest snapshot:[/cyan] {snapshot.name}")
     if not yes:
-        click.confirm("Restore this snapshot? This will overwrite current measure state.", abort=True)
+        click.confirm(
+            "Restore this snapshot? This will overwrite current measure state.", abort=True
+        )
 
     from pbi_cli.backends.tom_backend import TomBackend, find_pbi_port
+
     port = find_pbi_port()
     if not port:
         console.print("[red]No running Power BI Desktop found.[/red]")
@@ -152,15 +177,18 @@ def undo(ctx: click.Context, yes: bool) -> None:
     b.disconnect()
 
     from pbi_cli._audit import write_audit_entry
+
     write_audit_entry("undo", extra={"snapshot": snapshot.name, "restored": restored})
-    console.print(f"[green]Restored:[/green] {restored['measures_restored']} measures from snapshot {snapshot.name}")
+    console.print(
+        f"[green]Restored:[/green] {restored['measures_restored']} measures from snapshot {snapshot.name}"  # noqa: E501
+    )
 
 
 @cli.command("skill-validate")
 @click.argument("skill_path", type=click.Path(exists=True))
 @click.pass_context
 def skill_validate(ctx: click.Context, skill_path: str) -> None:
-    """Lint a SKILL.md file: validate frontmatter fields, description triggers, and structure (F4)."""
+    """Lint a SKILL.md file: validate frontmatter fields, description triggers, and structure (F4)."""  # noqa: E501
     import re
     from pathlib import Path
 
@@ -198,13 +226,17 @@ def skill_validate(ctx: click.Context, skill_path: str) -> None:
         desc_block = re.search(r"^description:(.+?)(?=^\w|\Z)", fm_text, re.DOTALL | re.MULTILINE)
         if desc_block:
             desc_text = desc_block.group(1)
-            if not re.search(r"(Use when|triggers on|trigger|when the user)", desc_text, re.IGNORECASE):
-                warnings.append("description should include trigger phrases like 'Use when' or 'triggers on'")
+            if not re.search(
+                r"(Use when|triggers on|trigger|when the user)", desc_text, re.IGNORECASE
+            ):
+                warnings.append(
+                    "description should include trigger phrases like 'Use when' or 'triggers on'"
+                )
             if not re.search(r"Do NOT", desc_text, re.IGNORECASE):
                 warnings.append("description should include a 'Do NOT trigger' exclusion clause")
 
     # Body must have at least one code block
-    body = content[fm_match.end():]
+    body = content[fm_match.end() :]
     if "```" not in body:
         warnings.append("No code blocks found — SKILL.md should include command examples")
 
@@ -215,8 +247,9 @@ def skill_validate(ctx: click.Context, skill_path: str) -> None:
     _report_validation(skill_file, errors, warnings, ctx)
 
 
-def _report_validation(skill_file: "Path", errors: list, warnings: list, ctx: "click.Context") -> None:
-    from pathlib import Path
+def _report_validation(
+    skill_file: "Path", errors: list, warnings: list, ctx: "click.Context"
+) -> None:
     console.print(f"[bold]Validating:[/bold] {skill_file}")
     if not errors and not warnings:
         console.print("[green]OK SKILL.md is valid.[/green]")
@@ -269,6 +302,7 @@ def completions(shell: str | None) -> None:
 
 def _detect_shell() -> str:
     import os
+
     shell_env = os.environ.get("SHELL", "")
     if "zsh" in shell_env:
         return "zsh"
@@ -281,17 +315,10 @@ def _detect_shell() -> str:
 
 def _print_completion_instructions(shell: str) -> None:
     instructions = {
-        "bash": (
-            "# Add to ~/.bashrc:\n"
-            'eval "$(_PBI_COMPLETE=bash_source pbi)"'
-        ),
-        "zsh": (
-            "# Add to ~/.zshrc:\n"
-            'eval "$(_PBI_COMPLETE=zsh_source pbi)"'
-        ),
+        "bash": ('# Add to ~/.bashrc:\neval "$(_PBI_COMPLETE=bash_source pbi)"'),
+        "zsh": ('# Add to ~/.zshrc:\neval "$(_PBI_COMPLETE=zsh_source pbi)"'),
         "fish": (
-            "# Save to ~/.config/fish/completions/pbi.fish:\n"
-            "_PBI_COMPLETE=fish_source pbi | source"
+            "# Save to ~/.config/fish/completions/pbi.fish:\n_PBI_COMPLETE=fish_source pbi | source"
         ),
         "powershell": (
             "# Add to your PowerShell profile:\n"

@@ -29,6 +29,8 @@ class MarkdownDocsGenerator:
                 lines.append("| Measure | Expression | Format |")
                 lines.append("|---------|------------|--------|")
                 for m in table_measures:
-                    lines.append(f"| {m['name']} | `{m.get('expression', '')}` | {m.get('formatString', '')} |")
+                    lines.append(
+                        f"| {m['name']} | `{m.get('expression', '')}` | {m.get('formatString', '')} |"  # noqa: E501
+                    )
                 lines.append("")
         return "\n".join(lines)

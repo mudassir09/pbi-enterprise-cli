@@ -19,7 +19,8 @@ class GovernanceEngine:
         return violations
 
     def run_naming_rules(self) -> list[dict[str, Any]]:
-        from pbi_cli.governance.rules import table_pascal_case, measure_brackets
+        from pbi_cli.governance.rules import measure_brackets, table_pascal_case
+
         violations: list[dict[str, Any]] = []
         violations.extend(table_pascal_case.check(self._backend))
         violations.extend(measure_brackets.check(self._backend))
@@ -27,6 +28,7 @@ class GovernanceEngine:
 
     def run_metadata_rules(self) -> list[dict[str, Any]]:
         from pbi_cli.governance.rules import measure_description, measure_format
+
         violations: list[dict[str, Any]] = []
         violations.extend(measure_description.check(self._backend))
         violations.extend(measure_format.check(self._backend))
@@ -53,6 +55,7 @@ class GovernanceEngine:
     def list_rules() -> list[dict[str, Any]]:
         """Return metadata for all registered rules (built-in + plugins)."""
         from pbi_cli.governance.rules import _BUILTIN_RULES
+
         builtin_ids = {id(m) for m in _BUILTIN_RULES}
         rules_info: list[dict[str, Any]] = []
         for m in ALL_RULES:

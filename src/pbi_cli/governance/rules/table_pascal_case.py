@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-RULE_ID = "table-pascal-case"
-
 import re
 from typing import Any
+
+RULE_ID = "table-pascal-case"
 
 
 def check(backend: Any) -> list[dict[str, Any]]:
@@ -13,13 +13,15 @@ def check(backend: Any) -> list[dict[str, Any]]:
     for table in backend.table_list():
         name = table["name"]
         if not re.match(r"^[A-Z][a-zA-Z0-9]*$", name) and not name.startswith(("FACT_", "DIM_")):
-            violations.append({
-                "rule": "table-pascal-case",
-                "object": f"Table '{name}'",
-                "message": f"Table '{name}' should be PascalCase (e.g. 'SalesData')",
-                "severity": "warning",
-                "autoFixable": True,
-            })
+            violations.append(
+                {
+                    "rule": "table-pascal-case",
+                    "object": f"Table '{name}'",
+                    "message": f"Table '{name}' should be PascalCase (e.g. 'SalesData')",
+                    "severity": "warning",
+                    "autoFixable": True,
+                }
+            )
     return violations
 
 

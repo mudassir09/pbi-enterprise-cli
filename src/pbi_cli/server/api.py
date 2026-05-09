@@ -7,10 +7,11 @@ from typing import Any
 from pydantic import BaseModel
 
 try:
-    from fastapi import FastAPI, HTTPException
-    from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import FileResponse
     from pathlib import Path
+
+    from fastapi import FastAPI, HTTPException
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
 
     app = FastAPI(title="pbi-server", version="4.0.0.dev0", docs_url="/api/docs")
 
@@ -21,12 +22,15 @@ try:
         global _backend
         if _backend is None:
             from pbi_cli.backends.tom_backend import TomBackend
+
             _backend = TomBackend()
         if not _backend.is_connected():
             try:
                 _backend.connect()
             except Exception as exc:
-                raise HTTPException(status_code=503, detail=f"Not connected to Power BI Desktop: {exc}")
+                raise HTTPException(
+                    status_code=503, detail=f"Not connected to Power BI Desktop: {exc}"
+                )
         return _backend
 
     # ── Status ─────────────────────────────────────────────────────────────
@@ -34,13 +38,19 @@ try:
     @app.get("/api/status")
     def status() -> dict:
         from pbi_cli.backends.tom_backend import find_pbi_port
+
         port = find_pbi_port()
         if port is None:
             return {"connected": False, "message": "No running Power BI Desktop found"}
         try:
             b = get_backend()
             info = b.model_info()
-            return {"connected": True, "port": port, "model": info["name"], "compatibilityLevel": info.get("compatibilityLevel")}
+            return {
+                "connected": True,
+                "port": port,
+                "model": info["name"],
+                "compatibilityLevel": info.get("compatibilityLevel"),
+            }
         except Exception as exc:
             return {"connected": False, "error": str(exc)}
 
@@ -124,11 +134,13 @@ try:
     @app.get("/api/govern/check")
     def govern_check() -> list[dict]:
         from pbi_cli.governance.engine import GovernanceEngine
+
         return GovernanceEngine(get_backend()).run_all()
 
     @app.post("/api/govern/fix")
     def govern_fix() -> dict:
         from pbi_cli.governance.engine import GovernanceEngine
+
         engine = GovernanceEngine(get_backend())
         violations = engine.run_all()
         fixable = [v for v in violations if v.get("autoFixable")]
@@ -140,6 +152,7 @@ try:
     @app.get("/api/docs/markdown", response_class=__import__("fastapi").responses.PlainTextResponse)
     def docs_markdown() -> str:
         from pbi_cli.docs_gen.markdown import MarkdownDocsGenerator
+
         return MarkdownDocsGenerator(get_backend()).generate()
 
     # ── Suggest ────────────────────────────────────────────────────────────
@@ -148,11 +161,13 @@ try:
     def suggest_measures() -> list[dict]:
         b = get_backend()
         from pbi_cli.commands.model import _build_measure_suggestions
+
         return _build_measure_suggestions(b.table_list(), b.column_list())
 
     @app.post("/api/suggest/visuals")
     def suggest_visuals(body: dict) -> list[dict]:
         from pbi_cli.intelligence.visual_recommender import VisualRecommender
+
         measures = body.get("measures", [])
         return VisualRecommender().recommend(measures)
 

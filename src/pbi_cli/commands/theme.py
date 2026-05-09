@@ -20,19 +20,24 @@ def theme() -> None:
 
 @theme.command("generate")
 @click.option("--brand-color", required=True, help="Primary brand hex colour (e.g. #0078D4).")
-@click.option("--style", type=click.Choice(["corporate", "modern", "minimal", "dark"]), default="corporate")
+@click.option(
+    "--style", type=click.Choice(["corporate", "modern", "minimal", "dark"]), default="corporate"
+)
 @click.option("--output", default="theme.json", help="Output theme JSON file.")
 @click.pass_context
 def theme_generate(ctx: click.Context, brand_color: str, style: str, output: str) -> None:
     """Generate a complete Power BI theme JSON from a brand colour with WCAG compliance."""
     from pbi_cli.intelligence.theme_generator import ThemeGenerator
+
     console.print(f"[cyan]Generating {style} theme from:[/cyan] {brand_color}")
     gen = ThemeGenerator()
     theme_json = gen.generate(brand_color=brand_color, style=style)
     validation = gen.validate_wcag(theme_json)
 
     if not validation["passes"]:
-        console.print(f"[yellow]WCAG issues:[/yellow] {len(validation['failures'])} contrast failures — auto-fixing...")
+        console.print(
+            f"[yellow]WCAG issues:[/yellow] {len(validation['failures'])} contrast failures — auto-fixing..."  # noqa: E501
+        )
         theme_json = gen.fix_contrast(theme_json, validation["failures"])
 
     if dry_run_echo(ctx, f"write theme to {output}"):
@@ -48,6 +53,7 @@ def theme_generate(ctx: click.Context, brand_color: str, style: str, output: str
 def theme_validate(ctx: click.Context, theme_file: str) -> None:
     """Check a theme JSON for WCAG AA contrast compliance."""
     from pbi_cli.intelligence.theme_generator import ThemeGenerator
+
     theme_json = json.loads(Path(theme_file).read_text(encoding="utf-8"))
     gen = ThemeGenerator()
     result = gen.validate_wcag(theme_json)

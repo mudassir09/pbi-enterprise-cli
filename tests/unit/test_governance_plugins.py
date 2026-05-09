@@ -2,28 +2,25 @@
 
 from __future__ import annotations
 
-import importlib
-import sys
 from pathlib import Path
-from types import ModuleType
-from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 class TestPluginLoader:
     def test_builtin_rules_loaded(self):
-        from pbi_cli.governance.rules import ALL_RULES, _BUILTIN_RULES
+        from pbi_cli.governance.rules import _BUILTIN_RULES, ALL_RULES
+
         for rule in _BUILTIN_RULES:
             assert rule in ALL_RULES
 
     def test_all_builtin_rules_have_check(self):
         from pbi_cli.governance.rules import _BUILTIN_RULES
+
         for rule in _BUILTIN_RULES:
             assert callable(getattr(rule, "check", None)), f"{rule} missing check()"
 
     def test_all_builtin_rules_have_rule_id(self):
         from pbi_cli.governance.rules import _BUILTIN_RULES
+
         for rule in _BUILTIN_RULES:
             assert hasattr(rule, "RULE_ID"), f"{rule} missing RULE_ID"
             assert isinstance(rule.RULE_ID, str)
@@ -32,7 +29,7 @@ class TestPluginLoader:
     def test_load_plugin_rules_empty_when_dir_missing(self, tmp_path, monkeypatch):
         """When ~/.pbi-cli/rules/ doesn't exist, no plugins loaded."""
         from pbi_cli.governance import rules as rules_module
-        non_existent = tmp_path / "rules_no_exist"
+
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         loaded = rules_module._load_plugin_rules()
         assert loaded == []
@@ -43,13 +40,12 @@ class TestPluginLoader:
         rules_dir.mkdir(parents=True)
         plugin = rules_dir / "my_custom_rule.py"
         plugin.write_text(
-            'RULE_ID = "custom.my_rule"\n'
-            'def check(backend):\n'
-            '    return []\n',
+            'RULE_ID = "custom.my_rule"\ndef check(backend):\n    return []\n',
             encoding="utf-8",
         )
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         from pbi_cli.governance import rules as rules_module
+
         loaded = rules_module._load_plugin_rules()
         assert len(loaded) == 1
         assert loaded[0].RULE_ID == "custom.my_rule"
@@ -62,8 +58,10 @@ class TestPluginLoader:
         bad_plugin = rules_dir / "bad_rule.py"
         bad_plugin.write_text("this is not valid python !!!@##", encoding="utf-8")
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
-        from pbi_cli.governance import rules as rules_module
         import warnings
+
+        from pbi_cli.governance import rules as rules_module
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             loaded = rules_module._load_plugin_rules()
@@ -77,12 +75,12 @@ class TestPluginLoader:
         rules_dir.mkdir(parents=True)
         plugin = rules_dir / "no_check.py"
         plugin.write_text(
-            'RULE_ID = "custom.no_check"\n'
-            '# no check function\n',
+            'RULE_ID = "custom.no_check"\n# no check function\n',
             encoding="utf-8",
         )
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         from pbi_cli.governance import rules as rules_module
+
         loaded = rules_module._load_plugin_rules()
         assert loaded == []
 
@@ -92,12 +90,12 @@ class TestPluginLoader:
         rules_dir.mkdir(parents=True)
         plugin = rules_dir / "no_id.py"
         plugin.write_text(
-            'def check(backend):\n'
-            '    return []\n',
+            "def check(backend):\n    return []\n",
             encoding="utf-8",
         )
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         from pbi_cli.governance import rules as rules_module
+
         loaded = rules_module._load_plugin_rules()
         assert loaded == []
 
@@ -105,12 +103,14 @@ class TestPluginLoader:
 class TestEngineListRules:
     def test_list_rules_returns_list(self):
         from pbi_cli.governance.engine import GovernanceEngine
+
         rules = GovernanceEngine.list_rules()
         assert isinstance(rules, list)
         assert len(rules) >= 4  # at least the 4 built-in rules
 
     def test_list_rules_has_required_fields(self):
         from pbi_cli.governance.engine import GovernanceEngine
+
         for r in GovernanceEngine.list_rules():
             assert "rule_id" in r
             assert "source" in r
@@ -118,6 +118,7 @@ class TestEngineListRules:
 
     def test_builtin_rules_source_label(self):
         from pbi_cli.governance.engine import GovernanceEngine
+
         builtin_rules = [r for r in GovernanceEngine.list_rules() if r["source"] == "built-in"]
         assert len(builtin_rules) >= 4, "Expected at least 4 built-in rules"
         # Verify actual RULE_IDs from the modules
@@ -129,16 +130,19 @@ class TestEngineListRules:
 class TestGovernRulesCommand:
     def test_govern_rules_command(self):
         from click.testing import CliRunner
+
         from pbi_cli.cli import cli
+
         runner = CliRunner()
         result = runner.invoke(cli, ["--backend", "mock", "govern", "rules"])
         assert result.exit_code == 0
         assert "built-in" in result.output
 
     def test_govern_rules_json(self):
-        import json
         from click.testing import CliRunner
+
         from pbi_cli.cli import cli
+
         runner = CliRunner()
         result = runner.invoke(cli, ["--backend", "mock", "--json", "govern", "rules"])
         assert result.exit_code == 0
@@ -151,6 +155,7 @@ class TestGovernRulesCommand:
 def _extract_json_list(output: str) -> list:
     """Extract the first complete JSON array from CLI output."""
     import json
+
     idx = output.find("[")
     if idx < 0:
         return json.loads(output)
@@ -162,5 +167,5 @@ def _extract_json_list(output: str) -> list:
         elif ch == "]":
             depth -= 1
             if depth == 0:
-                return json.loads(output[idx:i + 1])
+                return json.loads(output[idx : i + 1])
     return json.loads(output[idx:])

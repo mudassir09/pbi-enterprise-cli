@@ -55,6 +55,7 @@ def diff_tmdl(ctx: click.Context, snapshot_path: str, output: str | None) -> Non
     """
     import json as _json
     from pathlib import Path
+
     from pbi_cli.commands._shared import output_json_or_table
 
     backend = get_backend(ctx)
@@ -67,7 +68,9 @@ def diff_tmdl(ctx: click.Context, snapshot_path: str, output: str | None) -> Non
         if not diff.get("has_changes"):
             console.print("[green]No changes detected[/green] — model matches snapshot.")
         else:
-            console.print(f"[yellow]Changes detected:[/yellow] {len(diff.get('added', []))} added, "
-                          f"{len(diff.get('removed', []))} removed, "
-                          f"{len(diff.get('changed', []))} modified")
+            console.print(
+                f"[yellow]Changes detected:[/yellow] {len(diff.get('added', []))} added, "
+                f"{len(diff.get('removed', []))} removed, "
+                f"{len(diff.get('changed', []))} modified"
+            )
             output_json_or_table(diff, ctx, title="TMDL Diff")

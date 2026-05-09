@@ -14,30 +14,54 @@ console = Console()
 
 # Canonical skills bundled with pbi-cli
 _BUNDLED_SKILLS: list[dict[str, Any]] = [
-    {"name": "power-bi-dax",              "description": "DAX query, validate, and unit-test workflows"},
-    {"name": "power-bi-modeling",         "description": "Semantic model management: tables, columns, relationships"},
-    {"name": "power-bi-governance",       "description": "Governance rules, auto-fix, and custom plugin authoring"},
-    {"name": "power-bi-report",           "description": "Report page and scaffold management"},
-    {"name": "power-bi-visuals",          "description": "Visual add, list, and conditional formatting"},
-    {"name": "power-bi-sources",          "description": "Data source profiling and star-schema scaffolding"},
-    {"name": "power-bi-security",         "description": "RLS role management and row-filter testing"},
-    {"name": "power-bi-partitions",       "description": "Partition management and incremental refresh"},
-    {"name": "power-bi-deployment",       "description": "Deploy and promote models via XMLA"},
+    {"name": "power-bi-dax", "description": "DAX query, validate, and unit-test workflows"},
+    {
+        "name": "power-bi-modeling",
+        "description": "Semantic model management: tables, columns, relationships",
+    },
+    {
+        "name": "power-bi-governance",
+        "description": "Governance rules, auto-fix, and custom plugin authoring",
+    },
+    {"name": "power-bi-report", "description": "Report page and scaffold management"},
+    {"name": "power-bi-visuals", "description": "Visual add, list, and conditional formatting"},
+    {
+        "name": "power-bi-sources",
+        "description": "Data source profiling and star-schema scaffolding",
+    },
+    {"name": "power-bi-security", "description": "RLS role management and row-filter testing"},
+    {"name": "power-bi-partitions", "description": "Partition management and incremental refresh"},
+    {"name": "power-bi-deployment", "description": "Deploy and promote models via XMLA"},
     {"name": "power-bi-deployment-pipeline", "description": "CI/CD pipeline integration patterns"},
-    {"name": "power-bi-themes",           "description": "WCAG-compliant theme generation"},
-    {"name": "power-bi-layout",           "description": "Shelf-packing auto-layout and templates"},
-    {"name": "power-bi-performance",      "description": "Query tracing, benchmarking, and model health"},
-    {"name": "power-bi-docs",             "description": "Data dictionary and documentation generation"},
-    {"name": "power-bi-diagnostics",      "description": "Doctor, environment checks, and troubleshooting"},
-    {"name": "power-bi-filters",          "description": "Report filter management"},
-    {"name": "power-bi-custom-visuals",   "description": "Custom visual SDK — scaffold, build, package, import"},
-    {"name": "power-bi-patterns",         "description": "DAX and model design patterns"},
-    {"name": "power-bi-troubleshooter",   "description": "Guided troubleshooting workflows"},
-    {"name": "power-bi-testing",          "description": "DAX unit-test suite authoring and CI integration"},
-    {"name": "power-bi-pages",            "description": "Page type management (drillthrough, tooltip)"},
-    {"name": "power-bi-page-designer",    "description": "Page layout and visual arrangement"},
-    {"name": "power-bi-design-system",    "description": "Colour palette, typography, and brand consistency"},
-    {"name": "power-bi-project-orchestrator", "description": "End-to-end project orchestration workflows"},
+    {"name": "power-bi-themes", "description": "WCAG-compliant theme generation"},
+    {"name": "power-bi-layout", "description": "Shelf-packing auto-layout and templates"},
+    {
+        "name": "power-bi-performance",
+        "description": "Query tracing, benchmarking, and model health",
+    },
+    {"name": "power-bi-docs", "description": "Data dictionary and documentation generation"},
+    {
+        "name": "power-bi-diagnostics",
+        "description": "Doctor, environment checks, and troubleshooting",
+    },
+    {"name": "power-bi-filters", "description": "Report filter management"},
+    {
+        "name": "power-bi-custom-visuals",
+        "description": "Custom visual SDK — scaffold, build, package, import",
+    },
+    {"name": "power-bi-patterns", "description": "DAX and model design patterns"},
+    {"name": "power-bi-troubleshooter", "description": "Guided troubleshooting workflows"},
+    {"name": "power-bi-testing", "description": "DAX unit-test suite authoring and CI integration"},
+    {"name": "power-bi-pages", "description": "Page type management (drillthrough, tooltip)"},
+    {"name": "power-bi-page-designer", "description": "Page layout and visual arrangement"},
+    {
+        "name": "power-bi-design-system",
+        "description": "Colour palette, typography, and brand consistency",
+    },
+    {
+        "name": "power-bi-project-orchestrator",
+        "description": "End-to-end project orchestration workflows",
+    },
 ]
 
 
@@ -73,14 +97,18 @@ def skills_list(installed: bool) -> None:
         table.add_row(skill["name"], status, skill["description"])
     console.print(table)
     if not installed:
-        console.print(f"\n[dim]Install all with:[/dim] pbi skills install --all")
+        console.print("\n[dim]Install all with:[/dim] pbi skills install --all")
 
 
 @skills_cmd.command("install")
 @click.argument("skill_names", nargs=-1)
 @click.option("--all", "install_all", is_flag=True, help="Install all bundled skills.")
-@click.option("--target", default=None, type=click.Path(),
-              help="Override target directory (default: ~/.claude/skills/).")
+@click.option(
+    "--target",
+    default=None,
+    type=click.Path(),
+    help="Override target directory (default: ~/.claude/skills/).",
+)
 def skills_install(skill_names: tuple[str, ...], install_all: bool, target: str | None) -> None:
     """Install one or more pbi-cli skills into the Claude Code skills directory.
 
@@ -120,8 +148,7 @@ def skills_install(skill_names: tuple[str, ...], install_all: bool, target: str 
 @skills_cmd.command("uninstall")
 @click.argument("skill_names", nargs=-1)
 @click.option("--all", "uninstall_all", is_flag=True, help="Uninstall all pbi-cli skills.")
-@click.option("--target", default=None, type=click.Path(),
-              help="Override target directory.")
+@click.option("--target", default=None, type=click.Path(), help="Override target directory.")
 def skills_uninstall(skill_names: tuple[str, ...], uninstall_all: bool, target: str | None) -> None:
     """Remove installed pbi-cli skills from the Claude Code skills directory."""
     target_dir = Path(target) if target else _claude_skills_dir()

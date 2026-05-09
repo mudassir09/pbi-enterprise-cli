@@ -46,6 +46,7 @@ def _run(runner, *args):
 
 # ── report pages ──────────────────────────────────────────────────────────────
 
+
 class TestReportPages:
     def test_lists_pages(self, runner):
         result = _run(runner, "report", "pages", "--pbip", _PBIP)
@@ -64,15 +65,19 @@ class TestReportPages:
     def test_pages_in_fixture(self, runner):
         result = _run(runner, "--json", "report", "pages", "--pbip", _PBIP)
         data = json.loads(result.output)
-        assert len(data) >= 3  # fixture has Executive Summary, Sales Analysis, Profit Analysis (+ any extras)
+        assert (
+            len(data) >= 3
+        )  # fixture has Executive Summary, Sales Analysis, Profit Analysis (+ any extras)
 
 
 # ── report page-add / page-delete ─────────────────────────────────────────────
 
+
 class TestReportPageWrite:
     def test_page_add_dry_run(self, runner):
-        result = _run(runner, "--dry-run", "report", "page-add",
-                      "--pbip", _PBIP, "--name", "TestPage")
+        result = _run(
+            runner, "--dry-run", "report", "page-add", "--pbip", _PBIP, "--name", "TestPage"
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
@@ -85,19 +90,36 @@ class TestReportPageWrite:
         assert delete.exit_code == 0
 
     def test_page_delete_dry_run(self, runner):
-        result = _run(runner, "--dry-run", "report", "page-delete",
-                      "--pbip", _PBIP, "--name", "Executive Summary")
+        result = _run(
+            runner,
+            "--dry-run",
+            "report",
+            "page-delete",
+            "--pbip",
+            _PBIP,
+            "--name",
+            "Executive Summary",
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
     def test_clear_page_dry_run(self, runner):
-        result = _run(runner, "--dry-run", "report", "clear-page",
-                      "--pbip", _PBIP, "--page", "Executive Summary")
+        result = _run(
+            runner,
+            "--dry-run",
+            "report",
+            "clear-page",
+            "--pbip",
+            _PBIP,
+            "--page",
+            "Executive Summary",
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
 
 # ── report scaffold ───────────────────────────────────────────────────────────
+
 
 class TestReportScaffold:
     def test_scaffold_dry_run(self, runner):
@@ -106,14 +128,16 @@ class TestReportScaffold:
         assert "DRY RUN" in result.output
 
     def test_scaffold_one_page_on_copy(self, runner, pbip_copy):
-        result = _run(runner, "report", "scaffold",
-                      "--pbip", pbip_copy, "--pages", "1", "--replace")
+        result = _run(
+            runner, "report", "scaffold", "--pbip", pbip_copy, "--pages", "1", "--replace"
+        )
         assert result.exit_code == 0
         assert "Executive Summary" in result.output
 
     def test_scaffold_three_pages_on_copy(self, runner, pbip_copy):
-        result = _run(runner, "report", "scaffold",
-                      "--pbip", pbip_copy, "--pages", "3", "--replace")
+        result = _run(
+            runner, "report", "scaffold", "--pbip", pbip_copy, "--pages", "3", "--replace"
+        )
         assert result.exit_code == 0
         assert "Sales Analysis" in result.output
         assert "Profit Analysis" in result.output
@@ -121,23 +145,25 @@ class TestReportScaffold:
 
 # ── visual list ───────────────────────────────────────────────────────────────
 
+
 class TestVisualList:
     def test_lists_visuals_on_page(self, runner):
-        result = _run(runner, "visual", "list",
-                      "--pbip", _PBIP, "--page", "Executive Summary")
+        result = _run(runner, "visual", "list", "--pbip", _PBIP, "--page", "Executive Summary")
         assert result.exit_code == 0
 
     def test_json_output(self, runner):
-        result = _run(runner, "--json", "visual", "list",
-                      "--pbip", _PBIP, "--page", "Executive Summary")
+        result = _run(
+            runner, "--json", "visual", "list", "--pbip", _PBIP, "--page", "Executive Summary"
+        )
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert isinstance(data, list)
         assert len(data) >= 1
 
     def test_visuals_have_type_and_position(self, runner):
-        result = _run(runner, "--json", "visual", "list",
-                      "--pbip", _PBIP, "--page", "Executive Summary")
+        result = _run(
+            runner, "--json", "visual", "list", "--pbip", _PBIP, "--page", "Executive Summary"
+        )
         data = json.loads(result.output)
         for v in data:
             assert "visualType" in v
@@ -145,78 +171,116 @@ class TestVisualList:
             assert "y" in v
 
     def test_unknown_page_returns_no_visuals(self, runner):
-        result = _run(runner, "visual", "list",
-                      "--pbip", _PBIP, "--page", "NonExistentPageXYZ")
+        result = _run(runner, "visual", "list", "--pbip", _PBIP, "--page", "NonExistentPageXYZ")
         assert result.exit_code == 0
         assert "No visuals" in result.output
 
 
 # ── visual add ────────────────────────────────────────────────────────────────
 
+
 class TestVisualAdd:
     def test_add_card_to_copy(self, runner, pbip_copy):
         # Add a new page then a card visual
         _run(runner, "report", "page-add", "--pbip", pbip_copy, "--name", "VisualTestPage")
-        result = _run(runner, "visual", "add",
-                      "--pbip", pbip_copy,
-                      "--page", "VisualTestPage",
-                      "--type", "card",
-                      "--table", "financials",
-                      "--value", "Sales")
+        result = _run(
+            runner,
+            "visual",
+            "add",
+            "--pbip",
+            pbip_copy,
+            "--page",
+            "VisualTestPage",
+            "--type",
+            "card",
+            "--table",
+            "financials",
+            "--value",
+            "Sales",
+        )
         assert result.exit_code == 0
         assert "Visual added" in result.output
 
     def test_add_bar_chart_to_copy(self, runner, pbip_copy):
         _run(runner, "report", "page-add", "--pbip", pbip_copy, "--name", "BarTestPage")
-        result = _run(runner, "visual", "add",
-                      "--pbip", pbip_copy,
-                      "--page", "BarTestPage",
-                      "--type", "bar",
-                      "--table", "financials",
-                      "--value", "Sales",
-                      "--category", "Segment")
+        result = _run(
+            runner,
+            "visual",
+            "add",
+            "--pbip",
+            pbip_copy,
+            "--page",
+            "BarTestPage",
+            "--type",
+            "bar",
+            "--table",
+            "financials",
+            "--value",
+            "Sales",
+            "--category",
+            "Segment",
+        )
         assert result.exit_code == 0
 
     def test_add_slicer_to_copy(self, runner, pbip_copy):
         _run(runner, "report", "page-add", "--pbip", pbip_copy, "--name", "SlicerTestPage")
-        result = _run(runner, "visual", "add",
-                      "--pbip", pbip_copy,
-                      "--page", "SlicerTestPage",
-                      "--type", "slicer",
-                      "--table", "financials",
-                      "--value", "Year")
+        result = _run(
+            runner,
+            "visual",
+            "add",
+            "--pbip",
+            pbip_copy,
+            "--page",
+            "SlicerTestPage",
+            "--type",
+            "slicer",
+            "--table",
+            "financials",
+            "--value",
+            "Year",
+        )
         assert result.exit_code == 0
 
     def test_add_table_visual_to_copy(self, runner, pbip_copy):
         _run(runner, "report", "page-add", "--pbip", pbip_copy, "--name", "TableTestPage")
-        result = _run(runner, "visual", "add",
-                      "--pbip", pbip_copy,
-                      "--page", "TableTestPage",
-                      "--type", "table",
-                      "--table", "financials",
-                      "--value", "Sales",
-                      "--extra-columns", "Profit,Segment")
+        result = _run(
+            runner,
+            "visual",
+            "add",
+            "--pbip",
+            pbip_copy,
+            "--page",
+            "TableTestPage",
+            "--type",
+            "table",
+            "--table",
+            "financials",
+            "--value",
+            "Sales",
+            "--extra-columns",
+            "Profit,Segment",
+        )
         assert result.exit_code == 0
 
 
 # ── layout auto ───────────────────────────────────────────────────────────────
 
+
 class TestLayoutAuto:
     def test_layout_auto_dry_run(self, runner):
-        result = _run(runner, "--dry-run", "layout", "auto",
-                      "--pbip", _PBIP, "--page", "Executive Summary")
+        result = _run(
+            runner, "--dry-run", "layout", "auto", "--pbip", _PBIP, "--page", "Executive Summary"
+        )
         assert result.exit_code == 0
         assert "DRY RUN" in result.output
 
     def test_layout_auto_on_copy(self, runner, pbip_copy):
-        result = _run(runner, "layout", "auto",
-                      "--pbip", pbip_copy, "--page", "Executive Summary")
+        result = _run(runner, "layout", "auto", "--pbip", pbip_copy, "--page", "Executive Summary")
         assert result.exit_code == 0
         assert "Repositioned" in result.output or "visuals" in result.output.lower()
 
     def test_layout_auto_no_visuals_page(self, runner, pbip_copy):
         _run(runner, "report", "page-add", "--pbip", pbip_copy, "--name", "EmptyPage")
-        result = _run(runner, "layout", "auto",
-                      "--pbip", pbip_copy, "--page", "EmptyPage")
+        result = _run(runner, "layout", "auto", "--pbip", pbip_copy, "--page", "EmptyPage")
         assert result.exit_code == 0
         assert "No visuals" in result.output

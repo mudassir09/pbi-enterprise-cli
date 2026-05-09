@@ -9,8 +9,13 @@ from typing import Any
 import click
 from rich.console import Console
 
-from pbi_cli.commands._shared import dry_run_echo, get_backend, output_json_or_table, snapshot_before_write
 from pbi_cli._audit import write_audit_entry
+from pbi_cli.commands._shared import (
+    dry_run_echo,
+    get_backend,
+    output_json_or_table,
+    snapshot_before_write,
+)
 
 console = Console()
 
@@ -33,14 +38,25 @@ def source() -> None:
 @click.option("--url", default=None, help="REST API URL.")
 @click.option("--tables", default=None, help="Comma-separated table names to include (SQL only).")
 @click.option("--output", default=None, type=click.Path(), help="Save profile JSON to file.")
-@click.option("--bearer-token", default=None, envvar="PBI_REST_BEARER",
-              help="Bearer token for REST auth (or set PBI_REST_BEARER env var).")
-@click.option("--api-key-header", default=None,
-              help="Header name=value pair for REST API key auth (e.g. 'X-Api-Key=abc123').")
-@click.option("--rest-max-pages", default=5, show_default=True,
-              help="Max pages to fetch for REST pagination.")
-@click.option("--rest-results-path", default=None,
-              help="Dot-path to the records array in REST response (e.g. 'data.items').")
+@click.option(
+    "--bearer-token",
+    default=None,
+    envvar="PBI_REST_BEARER",
+    help="Bearer token for REST auth (or set PBI_REST_BEARER env var).",
+)
+@click.option(
+    "--api-key-header",
+    default=None,
+    help="Header name=value pair for REST API key auth (e.g. 'X-Api-Key=abc123').",
+)
+@click.option(
+    "--rest-max-pages", default=5, show_default=True, help="Max pages to fetch for REST pagination."
+)
+@click.option(
+    "--rest-results-path",
+    default=None,
+    help="Dot-path to the records array in REST response (e.g. 'data.items').",
+)
 @click.pass_context
 def source_profile(
     ctx: click.Context,
@@ -139,7 +155,7 @@ def _profile_sql(conn: str, tables_filter: str | None) -> list[dict[str, Any]]:
                     stats = connection.execute(
                         text(
                             f"SELECT COUNT(DISTINCT [{col_name}]), "
-                            f"SUM(CASE WHEN [{col_name}] IS NULL THEN 1 ELSE 0 END) * 1.0 / COUNT(*) "
+                            f"SUM(CASE WHEN [{col_name}] IS NULL THEN 1 ELSE 0 END) * 1.0 / COUNT(*) "  # noqa: E501
                             f"FROM [{table_name}]"
                         )
                     ).fetchone()
@@ -147,18 +163,22 @@ def _profile_sql(conn: str, tables_filter: str | None) -> list[dict[str, Any]]:
                         col_profile["distinctCount"] = stats[0]
                         col_profile["nullRate"] = round(float(stats[1] or 0), 4)
                     samples = connection.execute(
-                        text(f"SELECT TOP 5 [{col_name}] FROM [{table_name}] WHERE [{col_name}] IS NOT NULL")
+                        text(
+                            f"SELECT TOP 5 [{col_name}] FROM [{table_name}] WHERE [{col_name}] IS NOT NULL"  # noqa: E501
+                        )
                     ).fetchall()
                     col_profile["sampleValues"] = [row[0] for row in samples]
                 except Exception:
                     pass
                 columns.append(col_profile)
 
-            profile.append({
-                "tableName": table_name,
-                "rowCount": row_count,
-                "columns": columns,
-            })
+            profile.append(
+                {
+                    "tableName": table_name,
+                    "rowCount": row_count,
+                    "columns": columns,
+                }
+            )
 
     return profile
 
@@ -169,7 +189,9 @@ def _profile_file(path: str, file_type: str) -> list[dict[str, Any]]:
         import openpyxl  # type: ignore[import]
     except ImportError:
         if file_type == "excel":
-            raise click.ClickException("openpyxl not installed. Run: pip install pbi-cli-tool[sources]")
+            raise click.ClickException(
+                "openpyxl not installed. Run: pip install pbi-cli-tool[sources]"
+            )
 
     file_path = Path(path)
     if not file_path.exists():
@@ -177,6 +199,7 @@ def _profile_file(path: str, file_type: str) -> list[dict[str, Any]]:
 
     if file_type == "excel":
         import openpyxl  # type: ignore[import]
+
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
         profile = []
         for sheet_name in wb.sheetnames:
@@ -192,18 +215,23 @@ def _profile_file(path: str, file_type: str) -> list[dict[str, Any]]:
                 null_rate = 1.0 - len(values) / len(data_rows) if data_rows else 0.0
                 sample = values[:5]
                 data_types = {type(v).__name__ for v in values[:100]}
-                columns.append({
-                    "name": header,
-                    "dataType": list(data_types)[0] if len(data_types) == 1 else "Mixed",
-                    "nullRate": round(null_rate, 4),
-                    "distinctCount": len(set(values[:1000])),
-                    "sampleValues": sample,
-                })
-            profile.append({"tableName": sheet_name, "rowCount": len(data_rows), "columns": columns})
+                columns.append(
+                    {
+                        "name": header,
+                        "dataType": list(data_types)[0] if len(data_types) == 1 else "Mixed",
+                        "nullRate": round(null_rate, 4),
+                        "distinctCount": len(set(values[:1000])),
+                        "sampleValues": sample,
+                    }
+                )
+            profile.append(
+                {"tableName": sheet_name, "rowCount": len(data_rows), "columns": columns}
+            )
         wb.close()
         return profile
     else:
         import csv
+
         with open(path, encoding="utf-8", newline="") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
@@ -214,13 +242,15 @@ def _profile_file(path: str, file_type: str) -> list[dict[str, Any]]:
         for h in headers:
             values = [r[h] for r in rows if r[h]]
             null_rate = 1.0 - len(values) / len(rows) if rows else 0.0
-            columns.append({
-                "name": h,
-                "dataType": "String",
-                "nullRate": round(null_rate, 4),
-                "distinctCount": len(set(values[:1000])),
-                "sampleValues": values[:5],
-            })
+            columns.append(
+                {
+                    "name": h,
+                    "dataType": "String",
+                    "nullRate": round(null_rate, 4),
+                    "distinctCount": len(set(values[:1000])),
+                    "sampleValues": values[:5],
+                }
+            )
         return [{"tableName": Path(path).stem, "rowCount": len(rows), "columns": columns}]
 
 
@@ -286,12 +316,14 @@ def _profile_rest(
     columns = _infer_columns(sample)
     table_name = _url_to_table_name(url)
 
-    return [{
-        "tableName": table_name,
-        "rowCount": len(all_records),
-        "paginatedPages": page,
-        "columns": columns,
-    }]
+    return [
+        {
+            "tableName": table_name,
+            "rowCount": len(all_records),
+            "paginatedPages": page,
+            "columns": columns,
+        }
+    ]
 
 
 def _extract_records(data: Any, results_path: str | None) -> list[dict[str, Any]]:
@@ -353,13 +385,15 @@ def _infer_columns(sample: list[dict[str, Any]]) -> list[dict[str, Any]]:
         null_count = sum(1 for r in flat_records if r.get(key) is None)
         null_rate = round(null_count / len(flat_records), 4) if flat_records else 0.0
         pbi_type = _infer_pbi_type(values)
-        columns.append({
-            "name": key,
-            "dataType": pbi_type,
-            "nullRate": null_rate,
-            "distinctCount": len(set(str(v) for v in values)),
-            "sampleValues": [str(v) for v in values[:3]],
-        })
+        columns.append(
+            {
+                "name": key,
+                "dataType": pbi_type,
+                "nullRate": null_rate,
+                "distinctCount": len(set(str(v) for v in values)),
+                "sampleValues": [str(v) for v in values[:3]],
+            }
+        )
     return columns
 
 
@@ -380,12 +414,6 @@ def _flatten_record(record: dict[str, Any], prefix: str = "") -> dict[str, Any]:
 
 def _infer_pbi_type(values: list[Any]) -> str:
     """Map Python runtime types to Power BI data type names."""
-    type_map = {
-        int: "Int64",
-        float: "Decimal",
-        bool: "Boolean",
-        str: "String",
-    }
     type_set = {type(v) for v in values if v is not None}
     if not type_set:
         return "String"
@@ -398,6 +426,7 @@ def _infer_pbi_type(values: list[Any]) -> str:
     # Detect ISO date strings
     if type_set <= {str}:
         import re
+
         date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}")
         if all(date_pattern.match(str(v)) for v in values[:5]):
             return "DateTime"
@@ -408,16 +437,24 @@ def _infer_pbi_type(values: list[Any]) -> str:
 def _url_to_table_name(url: str) -> str:
     """Derive a clean table name from the URL path."""
     from urllib.parse import urlparse
+
     path = urlparse(url).path.rstrip("/")
     segment = path.split("/")[-1] if "/" in path else path
     # Strip numeric version prefix (e.g. v1, v2)
     import re
+
     segment = re.sub(r"^v\d+$", "", segment)
     return segment.title().replace("-", "").replace("_", "") or "RestResponse"
 
 
 @source.command("scaffold")
-@click.option("--profile", "profile_path", required=True, type=click.Path(exists=True), help="Path to source profile JSON.")
+@click.option(
+    "--profile",
+    "profile_path",
+    required=True,
+    type=click.Path(exists=True),
+    help="Path to source profile JSON.",
+)
 @click.pass_context
 def source_scaffold(ctx: click.Context, profile_path: str) -> None:
     """Generate a star-schema model from a source profile JSON file."""
@@ -446,7 +483,9 @@ def source_scaffold(ctx: click.Context, profile_path: str) -> None:
     )
     is_json = ctx.obj and ctx.obj.get("output_json")
     if not is_json:
-        console.print(f"[green]Scaffolded[/green] {len(schema['tables'])} tables, {len(schema['relationships'])} relationships")
+        console.print(
+            f"[green]Scaffolded[/green] {len(schema['tables'])} tables, {len(schema['relationships'])} relationships"  # noqa: E501
+        )
     output_json_or_table(schema, ctx, title="Star Schema")
 
 
@@ -469,26 +508,31 @@ def _infer_star_schema(profile: list[dict]) -> dict[str, Any]:
             continue
         dim_key = dim_keys[0]
         fact_matching = [
-            c["name"] for c in fact["columns"]
+            c["name"]
+            for c in fact["columns"]
             if c["name"].lower() == dim_key.lower()
             or c["name"].lower() == f"{dim_name.lower()}{dim_key.lower()}"
         ]
         if fact_matching:
-            relationships.append({
-                "from": f"{fact['tableName']}[{fact_matching[0]}]",
-                "to": f"{dim_name}[{dim_key}]",
-                "cardinality": "ManyToOne",
-            })
+            relationships.append(
+                {
+                    "from": f"{fact['tableName']}[{fact_matching[0]}]",
+                    "to": f"{dim_name}[{dim_key}]",
+                    "cardinality": "ManyToOne",
+                }
+            )
 
     numeric_types = ("decimal", "double", "int64", "float", "int", "float64")
     starter_measures = []
     for col in fact["columns"]:
         if any(t in col["dataType"].lower() for t in numeric_types):
-            starter_measures.append({
-                "table": fact["tableName"],
-                "name": f"Total {col['name']}",
-                "expression": f"SUM({fact['tableName']}[{col['name']}])",
-            })
+            starter_measures.append(
+                {
+                    "table": fact["tableName"],
+                    "name": f"Total {col['name']}",
+                    "expression": f"SUM({fact['tableName']}[{col['name']}])",
+                }
+            )
 
     return {
         "tables": [{"name": t["tableName"], "columns": t["columns"]} for t in profile],
@@ -522,10 +566,14 @@ def _suggest_joins(profile_a: list, profile_b: list) -> list[dict]:
             for name, (tname_a, col_a) in cols_a.items():
                 if name in cols_b:
                     tname_b, col_b = cols_b[name]
-                    suggestions.append({
-                        "from": f"{tname_a}[{col_a['name']}]",
-                        "to": f"{tname_b}[{col_b['name']}]",
-                        "confidence": "high" if col_a["dataType"] == col_b["dataType"] else "medium",
-                        "reason": "exact column name match",
-                    })
+                    suggestions.append(
+                        {
+                            "from": f"{tname_a}[{col_a['name']}]",
+                            "to": f"{tname_b}[{col_b['name']}]",
+                            "confidence": "high"
+                            if col_a["dataType"] == col_b["dataType"]
+                            else "medium",
+                            "reason": "exact column name match",
+                        }
+                    )
     return suggestions

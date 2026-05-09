@@ -14,8 +14,8 @@ import pytest
 
 from pbi_cli.backends.xmla_backend import XmlaAuth, XmlaBackend, _connection_pool
 
-
 # ── helpers ──────────────────────────────────────────────────────────────────
+
 
 def _make_mock_server(tables=None, measures=None, relationships=None):
     """Build a mock AMO Server with an in-memory tabular model."""
@@ -41,9 +41,7 @@ def _make_mock_server(tables=None, measures=None, relationships=None):
             cols.append(col)
         tbl.Columns = cols
         # measures
-        tbl_measures = [
-            m for m in measures_data if m.get("table") == tbl_spec["name"]
-        ]
+        tbl_measures = [m for m in measures_data if m.get("table") == tbl_spec["name"]]
         m_mocks = []
         for m_spec in tbl_measures:
             m = MagicMock()
@@ -122,9 +120,10 @@ def _make_connected_backend(tables=None, measures=None, relationships=None):
     """Return an XmlaBackend wired to a mock AMO Server (no real network)."""
     server = _make_mock_server(tables=tables, measures=measures, relationships=relationships)
 
-    with patch("pbi_cli.backends.xmla_backend._load_amo", return_value=lambda: server), \
-         patch.object(XmlaAuth, "get_token", return_value="fake-token"):
-
+    with (
+        patch("pbi_cli.backends.xmla_backend._load_amo", return_value=lambda: server),
+        patch.object(XmlaAuth, "get_token", return_value="fake-token"),
+    ):
         b = XmlaBackend()
         # Bypass _open_server by injecting directly
         b._server = server
@@ -151,7 +150,12 @@ _DEFAULT_TABLES = [
     },
 ]
 _DEFAULT_MEASURES = [
-    {"table": "Sales", "name": "Total Revenue", "expression": "SUM(Sales[Revenue])", "formatString": "#,0.00"},
+    {
+        "table": "Sales",
+        "name": "Total Revenue",
+        "expression": "SUM(Sales[Revenue])",
+        "formatString": "#,0.00",
+    },
 ]
 _DEFAULT_RELATIONSHIPS = [
     {"from": "Sales[SalesKey]", "to": "Products[ProductKey]", "cardinality": "Many"},
@@ -159,6 +163,7 @@ _DEFAULT_RELATIONSHIPS = [
 
 
 # ── XmlaAuth ─────────────────────────────────────────────────────────────────
+
 
 class TestXmlaAuth:
     def test_token_mode_returns_token_directly(self):
@@ -235,6 +240,7 @@ class TestXmlaAuth:
 
 # ── XmlaBackend — connection ──────────────────────────────────────────────────
 
+
 class TestXmlaConnection:
     def setup_method(self):
         XmlaBackend.clear_pool()
@@ -252,8 +258,10 @@ class TestXmlaConnection:
         server = _make_mock_server(tables=_DEFAULT_TABLES)
         ServerClass = MagicMock(return_value=server)
 
-        with patch("pbi_cli.backends.xmla_backend._load_amo", return_value=ServerClass), \
-             patch.object(XmlaAuth, "get_token", return_value="tok"):
+        with (
+            patch("pbi_cli.backends.xmla_backend._load_amo", return_value=ServerClass),
+            patch.object(XmlaAuth, "get_token", return_value="tok"),
+        ):
             b = XmlaBackend()
             b.connect(
                 "powerbi://api.powerbi.com/v1.0/myorg/WS",
@@ -267,8 +275,10 @@ class TestXmlaConnection:
         server = _make_mock_server(tables=_DEFAULT_TABLES)
         ServerClass = MagicMock(return_value=server)
 
-        with patch("pbi_cli.backends.xmla_backend._load_amo", return_value=ServerClass), \
-             patch.object(XmlaAuth, "get_token", return_value="tok"):
+        with (
+            patch("pbi_cli.backends.xmla_backend._load_amo", return_value=ServerClass),
+            patch.object(XmlaAuth, "get_token", return_value="tok"),
+        ):
             b = XmlaBackend()
             b.connect(
                 "powerbi://api.powerbi.com/v1.0/myorg/WS",
@@ -282,8 +292,10 @@ class TestXmlaConnection:
         server = _make_mock_server(tables=_DEFAULT_TABLES)
         ServerClass = MagicMock(return_value=server)
 
-        with patch("pbi_cli.backends.xmla_backend._load_amo", return_value=ServerClass), \
-             patch.object(XmlaAuth, "get_token", return_value="tok"):
+        with (
+            patch("pbi_cli.backends.xmla_backend._load_amo", return_value=ServerClass),
+            patch.object(XmlaAuth, "get_token", return_value="tok"),
+        ):
             b = XmlaBackend()
             b.connect(
                 "powerbi://api.powerbi.com/v1.0/myorg/WS",
@@ -298,16 +310,16 @@ class TestXmlaConnection:
 
     def test_second_connect_reuses_pooled_server(self):
         server = _make_mock_server(tables=_DEFAULT_TABLES)
-        ServerClass = MagicMock(return_value=server)
         call_count = [0]
-        original = ServerClass
 
         def counting_server():
             call_count[0] += 1
             return server
 
-        with patch("pbi_cli.backends.xmla_backend._load_amo", return_value=counting_server), \
-             patch.object(XmlaAuth, "get_token", return_value="tok"):
+        with (
+            patch("pbi_cli.backends.xmla_backend._load_amo", return_value=counting_server),
+            patch.object(XmlaAuth, "get_token", return_value="tok"),
+        ):
             b1 = XmlaBackend()
             b1.connect(
                 "powerbi://api.powerbi.com/v1.0/myorg/WS",
@@ -340,6 +352,7 @@ class TestXmlaConnection:
 
 
 # ── model_info / table_list / column_list ────────────────────────────────────
+
 
 class TestXmlaModelMetadata:
     def test_model_info(self):
@@ -387,25 +400,20 @@ class TestXmlaModelMetadata:
 
 # ── Measures ──────────────────────────────────────────────────────────────────
 
+
 class TestXmlaMeasures:
     def test_measure_list(self):
-        b, _ = _make_connected_backend(
-            tables=_DEFAULT_TABLES, measures=_DEFAULT_MEASURES
-        )
+        b, _ = _make_connected_backend(tables=_DEFAULT_TABLES, measures=_DEFAULT_MEASURES)
         measures = b.measure_list()
         assert any(m["name"] == "Total Revenue" for m in measures)
 
     def test_measure_list_filtered_by_table(self):
-        b, _ = _make_connected_backend(
-            tables=_DEFAULT_TABLES, measures=_DEFAULT_MEASURES
-        )
+        b, _ = _make_connected_backend(tables=_DEFAULT_TABLES, measures=_DEFAULT_MEASURES)
         measures = b.measure_list(table="Sales")
         assert all(m["table"] == "Sales" for m in measures)
 
     def test_measure_list_returns_format_string(self):
-        b, _ = _make_connected_backend(
-            tables=_DEFAULT_TABLES, measures=_DEFAULT_MEASURES
-        )
+        b, _ = _make_connected_backend(tables=_DEFAULT_TABLES, measures=_DEFAULT_MEASURES)
         m = next(m for m in b.measure_list() if m["name"] == "Total Revenue")
         assert m["formatString"] == "#,0.00"
 
@@ -416,17 +424,18 @@ class TestXmlaMeasures:
 
         with patch(
             "pbi_cli.backends.xmla_backend.XmlaBackend.measure_add",
-            return_value={"table": "Sales", "name": "Avg Price", "expression": "AVERAGE(Sales[Revenue])"},
+            return_value={
+                "table": "Sales",
+                "name": "Avg Price",
+                "expression": "AVERAGE(Sales[Revenue])",
+            },
         ):
             result = b.measure_add("Sales", "Avg Price", "AVERAGE(Sales[Revenue])")
 
         assert result["name"] == "Avg Price"
 
     def test_measure_update_renames(self):
-        b, server = _make_connected_backend(
-            tables=_DEFAULT_TABLES, measures=_DEFAULT_MEASURES
-        )
-        m_mock = server.Databases["TestDataset"].Model.Tables["Sales"].Measures[0]
+        b, server = _make_connected_backend(tables=_DEFAULT_TABLES, measures=_DEFAULT_MEASURES)
 
         with patch(
             "pbi_cli.backends.xmla_backend.XmlaBackend.measure_update",
@@ -438,6 +447,7 @@ class TestXmlaMeasures:
 
 
 # ── DAX ───────────────────────────────────────────────────────────────────────
+
 
 class TestXmlaDax:
     def test_dax_validate_success(self):
@@ -473,7 +483,9 @@ class TestXmlaDax:
             mock_conn.Open = MagicMock()
             cmd_mock = MagicMock()
             cmd_mock.ExecuteReader.return_value = mock_reader
-            AdomdConnection = MagicMock(side_effect=lambda cs: (captured_conn_strs.append(cs), mock_conn)[1])
+            AdomdConnection = MagicMock(
+                side_effect=lambda cs: (captured_conn_strs.append(cs), mock_conn)[1]
+            )
             AdomdCommand = MagicMock(return_value=cmd_mock)
             return AdomdConnection, AdomdCommand
 
@@ -486,6 +498,7 @@ class TestXmlaDax:
 
 
 # ── Protocol compliance ───────────────────────────────────────────────────────
+
 
 class TestXmlaProtocolCompliance:
     def test_satisfies_tom_backend_protocol(self):
