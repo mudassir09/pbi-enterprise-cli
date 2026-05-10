@@ -1,12 +1,14 @@
 # Changelog
 
-All notable changes to pbi-cli-tool are documented here.
+All notable changes to pbi-enterprise-cli are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [4.0.0-dev] — 2026-05-09
+## [0.1.0-dev] — 2026-05-10
+
+> First public release. Prior development (v1–v3) was internal only.
 
 ### Added
 - **32 visual types** (up from 16): added KPI, area, stacked bar/column, 100% stacked,
@@ -52,31 +54,3 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - `_url_to_table_name` returns `SalesData` (proper PascalCase) not `Salesdata`
 - `_extract_records({}, None)` returns `[]` not `[{}]`
 
----
-
-## [3.0.0] — 2025-12-01
-
-### Added
-- PBIR GA format backend (`PbirBackend`) — reads/writes `.pbip` project files directly
-- Visual builder with 16 chart types and conditional formatting
-- Governance engine with 4 built-in rules
-- Source profiling for SQL, Excel, CSV
-
----
-
-## [2.0.0] — 2025-06-01
-
-### Added
-- XMLA backend stub
-- DAX test suite (YAML fixtures)
-- Mock backend for CI testing
-- FastAPI REST server (`pbi server`)
-
----
-
-## [1.0.0] — 2025-01-01
-
-### Added
-- Initial release with Desktop (TOM) backend
-- `pbi model`, `pbi measure`, `pbi dax` command groups
-- Basic governance lint (`pbi model lint`)
