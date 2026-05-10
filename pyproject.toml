@@ -27,12 +27,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Office/Business",
 ]
-
-[project.urls]
-Homepage = "https://github.com/mudassir09/pbi-enterprise-cli"
-Repository = "https://github.com/mudassir09/pbi-enterprise-cli"
-"Bug Tracker" = "https://github.com/mudassir09/pbi-enterprise-cli/issues"
-Changelog = "https://github.com/mudassir09/pbi-enterprise-cli/blob/main/CHANGELOG.md"
 dependencies = [
     "click>=8.1",
     "rich>=13.0",
@@ -42,14 +36,20 @@ dependencies = [
     "PyYAML>=6.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/mudassir09/pbi-enterprise-cli"
+Repository = "https://github.com/mudassir09/pbi-enterprise-cli"
+"Bug Tracker" = "https://github.com/mudassir09/pbi-enterprise-cli/issues"
+Changelog = "https://github.com/mudassir09/pbi-enterprise-cli/blob/main/CHANGELOG.md"
+
 [project.optional-dependencies]
-ai   = ["anthropic>=0.25"]
-viz  = ["Pillow>=10.0", "python-wcag-contrast-ratio>=1.0", "playwright>=1.44"]
-xmla = ["msal>=1.28"]
+ai      = ["anthropic>=0.25"]
+viz     = ["Pillow>=10.0", "python-wcag-contrast-ratio>=1.0", "playwright>=1.44"]
+xmla    = ["msal>=1.28"]
 server  = ["fastapi>=0.110", "uvicorn>=0.29"]
 sources = ["sqlalchemy>=2.0", "openpyxl>=3.1", "httpx>=0.27"]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4.0", "mypy>=1.10"]
-all = ["pbi-enterprise-cli[ai,viz,xmla,server,sources,dev]"]
+dev     = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4.0", "mypy>=1.10"]
+all     = ["pbi-enterprise-cli[ai,viz,xmla,server,sources,dev]"]
 
 [project.scripts]
 pbi = "pbi_cli.cli:cli"
