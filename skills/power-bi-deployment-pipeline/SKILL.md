@@ -113,8 +113,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Install pbi-cli
-        run: pip install pbi-cli
+      - name: Install pbi-enterprise-cli
+        run: pip install pbi-enterprise-cli
       - name: Governance check
         run: pbi govern check --json
       - name: TMDL snapshot

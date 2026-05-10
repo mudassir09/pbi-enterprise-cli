@@ -8,7 +8,7 @@ description: >
   "end-to-end Power BI", "full stack Power BI", "automate my Power BI workflow".
   Do NOT trigger for single-command questions like "add a measure" or "list tables".
 version: "1.0"
-requires: ["pbi-cli >= 4.0"]
+requires: ["pbi-enterprise-cli >= 0.1"]
 ---
 
 # power-bi-project-orchestrator

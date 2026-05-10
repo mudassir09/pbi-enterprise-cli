@@ -25,7 +25,7 @@ Example::
 Requires ``pythonnet`` (in core deps) plus ``msal`` for token-based auth.
 Install the optional extra for the full stack::
 
-    pip install pbi-cli-tool[xmla]
+    pip install pbi-enterprise-cli[xmla]
 
 The .NET AMO/ADOMD assemblies ship with Power BI Desktop (Windows) or can be
 installed via the NuGet packages ``Microsoft.AnalysisServices.retail.amd64`` and
@@ -114,7 +114,7 @@ class XmlaAuth:
         except ImportError:
             raise ImportError(
                 "msal is required for device_flow / service_principal auth.\n"
-                "Install with: pip install pbi-cli-tool[xmla]"
+                "Install with: pip install pbi-enterprise-cli[xmla]"
             ) from None
 
         authority = f"https://login.microsoftonline.com/{self.tenant_id or 'common'}"
@@ -169,7 +169,7 @@ def _load_amo():  # type: ignore[return]
     except Exception as exc:
         raise ImportError(
             "The XMLA backend requires pythonnet and the AMO .NET assemblies.\n"
-            "Install with: pip install pbi-cli-tool[xmla]\n"
+            "Install with: pip install pbi-enterprise-cli[xmla]\n"
             "The AMO assemblies ship with Power BI Desktop (Windows) or can be\n"
             "installed via NuGet: Microsoft.AnalysisServices.retail.amd64"
         ) from exc
@@ -189,7 +189,7 @@ def _load_adomd():  # type: ignore[return]
         return AdomdConnection, AdomdCommand
     except Exception as exc:
         raise ImportError(
-            "AdomdClient .NET assembly not found.\nInstall with: pip install pbi-cli-tool[xmla]"
+            "AdomdClient .NET assembly not found.\nInstall with: pip install pbi-enterprise-cli[xmla]"
         ) from exc
 
 

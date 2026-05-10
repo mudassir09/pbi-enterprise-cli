@@ -27,4 +27,4 @@ def server_start(port: int, host: str) -> None:
         uvicorn.run(app, host=host, port=port)
     except ImportError:
         console.print("[red]Server dependencies not installed.[/red]")
-        console.print("Run: pip install pbi-cli-tool[server]")
+        console.print("Run: pip install pbi-enterprise-cli[server]")

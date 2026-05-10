@@ -34,7 +34,7 @@ class MeasureGenerator:
             return {
                 "expression": f"/* TODO: implement {description} */",
                 "valid": False,
-                "error": "anthropic package not installed. Run: pip install pbi-cli-tool[ai]",
+                "error": "anthropic package not installed. Run: pip install pbi-enterprise-cli[ai]",
             }
         except Exception as e:
             return {"expression": "", "valid": False, "error": str(e)}

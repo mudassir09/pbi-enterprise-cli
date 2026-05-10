@@ -1,10 +1,10 @@
-# Contributing to pbi-cli
+# Contributing to pbi-enterprise-cli
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/yourusername/pbi-cli
-cd pbi-cli
+git clone https://github.com/mudassir09/pbi-enterprise-cli
+cd pbi-enterprise-cli
 pip install -e ".[dev]"
 pytest -m "not e2e"
 ```

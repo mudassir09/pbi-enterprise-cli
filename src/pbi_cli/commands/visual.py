@@ -336,7 +336,7 @@ def visual_screenshot(
     width: int,
     height: int,
 ) -> None:
-    """Render a report page to PNG via headless Playwright (requires pbi-cli-tool[viz]).
+    """Render a report page to PNG via headless Playwright (requires pbi-enterprise-cli[viz]).
 
     Power BI Desktop must be running with the report open, and pbi server must
     be started (pbi server start) so the page can be rendered via the REST API.
@@ -345,7 +345,7 @@ def visual_screenshot(
         from playwright.sync_api import sync_playwright  # type: ignore[import]
     except ImportError:
         raise click.ClickException(
-            "Playwright not installed. Run: pip install pbi-cli-tool[viz] && playwright install chromium"  # noqa: E501
+            "Playwright not installed. Run: pip install pbi-enterprise-cli[viz] && playwright install chromium"  # noqa: E501
         )
 
     import re

@@ -166,7 +166,7 @@ pbi deploy push --workspace "Production"
 # .github/workflows/deploy.yml
 - name: Deploy to Dev
   run: |
-    pip install pbi-cli-tool
+    pip install pbi-enterprise-cli
     pbi model lint
     pbi dax test --suite ./tests/
     pbi database export-tmdl ./snapshots/pre-deploy/

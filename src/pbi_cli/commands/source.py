@@ -119,7 +119,7 @@ def _profile_sql(conn: str, tables_filter: str | None) -> list[dict[str, Any]]:
         from sqlalchemy import create_engine, inspect, text  # type: ignore[import]
     except ImportError:
         raise click.ClickException(
-            "SQLAlchemy not installed. Run: pip install pbi-cli-tool[sources]"
+            "SQLAlchemy not installed. Run: pip install pbi-enterprise-cli[sources]"
         )
 
     engine = create_engine(conn)
@@ -190,7 +190,7 @@ def _profile_file(path: str, file_type: str) -> list[dict[str, Any]]:
     except ImportError:
         if file_type == "excel":
             raise click.ClickException(
-                "openpyxl not installed. Run: pip install pbi-cli-tool[sources]"
+                "openpyxl not installed. Run: pip install pbi-enterprise-cli[sources]"
             )
 
     file_path = Path(path)
@@ -274,7 +274,7 @@ def _profile_rest(
     try:
         import httpx  # type: ignore[import]
     except ImportError:
-        raise click.ClickException("httpx not installed. Run: pip install pbi-cli-tool[sources]")
+        raise click.ClickException("httpx not installed. Run: pip install pbi-enterprise-cli[sources]")
 
     # Build auth headers
     headers: dict[str, str] = {"Accept": "application/json"}

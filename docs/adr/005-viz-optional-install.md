@@ -12,11 +12,11 @@ These dependencies add significant install weight (~200 MB with Playwright brows
 
 ## Decision
 
-Ship the Viz Intelligence dependencies as an optional install extra: `pip install pbi-cli-tool[viz]`. The base package does not include them.
+Ship the Viz Intelligence dependencies as an optional install extra: `pip install pbi-enterprise-cli[viz]`. The base package does not include them.
 
 ## Rationale
 
-- **Lean base install:** `pip install pbi-cli-tool` installs in seconds with no heavy binaries. This is appropriate for CI/CD pipelines, server environments, and semantic-model-only workflows.
+- **Lean base install:** `pip install pbi-enterprise-cli` installs in seconds with no heavy binaries. This is appropriate for CI/CD pipelines, server environments, and semantic-model-only workflows.
 - **Explicit opt-in:** Users who need visual layout, theme generation, or screenshot capabilities know they need the extra. The CLI provides clear error messages when viz commands are invoked without the extra installed.
 - **Precedent:** This follows the established Python pattern for optional feature sets (e.g., `sqlalchemy[asyncio]`, `fastapi[all]`).
 
@@ -29,5 +29,5 @@ Ship the Viz Intelligence dependencies as an optional install extra: `pip instal
 
 - `pyproject.toml` defines `viz = ["Pillow>=10.0", "python-wcag-contrast-ratio>=1.0"]` as an optional extra.
 - `pbi layout auto`, `pbi theme generate`, `pbi visual screenshot` check for the extra at runtime and print install instructions if missing.
-- `pbi-cli-tool[all]` installs all extras for development.
+- `pbi-enterprise-cli[all]` installs all extras for development.
 - Playwright browser installation (`playwright install chromium`) is a separate manual step documented in the README.

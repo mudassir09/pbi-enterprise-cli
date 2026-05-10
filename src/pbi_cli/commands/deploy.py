@@ -24,7 +24,7 @@ def deploy_push(ctx: click.Context, workspace: str, xmla: str | None) -> None:
 
     \b
     Prerequisites:
-      pip install pbi-cli-tool[server]
+      pip install pbi-enterprise-cli[server]
       Set XMLA endpoint in ~/.pbi-cli/config.toml:
         [xmla]
         endpoint = "powerbi://api.powerbi.com/v1.0/myorg/MyWorkspace"
@@ -46,7 +46,7 @@ def deploy_push(ctx: click.Context, workspace: str, xmla: str | None) -> None:
             '  endpoint = "powerbi://api.powerbi.com/v1.0/myorg/MyWorkspace"'
         )
         console.print(
-            "\n[yellow]XMLA backend required (v6.0). Install pbi-cli-tool[server].[/yellow]"
+            "\n[yellow]XMLA backend required (v6.0). Install pbi-enterprise-cli[server].[/yellow]"
         )
         return
 

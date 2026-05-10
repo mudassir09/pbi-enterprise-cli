@@ -23,7 +23,7 @@ Expose all pbi-cli commands as REST endpoints via a local FastAPI server: `pbi s
 
 - **Security surface:** A listening HTTP server is a new attack surface. Mitigated by: (a) default bind to `127.0.0.1` (loopback only), (b) optional API key authentication, (c) documented that production use should bind behind a reverse proxy with auth.
 - **Process lifecycle:** The server must be started before pipeline steps that use it. Documented in the GitHub Action integration guide.
-- **Optional dependency:** FastAPI and uvicorn are not in the base install (see ADR-005 pattern). Requires `pip install pbi-cli-tool[server]`.
+- **Optional dependency:** FastAPI and uvicorn are not in the base install (see ADR-005 pattern). Requires `pip install pbi-enterprise-cli[server]`.
 
 ## Consequences
 
@@ -31,5 +31,5 @@ Expose all pbi-cli commands as REST endpoints via a local FastAPI server: `pbi s
 - `src/pbi_cli/server/routes/` contains one router file per command group.
 - `pbi server start` command launches uvicorn with the FastAPI app.
 - Default port: 7788. Configurable via `--port` flag or `PBI_SERVER_PORT` environment variable.
-- `pbi-cli-tool[server]` optional extra: `fastapi>=0.110, uvicorn>=0.29`.
+- `pbi-enterprise-cli[server]` optional extra: `fastapi>=0.110, uvicorn>=0.29`.
 - Targets v6.0 release alongside the XMLA backend.

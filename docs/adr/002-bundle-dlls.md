@@ -14,7 +14,7 @@ Ship the Microsoft Analysis Services DLLs inside `src/pbi_cli/dlls/` as part of 
 
 ## Rationale
 
-- **Zero-dependency install:** `pip install pbi-cli-tool` is sufficient. Users do not need to know what AMO is, install Visual Studio, or hunt for NuGet packages.
+- **Zero-dependency install:** `pip install pbi-enterprise-cli` is sufficient. Users do not need to know what AMO is, install Visual Studio, or hunt for NuGet packages.
 - **Version pinning:** Bundling a specific DLL version prevents "works on my machine" failures caused by different AMO versions installed on different systems.
 - **Contributor experience:** New contributors can clone and run without any additional setup steps.
 
