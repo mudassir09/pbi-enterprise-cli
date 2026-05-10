@@ -4,7 +4,8 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-410%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-429%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-65%25%2B-yellowgreen)
 ![Version](https://img.shields.io/badge/version-4.0.0--dev-orange)
 
 ---
@@ -30,7 +31,7 @@
 | **Deployment** | `pbi deploy` — snapshot, diff, push via XMLA |
 | **TMDL** | `pbi database` — export / import TMDL snapshots |
 | **Docs** | `pbi docs` — markdown/Confluence data dictionary, audit log |
-| **Diagnostics** | `pbi doctor` — check pythonnet, optional deps, platform |
+| **Diagnostics** | `pbi doctor` — check pythonnet, optional deps, platform (works on Linux/macOS too) |
 | **Watch mode** | `pbi watch` — re-run governance + DAX tests on file change |
 | **REST API** | `pbi server` — FastAPI server for pipeline integration |
 
@@ -54,6 +55,8 @@ The same CLI works against three backends — swap with `--backend`:
 ```bash
 pip install pbi-cli-tool
 ```
+
+The base install includes **PyYAML**, so YAML-based DAX unit-test suites (`pbi dax test --suite`) work out of the box with no extra packages.
 
 **Optional feature groups:**
 ```bash
@@ -244,12 +247,18 @@ git clone https://github.com/mudassir09/pbi-cli.git
 cd pbi-cli
 pip install -e ".[all]"
 
-# Run the full test suite (410 tests, ~4 s)
+# Run the full test suite (429 tests, ~4 s)
 python -m pytest
 
 # Lint
 ruff check src/ tests/
 ```
+
+### CI notes
+
+- All tests run on **Python 3.10, 3.11, and 3.12** via GitHub Actions on `ubuntu-latest`.
+- `pbi doctor` works cross-platform — on Linux/macOS it gracefully reports pythonnet as unavailable instead of crashing.
+- Coverage is measured on testable code only; `tom_backend.py` (requires Windows/.NET) and `server/api.py` (requires a live server) are excluded from the coverage gate. The enforced minimum is **65%**.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for branch strategy and coding standards.
 
