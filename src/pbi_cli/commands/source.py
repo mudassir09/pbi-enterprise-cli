@@ -274,7 +274,9 @@ def _profile_rest(
     try:
         import httpx  # type: ignore[import]
     except ImportError:
-        raise click.ClickException("httpx not installed. Run: pip install pbi-enterprise-cli[sources]")
+        raise click.ClickException(
+            "httpx not installed. Run: pip install pbi-enterprise-cli[sources]"
+        )
 
     # Build auth headers
     headers: dict[str, str] = {"Accept": "application/json"}

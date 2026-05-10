@@ -189,7 +189,8 @@ def _load_adomd():  # type: ignore[return]
         return AdomdConnection, AdomdCommand
     except Exception as exc:
         raise ImportError(
-            "AdomdClient .NET assembly not found.\nInstall with: pip install pbi-enterprise-cli[xmla]"
+            "AdomdClient .NET assembly not found.\n"
+            "Install with: pip install pbi-enterprise-cli[xmla]"
         ) from exc
 
 
