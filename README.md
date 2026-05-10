@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Tests](https://img.shields.io/badge/tests-547%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-65%25%2B-yellowgreen)
-![Version](https://img.shields.io/badge/version-4.0.0--dev-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--dev-orange)
 
 ---
 
