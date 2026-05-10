@@ -4,7 +4,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-429%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-547%20passing-brightgreen)
 ![Coverage](https://img.shields.io/badge/coverage-65%25%2B-yellowgreen)
 ![Version](https://img.shields.io/badge/version-4.0.0--dev-orange)
 
@@ -21,7 +21,7 @@
 | **DAX testing** | `pbi dax` — query, validate, YAML unit-test suites |
 | **Source profiling** | `pbi source` — SQL, Excel, CSV, REST APIs → star-schema scaffold |
 | **Report authoring** | `pbi report` — pages, bookmarks (PBIR GA format) |
-| **Visuals** | `pbi visual` — 17 visual types, colour-scale & data-bar formatting |
+| **Visuals** | `pbi visual` — 32 visual types, colour-scale & data-bar formatting |
 | **Layout** | `pbi layout` — shelf-packing auto-layout, named templates |
 | **Themes** | `pbi theme` — generate WCAG-compliant themes from a brand colour |
 | **Filters** | `pbi filter` — relative-date, TopN, basic value filters |
@@ -31,6 +31,13 @@
 | **Deployment** | `pbi deploy` — snapshot, diff, push via XMLA |
 | **TMDL** | `pbi database` — export / import TMDL snapshots |
 | **Docs** | `pbi docs` — markdown/Confluence data dictionary, audit log |
+| **Tracing** | `pbi trace` — query performance tracing and benchmarking |
+| **Connections** | `pbi connections` — list and manage data source connections |
+| **Skills** | `pbi skills` — 24 Power BI AI skill definitions |
+| **Calendar** | `pbi calendar` — generate date/calendar tables |
+| **Culture** | `pbi culture` — locale and culture settings |
+| **Custom Visuals** | `pbi custom-visual` — manage custom visual imports |
+| **REPL** | `pbi repl` — interactive Power BI shell |
 | **Diagnostics** | `pbi doctor` — check pythonnet, optional deps, platform (works on Linux/macOS too) |
 | **Watch mode** | `pbi watch` — re-run governance + DAX tests on file change |
 | **REST API** | `pbi server` — FastAPI server for pipeline integration |
@@ -120,7 +127,7 @@ Write directly to the `.pbip` project files — no running Desktop required. Ope
 pbi report pages       --pbip ./Sales.Report
 pbi report page-add    --pbip ./Sales.Report --name "Executive Summary"
 
-# Visuals (17 types: card, bar, column, line, table, slicer, matrix, ...)
+# Visuals (32 types: card, bar, column, line, table, slicer, matrix, scatter, pie, map, ...)
 pbi visual add --pbip ./Sales.Report \
   --page "Executive Summary" \
   --type card \
@@ -195,6 +202,39 @@ Connection pooling is automatic — same `(endpoint, catalog)` pair reuses the l
 
 ---
 
+## Skills
+
+`pbi-cli` ships **24 AI skill definitions** under `skills/` for use with Claude and other AI agents. Each skill encapsulates domain expertise for a specific Power BI area:
+
+| Skill | Purpose |
+|---|---|
+| `power-bi-dax` | Write, optimise, and test DAX expressions |
+| `power-bi-modeling` | Design star schemas, relationships, and calculated columns |
+| `power-bi-visuals` | Choose and configure the right visual for any scenario |
+| `power-bi-report` | Page layout, bookmarks, and report UX patterns |
+| `power-bi-governance` | Apply and enforce governance rules across a dataset |
+| `power-bi-themes` | Generate and validate WCAG-compliant colour themes |
+| `power-bi-sources` | Profile and scaffold data sources into star-schema models |
+| `power-bi-security` | Define and validate RLS roles and row-level security |
+| `power-bi-deployment` | Snapshot, diff, and deploy semantic models via XMLA |
+| `power-bi-deployment-pipeline` | Orchestrate multi-stage deployment pipelines |
+| `power-bi-filters` | Build and troubleshoot filter context |
+| `power-bi-layout` | Auto-layout and spacing for report pages |
+| `power-bi-partitions` | Manage incremental refresh and partition strategies |
+| `power-bi-performance` | Diagnose and optimise query and refresh performance |
+| `power-bi-testing` | Author and run DAX unit-test suites |
+| `power-bi-diagnostics` | Interpret Doctor output and resolve environment issues |
+| `power-bi-docs` | Generate and maintain data dictionaries |
+| `power-bi-pages` | Add, rename, and reorder report pages |
+| `power-bi-patterns` | Apply common Power BI design patterns |
+| `power-bi-design-system` | Enforce colour, typography, and UX consistency |
+| `power-bi-custom-visuals` | Import and configure custom visual packages |
+| `power-bi-page-designer` | Interactive page composition and alignment |
+| `power-bi-project-orchestrator` | Coordinate multi-skill Power BI projects end-to-end |
+| `power-bi-troubleshooter` | Diagnose and fix common Power BI errors |
+
+---
+
 ## CI / CD
 
 ```yaml
@@ -247,7 +287,7 @@ git clone https://github.com/mudassir09/pbi-cli.git
 cd pbi-cli
 pip install -e ".[all]"
 
-# Run the full test suite (429 tests, ~4 s)
+# Run the full test suite (547 tests, ~4 s)
 python -m pytest
 
 # Lint
