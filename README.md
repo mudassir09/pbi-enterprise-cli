@@ -1,6 +1,6 @@
-# pbi-cli
+# pbi-enterprise-cli
 
-> Full-stack Power BI automation from the command line — semantic model management, report authoring, governance enforcement, DAX testing, REST source profiling, and AI-powered measure generation.
+> Full-stack Power BI enterprise automation from the command line — semantic model management, report authoring, governance enforcement, DAX testing, REST source profiling, and AI-powered measure generation.
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -12,7 +12,7 @@
 
 ## What it does
 
-`pbi-cli` gives you a single `pbi` command that covers every layer of Power BI development — no clicking through the Desktop UI, no manual file editing, no proprietary tooling dependencies.
+`pbi-enterprise-cli` gives you a single `pbi` command that covers every layer of Power BI development — no clicking through the Desktop UI, no manual file editing, no proprietary tooling dependencies.
 
 | Area | Commands |
 |---|---|
@@ -60,19 +60,19 @@ The same CLI works against three backends — swap with `--backend`:
 
 **Base install** (semantic model, governance, DAX, report authoring):
 ```bash
-pip install pbi-cli-tool
+pip install pbi-enterprise-cli
 ```
 
 The base install includes **PyYAML**, so YAML-based DAX unit-test suites (`pbi dax test --suite`) work out of the box with no extra packages.
 
 **Optional feature groups:**
 ```bash
-pip install "pbi-cli-tool[ai]"       # Claude AI measure generation
-pip install "pbi-cli-tool[xmla]"     # XMLA auth (MSAL)
-pip install "pbi-cli-tool[sources]"  # SQL / Excel / REST profiling
-pip install "pbi-cli-tool[viz]"      # WCAG theme validation, screenshots
-pip install "pbi-cli-tool[server]"   # FastAPI REST server
-pip install "pbi-cli-tool[all]"      # Everything
+pip install "pbi-enterprise-cli[ai]"       # Claude AI measure generation
+pip install "pbi-enterprise-cli[xmla]"     # XMLA auth (MSAL)
+pip install "pbi-enterprise-cli[sources]"  # SQL / Excel / REST profiling
+pip install "pbi-enterprise-cli[viz]"      # WCAG theme validation, screenshots
+pip install "pbi-enterprise-cli[server]"   # FastAPI REST server
+pip install "pbi-enterprise-cli[all]"      # Everything
 ```
 
 > **Requirements:** Python 3.10+. The `desktop` and `xmla` backends require Windows and the AMO .NET assemblies (installed with Power BI Desktop).
@@ -204,7 +204,7 @@ Connection pooling is automatic — same `(endpoint, catalog)` pair reuses the l
 
 ## Skills
 
-`pbi-cli` ships **24 AI skill definitions** under `skills/` for use with Claude and other AI agents. Each skill encapsulates domain expertise for a specific Power BI area:
+`pbi-enterprise-cli` ships **24 AI skill definitions** under `skills/` for use with Claude and other AI agents. Each skill encapsulates domain expertise for a specific Power BI area:
 
 | Skill | Purpose |
 |---|---|
@@ -248,7 +248,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - run: pip install "pbi-cli-tool[dev]"
+      - run: pip install "pbi-enterprise-cli[dev]"
       - run: pbi --backend mock govern check
       - run: pbi --backend mock dax test --suite tests/fixtures/
 ```
@@ -283,8 +283,8 @@ These work with every command:
 ## Development
 
 ```bash
-git clone https://github.com/mudassir09/pbi-cli.git
-cd pbi-cli
+git clone https://github.com/mudassir09/pbi-enterprise-cli.git
+cd pbi-enterprise-cli
 pip install -e ".[all]"
 
 # Run the full test suite (547 tests, ~4 s)
