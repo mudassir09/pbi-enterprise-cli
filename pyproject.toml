@@ -6,10 +6,33 @@ build-backend = "setuptools.build_meta"
 name = "pbi-enterprise-cli"
 version = "0.1.0.dev0"
 description = "Power BI enterprise CLI — AI-driven model management, governance, PBIR authoring, XMLA, and DAX testing"
-readme = "README.md"
+readme = "README.pypi.md"
 requires-python = ">=3.10"
 license = { text = "MIT AND LicenseRef-Microsoft-AS-Client-Libraries" }
-keywords = ["power-bi", "cli", "dax", "tmdl", "pbir"]
+keywords = ["power-bi", "cli", "dax", "tmdl", "pbir", "powerbi", "microsoft", "governance"]
+authors = [
+    { name = "Mudassir", email = "mir.mudassir1@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Office/Business",
+]
+
+[project.urls]
+Homepage = "https://github.com/mudassir09/pbi-enterprise-cli"
+Repository = "https://github.com/mudassir09/pbi-enterprise-cli"
+"Bug Tracker" = "https://github.com/mudassir09/pbi-enterprise-cli/issues"
+Changelog = "https://github.com/mudassir09/pbi-enterprise-cli/blob/main/CHANGELOG.md"
 dependencies = [
     "click>=8.1",
     "rich>=13.0",
