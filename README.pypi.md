@@ -15,7 +15,7 @@ pbi govern check    # run governance rules
 - **32 visual types** — from cards to decomposition trees
 - **3 backends** — Desktop (TOM via pythonnet), XMLA (Premium/Fabric), Mock (CI)
 - **PBIR GA format** — read and write `.pbip` project files directly
-- **Governance engine** — 5 built-in rules + custom plugin system
+- **Governance engine** — 5 built-in rules + custom plugin system + **BPA compatibility** (run Microsoft community BPA rules natively — no Tabular Editor required)
 - **REST source profiling** — Bearer/API-key auth, OData pagination, star-schema scaffold
 - **REPL mode** — interactive session with tab completion and persistent history
 - **Custom visual SDK** — scaffold, build, package, import `.pbiviz`
@@ -36,8 +36,7 @@ pip install "pbi-enterprise-cli[all]"      # everything
 ## Requirements
 
 - Python 3.10+
-- Windows (for Desktop/XMLA backends using .NET AMO)
-- Power BI Desktop (for the `desktop` backend)
+- Windows (for Desktop/XMLA backends using .NET AMO — AMO DLLs are bundled in the wheel)
 
 ## Links
 
