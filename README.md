@@ -168,6 +168,23 @@ pbi govern check    # exit code 1 on errors — use as a CI gate
 pbi govern fix --auto
 ```
 
+### BPA (Best Practice Analyzer) Compatibility
+
+Run the community-maintained BPA rule set — the same rules used by Tabular Editor — without installing any .NET tooling:
+
+```bash
+# Run the official Microsoft community BPA rules (fetched live)
+pbi govern bpa check
+
+# Run rules from a local BPARules.json (e.g. your org's custom set)
+pbi govern bpa check --file ./BPARules.json
+
+# Filter by severity or category
+pbi govern bpa check --severity error --category Performance
+```
+
+`pbi govern bpa` is the first Python-native BPA runner — cross-platform, CI-ready, no Tabular Editor required.
+
 ---
 
 ## XMLA Backend
