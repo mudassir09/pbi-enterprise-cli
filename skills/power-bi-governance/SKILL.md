@@ -27,6 +27,14 @@ pbi govern init
 
 # Check only specific rules
 pbi govern check --rules naming,measures
+
+# BPA (Best Practice Analyzer) — run community rules without Tabular Editor
+pbi govern bpa check                                # fetch Microsoft community rules live
+pbi govern bpa check --file ./BPARules.json         # local rule file
+pbi govern bpa check --url https://example.com/BPARules.json  # custom URL
+pbi govern bpa check --severity error               # filter by severity (info|warning|error)
+pbi govern bpa check --category Performance         # filter by category name
+pbi --backend mock --json govern bpa check --file ./BPARules.json  # JSON output for CI
 ```
 
 ---

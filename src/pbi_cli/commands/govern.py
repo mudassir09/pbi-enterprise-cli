@@ -10,6 +10,7 @@ from rich.console import Console
 
 from pbi_cli._audit import write_audit_entry
 from pbi_cli.commands._shared import dry_run_echo, get_backend, output_json_or_table
+from pbi_cli.governance.bpa import COMMUNITY_BPA_URL
 
 console = Console()
 
@@ -99,6 +100,101 @@ def govern_fix(ctx: click.Context, auto: bool) -> None:
     fixed = engine.auto_fix(fixable)
     write_audit_entry("govern fix", extra={"violations_fixed": fixed})
     console.print(f"[green]Fixed {fixed} violations.[/green]")
+
+
+@govern.group("bpa")
+@click.pass_context
+def govern_bpa(ctx: click.Context) -> None:
+    """Run BPA (Best Practice Analyzer) rules — the same rules as Tabular Editor."""
+
+
+@govern_bpa.command("check")
+@click.option("--file", "rules_file", default=None, help="Path to a local BPARules.json file.")
+@click.option(
+    "--url",
+    "rules_url",
+    default=None,
+    help="URL of a BPARules.json to fetch (default: Microsoft community rules).",
+)
+@click.option(
+    "--severity",
+    default=None,
+    type=click.Choice(["info", "warning", "error"]),
+    help="Only show violations at this severity level.",
+)
+@click.option("--category", default=None, help="Filter violations by category name.")
+@click.pass_context
+def bpa_check(
+    ctx: click.Context,
+    rules_file: str | None,
+    rules_url: str | None,
+    severity: str | None,
+    category: str | None,
+) -> None:
+    """Run BPA rules against the current model.
+
+    \b
+    Sources (in priority order):
+      1. --file PATH   — local BPARules.json
+      2. --url  URL    — custom remote URL
+      3. (default)     — Microsoft community BPA rules fetched live
+    """
+    from pbi_cli.governance.bpa import BpaEvaluator, load_rules_from_file, load_rules_from_url
+
+    backend = get_backend(ctx)
+    is_json = ctx.obj and ctx.obj.get("output_json")
+
+    # Load rules
+    try:
+        if rules_file:
+            rules = load_rules_from_file(rules_file)
+            source_label = rules_file
+        else:
+            url = rules_url or COMMUNITY_BPA_URL
+            if not is_json:
+                console.print(f"[cyan]Fetching BPA rules from:[/cyan] {url}")
+            rules = load_rules_from_url(url)
+            source_label = url
+    except Exception as exc:
+        console.print(f"[red]Failed to load BPA rules:[/red] {exc}")
+        raise SystemExit(1)
+
+    if not is_json:
+        console.print(f"[cyan]Loaded {len(rules)} rules from:[/cyan] {source_label}")
+
+    evaluator = BpaEvaluator()
+    violations, skipped = evaluator.evaluate(
+        rules, backend, severity_filter=severity, category_filter=category
+    )
+
+    if not is_json:
+        errors = [v for v in violations if v["severity"] == "error"]
+        warnings_list = [v for v in violations if v["severity"] == "warning"]
+        infos = [v for v in violations if v["severity"] == "info"]
+        console.print(
+            f"[red]{len(errors)} errors[/red], "
+            f"[yellow]{len(warnings_list)} warnings[/yellow], "
+            f"[blue]{len(infos)} info[/blue]  "
+            f"([dim]{skipped} rules skipped — unsupported expressions[/dim])"
+        )
+
+    if violations:
+        output_json_or_table(violations, ctx, title="BPA Violations")
+    else:
+        if not is_json:
+            console.print("[green]No BPA violations found.[/green]")
+        else:
+            click.echo("[]")
+
+    if not is_json:
+        console.print(
+            f"\n[dim]{len(violations)} violations found, {skipped} rules skipped "
+            f"(unsupported expressions)[/dim]"
+        )
+
+    # Exit 1 if any errors found
+    if any(v["severity"] == "error" for v in violations):
+        raise SystemExit(1)
 
 
 @govern.command("rules")
