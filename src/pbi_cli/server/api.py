@@ -13,7 +13,7 @@ try:
     from fastapi.responses import FileResponse
     from fastapi.staticfiles import StaticFiles
 
-    app = FastAPI(title="pbi-server", version="0.1.0.dev0", docs_url="/api/docs")
+    app = FastAPI(title="pbi-server", version="0.1.0.dev1", docs_url="/api/docs")
 
     # ── Singleton backend ──────────────────────────────────────────────────
     _backend: Any = None

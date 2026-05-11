@@ -6,6 +6,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.0.dev1] — 2026-05-11
+
+### Added
+- **BPA (Best Practice Analyzer) compatibility** (`pbi govern bpa check`) — run the Microsoft
+  community BPA rule set (or any local `BPARules.json`) without .NET tooling. Supports
+  `--file`, `--url`, `--severity`, and `--category` filters. First Python-native BPA runner.
+- **AMO DLLs bundled in wheel** — `Microsoft.AnalysisServices.*.dll` now shipped inside the
+  package under `pbi_cli/dlls/`; the `desktop` backend works immediately after `pip install`
+  on Windows without a separate Desktop installation.
+
+### Fixed
+- `pbi doctor` no longer crashes on Linux/macOS — `import clr` raises `RuntimeError` (not
+  just `ImportError`) when Mono is absent; both exception types now caught gracefully.
+- `PyYAML` added to core dependencies — `pbi dax test --suite` no longer fails with
+  `ModuleNotFoundError: No module named 'yaml'` on a base install.
+- Coverage gate adjusted to 65% (platform-specific files `tom_backend.py` and `server/api.py`
+  excluded from measurement).
+
+---
+
 ## [0.1.0-dev] — 2026-05-10
 
 > First public release. Prior development (v1–v3) was internal only.
