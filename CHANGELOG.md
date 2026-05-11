@@ -6,6 +6,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.0.dev2] — 2026-05-11
+
+### Changed
+- PyPI project description updated: governance line now prominently mentions BPA
+  compatibility; requirements section corrected (AMO DLLs are bundled — no separate
+  Power BI Desktop installation required).
+
+---
+
 ## [0.1.0.dev1] — 2026-05-11
 
 ### Added

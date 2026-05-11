@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pbi-enterprise-cli"
-version = "0.1.0.dev1"
+version = "0.1.0.dev2"
 description = "Power BI enterprise CLI — AI-driven model management, governance, PBIR authoring, XMLA, and DAX testing"
 readme = "README.pypi.md"
 requires-python = ">=3.10"
