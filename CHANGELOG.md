@@ -6,6 +6,70 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [4.0.0-dev] — 2026-05-30 (Enterprise Readiness update)
+
+### Added — W-12 Server Security
+- **`pbi server generate-key`** — generates a 64-char cryptographically random API key
+- **API key authentication** on all `/api/*` endpoints via `X-PBI-API-Key` header
+- **`src/pbi_cli/server/auth.py`** — `verify_api_key`, `generate_key`, `get_configured_key`
+- Server refuses to start if `PBI_SERVER_KEY` env var is not set
+- Warning printed when binding to non-localhost address
+
+### Added — W-05 Governance CI/CD
+- **`--fail-on [error|warning|info]`** flag on `pbi govern check` (default: `error`)
+- **Exit code 3** on governance violations (was 1) — matches the exit code contract
+- **JSON output envelope** — `{summary: {errors, warnings, infos, total}, violations: [...]}`
+- **`.github/workflows/pbi-govern.yml`** — PR governance workflow with PR comment
+- **`azure-pipelines-govern.yml`** — Azure DevOps equivalent
+
+### Added — W-10 Skill Versioning
+- `version` and `min_cli_version` frontmatter on all 24 SKILL.md files
+- **`pbi skills check`** — validates each skill against the installed CLI version; exits 1 on incompatible
+
+### Added — W-07 Multi-Environment
+- **`pbi env`** command group: `list`, `use`, `diff`, `promote --confirm`
+- **`pbi.config.toml.example`** — project-level environment/governance/deploy config
+
+### Added — W-03 Snapshots & Rollback
+- **`pbi snapshot`** command group: `create --label`, `list`, `restore --confirm`, `diff`
+- Snapshots stored in `.pbi/snapshots/<timestamp>/` with metadata JSON
+
+### Added — W-01/W-09 Community & Stability
+- **`STABILITY.md`** — stable command surface, exit code contract, deprecation policy
+- **`MAINTAINERS.md`** — team, support SLAs, release process
+- **`.github/ISSUE_TEMPLATE/`** — bug, feature, governance rule, skill contribution templates
+
+### Added — Documentation (W-04/W-08/W-11)
+- **`docs/auth/xmla-auth.md`** — service principal, managed identity, interactive; GitHub Actions + Azure DevOps examples
+- **`docs/source-profiling.md`** — all source types, classification logic, output format, scaffold
+- **`docs/deployment.md`** — snapshot format, diff algorithm, push safety model, rollback, Fabric Git
+
+### Added — 6 New Skills (Skills Gap)
+- **`power-bi-advisor`** — master orchestrator, 12-phase build order, licensing guide, 3 worked examples
+- **`power-bi-power-query`** — M language, ETL patterns, REST API pagination, incremental refresh
+- **`power-bi-visual-selection`** — five data questions framework, visual decision guide, AppSource recommendations
+- **`power-bi-fabric`** — OneLake, Medallion architecture, Direct Lake, RTI, KQL, Fabric Pipelines
+- **`power-bi-copilot`** — Copilot setup, Q&A synonyms, linguistic schema, Smart Narratives, AI visuals
+- **`power-bi-templates`** — Sales, Finance, HR, Operations, Marketing starter templates with measures
+- Skills registry expanded from 24 → 30 skills
+
+### Changed
+- `pbi govern check` JSON output is now an envelope object (not a bare list) — see W-05
+- `pbi govern check` exits 3 on violations (was 1) — see STABILITY.md
+- All server API endpoints now require auth (breaking change for unauthenticated callers)
+- Test suite updated to match new govern JSON contract and server auth
+
+### Fixed
+- Server API tests now correctly pass `X-PBI-API-Key` header
+- `pbi skills list` count updated to 30 (was 24)
+
+### Tests
+- 25 new tests in `tests/unit/test_new_commands.py`
+- 575 total passing (was 550), 26 skipped, 0 failures
+- Coverage gate enforced: `--cov-fail-under=70` in `pyproject.toml`
+
+---
+
 ## [4.0.0-dev] — 2026-05-09
 
 ### Added

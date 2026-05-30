@@ -6,30 +6,30 @@
 pip install pbi-cli-tool
 pbi doctor          # verify setup
 pbi model tables    # list tables in the connected model
-pbi govern check    # run governance rules
+pbi govern check    # run governance rules (exit 3 on violations)
 ```
 
 ## Feature highlights
 
-- **18 command groups** covering every layer of Power BI development
-- **32 visual types** — from cards to decomposition trees
+- **22 command groups** covering every layer of Power BI development
 - **3 backends** — Desktop (TOM via pythonnet), XMLA (Premium/Fabric), Mock (CI)
 - **PBIR GA format** — read and write `.pbip` project files directly
-- **Governance engine** — 5 built-in rules + custom plugin system
-- **REST source profiling** — Bearer/API-key auth, OData pagination, star-schema scaffold
-- **REPL mode** — interactive session with tab completion and persistent history
-- **Custom visual SDK** — scaffold, build, package, import `.pbiviz`
-- **AI measure generation** — Claude API integration (requires `[ai]` extra)
-- **Skills management** — install Claude Code skills (`pbi skills install --all`)
-- **410 unit tests** passing on Python 3.10–3.12
+- **Governance engine** — built-in rules + BPA + custom plugin system, `--fail-on` CI gate
+- **Model snapshots** — create/list/restore/diff with `pbi snapshot`
+- **Multi-environment** — named connections, `pbi env promote dev→prod`
+- **Authenticated REST server** — API key auth, localhost-only default
+- **Source profiling** — SQL, Excel, CSV, REST → star-schema scaffold
+- **30 Claude Code skills** — install with `pbi skills install --all`
+- **575 unit tests** passing on Python 3.10–3.12, coverage gate enforced
 
 ## Install options
 
 ```bash
 pip install pbi-cli-tool             # base
-pip install "pbi-cli-tool[ai]"       # + Claude AI
+pip install "pbi-cli-tool[ai]"       # + Claude AI measure generation
 pip install "pbi-cli-tool[xmla]"     # + MSAL auth for XMLA
 pip install "pbi-cli-tool[sources]"  # + SQL/Excel/REST profiling
+pip install "pbi-cli-tool[server]"   # + authenticated FastAPI REST server
 pip install "pbi-cli-tool[all]"      # everything
 ```
 
@@ -41,7 +41,10 @@ pip install "pbi-cli-tool[all]"      # everything
 
 ## Links
 
-- [GitHub Repository](https://github.com/mudassir09/pbi-cli)
-- [Full Documentation](https://github.com/mudassir09/pbi-cli#readme)
-- [Changelog](https://github.com/mudassir09/pbi-cli/blob/main/CHANGELOG.md)
-- [Security Policy](https://github.com/mudassir09/pbi-cli/blob/main/SECURITY.md)
+- [GitHub Repository](https://github.com/mudassir09/pbi-enterprise-cli)
+- [Full Documentation](https://github.com/mudassir09/pbi-enterprise-cli#readme)
+- [XMLA Auth Guide](https://github.com/mudassir09/pbi-enterprise-cli/blob/main/docs/auth/xmla-auth.md)
+- [Deployment Guide](https://github.com/mudassir09/pbi-enterprise-cli/blob/main/docs/deployment.md)
+- [Stability Policy](https://github.com/mudassir09/pbi-enterprise-cli/blob/main/STABILITY.md)
+- [Changelog](https://github.com/mudassir09/pbi-enterprise-cli/blob/main/CHANGELOG.md)
+- [Security Policy](https://github.com/mudassir09/pbi-enterprise-cli/blob/main/SECURITY.md)
