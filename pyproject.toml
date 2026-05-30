@@ -29,6 +29,13 @@ classifiers = [
     "Environment :: Console",
     "Typing :: Typed",
 ]
+dependencies = [
+    "click>=8.1",
+    "rich>=13.0",
+    "pythonnet>=3.0",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/mudassir09/pbi-enterprise-cli"
@@ -37,13 +44,6 @@ Documentation = "https://github.com/mudassir09/pbi-enterprise-cli#readme"
 Changelog = "https://github.com/mudassir09/pbi-enterprise-cli/blob/main/CHANGELOG.md"
 "Bug Tracker" = "https://github.com/mudassir09/pbi-enterprise-cli/issues"
 "Security Policy" = "https://github.com/mudassir09/pbi-enterprise-cli/blob/main/SECURITY.md"
-dependencies = [
-    "click>=8.1",
-    "rich>=13.0",
-    "pythonnet>=3.0",
-    "pydantic>=2.0",
-    "python-dotenv>=1.0",
-]
 
 [project.optional-dependencies]
 ai   = ["anthropic>=0.105.2"]
