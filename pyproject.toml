@@ -4,12 +4,39 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pbi-enterprise-cli"
-version = "4.0.0"
+version = "4.0.1"
 description = "Power BI one-stop-shop platform — CLI for AI-driven Power BI development"
-readme = "README.md"
+readme = "README.pypi.md"
 requires-python = ">=3.10"
 license = { text = "MIT AND LicenseRef-Microsoft-AS-Client-Libraries" }
-keywords = ["power-bi", "cli", "dax", "tmdl", "pbir"]
+keywords = ["power-bi", "cli", "dax", "tmdl", "pbir", "powerbi", "pbip", "xmla", "fabric"]
+authors = [
+    { name = "Mudassir", email = "mir.mudassir1@gmail.com" }
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Topic :: Office/Business",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Database",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Environment :: Console",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/mudassir09/pbi-enterprise-cli"
+Repository = "https://github.com/mudassir09/pbi-enterprise-cli"
+Documentation = "https://github.com/mudassir09/pbi-enterprise-cli#readme"
+Changelog = "https://github.com/mudassir09/pbi-enterprise-cli/blob/main/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/mudassir09/pbi-enterprise-cli/issues"
+"Security Policy" = "https://github.com/mudassir09/pbi-enterprise-cli/blob/main/SECURITY.md"
 dependencies = [
     "click>=8.1",
     "rich>=13.0",

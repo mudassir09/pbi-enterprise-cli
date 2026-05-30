@@ -6,6 +6,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [4.0.1] — 2026-05-30
+
+### Changed
+- PyPI metadata: added author, classifiers, project URLs, switched readme to README.pypi.md
+- Added keywords: powerbi, pbip, xmla, fabric
+
 ## [4.0.0] — 2026-05-30 (Enterprise Readiness release)
 
 ### Added — Skills Gap Fill
