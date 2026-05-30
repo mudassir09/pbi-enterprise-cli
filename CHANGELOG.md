@@ -6,7 +6,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [4.0.0-dev] — 2026-05-30 (Enterprise Readiness update)
+## [4.0.0] — 2026-05-30 (Enterprise Readiness release)
 
 ### Added — Skills Gap Fill
 - **`skills/power-bi-intelligence/`** — AI-driven measure generation, visual recommendation, WCAG theme generation, and layout engine
