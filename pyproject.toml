@@ -24,7 +24,7 @@ viz  = ["Pillow>=10.0", "python-wcag-contrast-ratio>=1.0", "playwright>=1.44"]
 xmla = ["msal>=1.28"]
 server  = ["fastapi>=0.110", "uvicorn>=0.29"]
 sources = ["sqlalchemy>=2.0", "openpyxl>=3.1", "httpx>=0.27"]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4.0", "mypy>=1.10", "pyyaml>=6.0"]
+dev = ["pytest>=9.0.3", "pytest-cov>=7.1.0", "ruff>=0.15.15", "mypy>=2.1.0", "pyyaml>=6.0"]
 all = ["pbi-enterprise-cli[ai,viz,xmla,server,sources,dev]"]
 
 [project.scripts]
