@@ -6,18 +6,35 @@ on:
       - "v*"
 
 jobs:
-  release:
-    name: Build and publish to PyPI
+  test:
+    name: Pre-release Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install build twine
+          cache: pip
+      - run: pip install -e ".[dev,ai,server,sources]"
+      - name: Run full test suite (excluding e2e)
+        run: pytest -m "not e2e" --no-cov
+
+  release:
+    name: Build and publish to PyPI
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      id-token: write  # required for OIDC trusted publishing
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pbi-cli-tool
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install build
       - run: python -m build
-      - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: twine upload dist/*
+      - name: Publish to PyPI (OIDC trusted publishing — no token required)
+        uses: pypa/gh-action-pypi-publish@release/v1

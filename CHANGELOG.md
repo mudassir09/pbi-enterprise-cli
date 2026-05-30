@@ -8,6 +8,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [4.0.0-dev] — 2026-05-30 (Enterprise Readiness update)
 
+### Added — Skills Gap Fill
+- **`skills/power-bi-intelligence/`** — AI-driven measure generation, visual recommendation, WCAG theme generation, and layout engine
+- **`skills/power-bi-connections/`** — connection string management, environment switching, service principal auth, DirectQuery/Import modes, gateway config
+- **`skills/power-bi-trace/`** — DAX query profiling, FE/SE/DQ breakdown, VertiPaq scan analysis, CI performance regression guard
+- **`skills/power-bi-watch/`** — file-system watcher, hot-reload to Desktop, governance-on-save, change diffing
+- **`skills/power-bi-calendar/`** — calendar table generation (standard + fiscal year), mark-as-date-table, validation against fact tables
+- **`skills/power-bi-audit/`** — model snapshots, drift detection diff, orphan measure detection, CI change guard
+
+### Changed — CI/CD Infrastructure
+- **Pip caching** added to all workflow jobs (`cache: pip`) — faster installs across lint, test, contract, pbir-format, release
+- **Windows CI job** (`windows-test`) added to `ci.yml` — TOM/XMLA backends now tested on `windows-latest` with pythonnet
+- **Security scan** (`pip-audit`) added to `ci.yml` as a dedicated `security` job
+- **Release workflow** now requires a passing test job (`needs: test`) before publishing to PyPI
+- **PyPI publishing** switched from token-based `twine` to OIDC Trusted Publishing (`pypa/gh-action-pypi-publish`) — no long-lived secrets
+- **PR check** no longer duplicates the full unit test run (handled by `ci.yml`)
+- **`azure-pipelines-govern.yml`** clarified with header comment — purpose vs. GitHub Actions equivalent is now explicit
+
+### Added — Repository Hygiene
+- **`.github/dependabot.yml`** — weekly automated dependency updates for both `pip` and `github-actions` ecosystems, grouped by concern
+- **`BMAD.md`** — gap analysis and implementation plan document
+
+
+
 ### Added — W-12 Server Security
 - **`pbi server generate-key`** — generates a 64-char cryptographically random API key
 - **API key authentication** on all `/api/*` endpoints via `X-PBI-API-Key` header

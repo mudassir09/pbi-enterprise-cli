@@ -15,9 +15,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
       - run: pip install ruff mypy
       - run: ruff check src/ tests/
       - run: mypy src/ --ignore-missing-imports
+
+  security:
+    name: Dependency Security Scan (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install pip-audit
+      - run: pip-audit --requirement <(pip install -e ".[all]" --dry-run -q 2>&1 | grep "^Collecting" | sed 's/Collecting //' | sed 's/ .*//')
+        continue-on-error: true  # advisory only; harden to false once baseline is clean
 
   test:
     name: Unit + Integration Tests (Python ${{ matrix.python-version }})
@@ -31,17 +45,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
       - name: Install dependencies (dev + all optional extras except pythonnet-heavy)
         run: pip install -e ".[dev,ai,server,sources]"
       - name: Run tests with coverage (excluding e2e)
         run: pytest -m "not e2e" --cov-report=xml
-        # addopts in pyproject.toml supplies --cov, --cov-fail-under=70, and omit rules
+        # addopts in pyproject.toml supplies --cov, --cov-fail-under=65, and omit rules
       - name: Upload coverage report
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-xml
           path: coverage.xml
+
+  windows-test:
+    name: Windows Tests — TOM/XMLA backends (Python 3.11)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies (including pythonnet for TOM/XMLA)
+        run: pip install -e ".[dev,ai,server,sources]" && pip install pythonnet
+      - name: Run TOM/XMLA backend tests
+        run: pytest tests/integration/test_tom_backend.py tests/unit/test_xmla_backend.py -v --no-cov
+        continue-on-error: false
 
   contract:
     name: JSON Contract Tests
@@ -52,6 +82,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
       - run: pip install -e ".[dev,server]"
       - name: Run JSON contract test suite
         run: pytest tests/unit/test_json_contracts.py -v --no-cov
@@ -65,6 +96,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
       - run: pip install -e ".[dev]"
       - name: Bookmark format assertions
         run: pytest tests/unit/test_commands_report_new.py::TestBookmarkFileFormat -v --no-cov

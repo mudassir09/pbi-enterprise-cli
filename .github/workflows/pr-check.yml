@@ -13,11 +13,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
       - run: pip install -e ".[dev]"
       - name: Run governance rule tests
         run: pytest tests/ -m "not e2e" -k "govern" -v
-      - name: Run all unit tests
-        run: pytest tests/ -m "not e2e" -v
+      # Full unit tests run in ci.yml (triggered on pull_request) — no duplicate run here.
 
   skill-triggers:
     name: Skill Trigger Tests
@@ -27,6 +27,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
       - run: pip install -e ".[dev]"
       - name: Validate skill frontmatter
         run: |

@@ -1,3 +1,7 @@
+# Azure DevOps equivalent of .github/workflows/pbi-govern.yml.
+# This file is provided for teams running pbi-cli inside Azure Pipelines.
+# If your CI runs on GitHub Actions only, this file is not used and can be deleted.
+
 trigger:
   paths:
     include:
