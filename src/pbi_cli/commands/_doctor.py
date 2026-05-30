@@ -28,10 +28,9 @@ def run_doctor(output_json: bool) -> None:
         import clr  # type: ignore[import,import-untyped]  # noqa: F401
 
         checks.append({"check": "pythonnet", "status": "pass", "detail": "Available"})
-    except ImportError:
-        checks.append(
-            {"check": "pythonnet", "status": "fail", "detail": "Not installed (Windows only)"}
-        )
+    except (ImportError, RuntimeError) as exc:
+        detail = "Not installed (Windows only)" if isinstance(exc, ImportError) else str(exc)[:80]
+        checks.append({"check": "pythonnet", "status": "warn", "detail": detail})
 
     # sqlalchemy
     try:
