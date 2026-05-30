@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies (dev + all optional extras except playwright browsers)
         run: |
           pip install -e ".[dev,ai,server,sources]"
-          pip install Pillow python-wcag-contrast-ratio  # viz extras minus playwright
+          pip install Pillow wcag-contrast-ratio  # viz extras minus playwright
       - name: Run tests with coverage (excluding e2e)
         run: pytest -m "not e2e" --cov-report=xml
         # addopts in pyproject.toml supplies --cov, --cov-fail-under=70, and omit rules
