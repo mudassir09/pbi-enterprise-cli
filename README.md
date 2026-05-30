@@ -1,4 +1,4 @@
-# pbi-cli
+# pbi-enterprise-cli
 
 > Full-stack Power BI automation from the command line — semantic model management, report authoring, governance enforcement, DAX testing, deployment pipelines, and 30 Claude Code skills.
 
