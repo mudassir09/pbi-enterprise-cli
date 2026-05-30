@@ -24,7 +24,7 @@ try:
         if not api_key or not verify_api_key(api_key):
             raise HTTPException(
                 status_code=403,
-                detail="Missing or invalid API key. Set PBI_SERVER_KEY and pass X-PBI-API-Key header.",
+                detail="Missing or invalid API key. Set PBI_SERVER_KEY and pass X-PBI-API-Key header.",  # noqa: E501
             )
         return api_key
 

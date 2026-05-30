@@ -92,11 +92,11 @@ _BUNDLED_SKILLS: list[dict[str, Any]] = [
     },
     {
         "name": "power-bi-power-query",
-        "description": "M language and Power Query ETL: connectors, transformations, REST API pagination",
+        "description": "M language and Power Query ETL: connectors, transformations, pagination",
     },
     {
         "name": "power-bi-visual-selection",
-        "description": "Which visual for which data question — decision guide and AppSource recommendations",
+        "description": "Which visual for which data question — decision guide and AppSource picks",
     },
     {
         "name": "power-bi-fabric",
@@ -224,7 +224,9 @@ def skills_check() -> None:
         skill_ver = fm.get("version", "?")
         min_cli = fm.get("min_cli_version", "")
         if not min_cli:
-            table.add_row(skill["name"], skill_ver, "[dim]not set[/dim]", "[yellow]⚠ no constraint[/yellow]")
+            table.add_row(  # noqa: E501
+                skill["name"], skill_ver, "[dim]not set[/dim]", "[yellow]⚠ no constraint[/yellow]"
+            )
             continue
         try:
             req = _version_tuple(min_cli)
@@ -238,7 +240,9 @@ def skills_check() -> None:
 
     console.print(table)
     compatible = len(_BUNDLED_SKILLS) - incompatible
-    console.print(f"\n[green]{compatible} compatible[/green], [red]{incompatible} incompatible[/red]")
+    console.print(
+        f"\n[green]{compatible} compatible[/green], [red]{incompatible} incompatible[/red]"
+    )
     if incompatible:
         raise SystemExit(1)
 

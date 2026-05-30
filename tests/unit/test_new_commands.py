@@ -55,7 +55,12 @@ class TestServerAuth:
         with patch.dict(sys.modules, {"uvicorn": fake_uvicorn}):
             result = runner.invoke(cli, ["server", "start", "--host", "0.0.0.0"])
         # Warning about non-localhost OR success — both are acceptable
-        assert "WARNING" in result.output or "warning" in result.output.lower() or "0.0.0.0" in result.output or result.exit_code in (0, 1)
+        assert (
+            "WARNING" in result.output
+            or "warning" in result.output.lower()
+            or "0.0.0.0" in result.output
+            or result.exit_code in (0, 1)
+        )
 
     def test_verify_api_key_correct(self):
         from pbi_cli.server.auth import verify_api_key
@@ -118,7 +123,8 @@ class TestSkillsCheck:
         skill_dir = skills_src / "power-bi-dax"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            '---\nname: power-bi-dax\nversion: "1.0"\nmin_cli_version: "1.0.0"\ndescription: test\n---\nBody\n'
+            "---\nname: power-bi-dax\nversion: \"1.0\"\n"
+            "min_cli_version: \"1.0.0\"\ndescription: test\n---\nBody\n"
         )
         monkeypatch.setattr(
             "pbi_cli.commands.skills_cmd._skills_source_dir", lambda: skills_src
