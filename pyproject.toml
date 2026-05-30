@@ -51,6 +51,13 @@ testpaths = ["tests"]
 addopts = "--cov=pbi_cli --cov-report=term-missing --cov-fail-under=70"
 markers = ["e2e: requires live Power BI Desktop or XMLA endpoint"]
 
+[tool.coverage.run]
+omit = [
+    # TOM/XMLA backends require Windows .NET (pythonnet/AMO) — untestable on Linux CI
+    "src/pbi_cli/backends/tom_backend.py",
+    "src/pbi_cli/backends/xmla_backend.py",
+]
+
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
@@ -58,7 +65,6 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 omit = [
-    # TOM/XMLA backends require Windows .NET — untestable on Linux CI
     "src/pbi_cli/backends/tom_backend.py",
     "src/pbi_cli/backends/xmla_backend.py",
 ]
