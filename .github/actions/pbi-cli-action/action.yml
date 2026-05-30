@@ -14,7 +14,7 @@ inputs:
     default: "3.11"
 
   pbi-cli-version:
-    description: "pbi-cli-tool version to install (e.g. '>=4.0'). Defaults to latest."
+    description: "pbi-enterprise-cli version to install (e.g. '>=4.0'). Defaults to latest."
     required: false
     default: ""
 
@@ -74,19 +74,19 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    - name: Install pbi-cli-tool
+    - name: Install pbi-enterprise-cli
       shell: bash
       run: |
         EXTRAS="${{ inputs.extras }}"
         VERSION="${{ inputs.pbi-cli-version }}"
         if [ -n "$EXTRAS" ] && [ -n "$VERSION" ]; then
-          pip install "pbi-cli-tool[$EXTRAS]$VERSION"
+          pip install "pbi-enterprise-cli[$EXTRAS]$VERSION"
         elif [ -n "$EXTRAS" ]; then
-          pip install "pbi-cli-tool[$EXTRAS]"
+          pip install "pbi-enterprise-cli[$EXTRAS]"
         elif [ -n "$VERSION" ]; then
-          pip install "pbi-cli-tool$VERSION"
+          pip install "pbi-enterprise-cli$VERSION"
         else
-          pip install pbi-cli-tool
+          pip install pbi-enterprise-cli
         fi
 
     - name: Run governance check

@@ -10,7 +10,7 @@ description: >
   "auto-detect relationships", "star schema from my data".
   Do NOT trigger for report-only or measure-only requests.
 version: "1.0"
-requires: ["pbi-cli >= 4.0", "pbi-cli-tool[sources]"]
+requires: ["pbi-cli >= 4.0", "pbi-enterprise-cli[sources]"]
 ---
 
 # power-bi-sources
@@ -86,4 +86,4 @@ Always review suggested joins before applying — the algorithm uses heuristics.
 | SQLite | `sqlite:///path/to/file.db` |
 | Azure SQL | `mssql+pyodbc://server.database.windows.net/db?driver=ODBC+Driver+17&Authentication=ActiveDirectoryInteractive` |
 
-Requires: `pip install pbi-cli-tool[sources]`
+Requires: `pip install pbi-enterprise-cli[sources]`

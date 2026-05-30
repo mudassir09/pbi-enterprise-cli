@@ -56,17 +56,17 @@ The same CLI works against three backends — swap with `--backend`:
 
 **Base install** (semantic model, governance, DAX, report authoring):
 ```bash
-pip install pbi-cli-tool
+pip install pbi-enterprise-cli
 ```
 
 **Optional feature groups:**
 ```bash
-pip install "pbi-cli-tool[ai]"       # Claude AI measure generation
-pip install "pbi-cli-tool[xmla]"     # XMLA auth (MSAL)
-pip install "pbi-cli-tool[sources]"  # SQL / Excel / REST profiling
-pip install "pbi-cli-tool[viz]"      # WCAG theme validation, screenshots
-pip install "pbi-cli-tool[server]"   # Authenticated FastAPI REST server
-pip install "pbi-cli-tool[all]"      # Everything
+pip install "pbi-enterprise-cli[ai]"       # Claude AI measure generation
+pip install "pbi-enterprise-cli[xmla]"     # XMLA auth (MSAL)
+pip install "pbi-enterprise-cli[sources]"  # SQL / Excel / REST profiling
+pip install "pbi-enterprise-cli[viz]"      # WCAG theme validation, screenshots
+pip install "pbi-enterprise-cli[server]"   # Authenticated FastAPI REST server
+pip install "pbi-enterprise-cli[all]"      # Everything
 ```
 
 > **Requirements:** Python 3.10+. The `desktop` and `xmla` backends require Windows and the AMO .NET assemblies (installed with Power BI Desktop).

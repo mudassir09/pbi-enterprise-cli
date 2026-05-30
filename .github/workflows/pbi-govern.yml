@@ -19,7 +19,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install pbi-enterprise-cli
-        run: pip install pbi-cli-tool
+        run: pip install pbi-enterprise-cli
 
       - name: Run governance check
         run: |

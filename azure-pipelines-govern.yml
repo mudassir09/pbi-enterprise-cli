@@ -17,7 +17,7 @@ steps:
     inputs:
       versionSpec: "3.11"
 
-  - script: pip install pbi-cli-tool
+  - script: pip install pbi-enterprise-cli
     displayName: Install pbi-enterprise-cli
 
   - script: |

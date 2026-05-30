@@ -94,7 +94,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install pbi-cli-tool
+      - run: pip install pbi-enterprise-cli
       - name: Run governance check
         env:
           PBI_CLIENT_SECRET: ${{ secrets.PBI_CLIENT_SECRET }}
@@ -114,7 +114,7 @@ variables:
   - group: pbi-credentials   # variable group containing PBI_CLIENT_SECRET
 
 steps:
-  - script: pip install pbi-cli-tool
+  - script: pip install pbi-enterprise-cli
   - script: |
       pbi --connection fabric-prod --json govern check --fail-on error
     env:

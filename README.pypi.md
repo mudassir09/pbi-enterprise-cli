@@ -1,9 +1,9 @@
-# pbi-cli-tool
+# pbi-enterprise-cli
 
 **Full-stack Power BI automation from the command line.**
 
 ```bash
-pip install pbi-cli-tool
+pip install pbi-enterprise-cli
 pbi doctor          # verify setup
 pbi model tables    # list tables in the connected model
 pbi govern check    # run governance rules (exit 3 on violations)
@@ -25,12 +25,12 @@ pbi govern check    # run governance rules (exit 3 on violations)
 ## Install options
 
 ```bash
-pip install pbi-cli-tool             # base
-pip install "pbi-cli-tool[ai]"       # + Claude AI measure generation
-pip install "pbi-cli-tool[xmla]"     # + MSAL auth for XMLA
-pip install "pbi-cli-tool[sources]"  # + SQL/Excel/REST profiling
-pip install "pbi-cli-tool[server]"   # + authenticated FastAPI REST server
-pip install "pbi-cli-tool[all]"      # everything
+pip install pbi-enterprise-cli             # base
+pip install "pbi-enterprise-cli[ai]"       # + Claude AI measure generation
+pip install "pbi-enterprise-cli[xmla]"     # + MSAL auth for XMLA
+pip install "pbi-enterprise-cli[sources]"  # + SQL/Excel/REST profiling
+pip install "pbi-enterprise-cli[server]"   # + authenticated FastAPI REST server
+pip install "pbi-enterprise-cli[all]"      # everything
 ```
 
 ## Requirements

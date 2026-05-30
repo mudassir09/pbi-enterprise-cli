@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pbi-cli-tool"
+name = "pbi-enterprise-cli"
 version = "4.0.0.dev0"
 description = "Power BI one-stop-shop platform — CLI for AI-driven Power BI development"
 readme = "README.md"
@@ -25,7 +25,7 @@ xmla = ["msal>=1.28"]
 server  = ["fastapi>=0.110", "uvicorn>=0.29"]
 sources = ["sqlalchemy>=2.0", "openpyxl>=3.1", "httpx>=0.27"]
 dev = ["pytest>=7.0", "pytest-cov>=4.0", "ruff>=0.4.0", "mypy>=1.10", "pyyaml>=6.0"]
-all = ["pbi-cli-tool[ai,viz,xmla,server,sources,dev]"]
+all = ["pbi-enterprise-cli[ai,viz,xmla,server,sources,dev]"]
 
 [project.scripts]
 pbi = "pbi_cli.cli:cli"
@@ -48,7 +48,7 @@ warn_unused_ignores = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=pbi_cli --cov-report=term-missing --cov-fail-under=65"
+addopts = "--cov=pbi_cli --cov-report=term-missing --cov-fail-under=75"
 markers = ["e2e: requires live Power BI Desktop or XMLA endpoint"]
 
 [tool.coverage.run]
