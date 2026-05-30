@@ -1,5 +1,7 @@
 ---
 name: power-bi-testing
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for testing Power BI semantic models and DAX measures: unit tests,
   YAML test fixtures, CI test gates, regression testing, and assertion patterns.

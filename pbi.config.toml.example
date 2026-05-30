@@ -1,0 +1,23 @@
+# pbi.config.toml — project-level configuration
+# Copy to pbi.config.toml in your repo root and commit it.
+# Secrets must NOT be stored here — reference env var names only.
+
+[project]
+name = "My Analytics Project"
+
+[environments]
+dev  = "fabric-dev"
+test = "fabric-test"
+prod = "fabric-prod"
+
+[govern]
+# Path(s) to custom rule plugin files or directories
+custom_rules = []
+# Fail CI on this severity or above: error | warning | info
+fail_on = "error"
+
+[deploy]
+# Auto-create a TMDL snapshot before every deploy push
+auto_snapshot = true
+# Block deploy if govern check has errors
+require_govern_clean = true

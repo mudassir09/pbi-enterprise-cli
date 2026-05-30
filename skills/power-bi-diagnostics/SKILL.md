@@ -1,5 +1,7 @@
 ---
 name: power-bi-diagnostics
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for diagnosing Power BI performance issues, DAX query problems, model errors,
   connection failures, and pbi-cli setup issues. Triggers on: "slow", "performance",

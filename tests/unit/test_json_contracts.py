@@ -113,17 +113,18 @@ class TestModelRelationshipsContract:
 
 
 class TestGovernCheckContract:
-    def test_returns_list(self, runner):
-        # Default fixture has description/format violations
+    def test_returns_object_with_summary_and_violations(self, runner):
         result = runner.invoke(cli, ["--backend", "mock", "--json", "govern", "check"])
-        # May exit 1 if there are error-severity violations; parse output anyway
         data = json.loads(result.output)
-        assert isinstance(data, list)
+        assert isinstance(data, dict)
+        assert "summary" in data
+        assert "violations" in data
+        assert isinstance(data["violations"], list)
 
     def test_each_violation_has_required_fields(self, runner):
         result = runner.invoke(cli, ["--backend", "mock", "--json", "govern", "check"])
         data = json.loads(result.output)
-        for v in data:
+        for v in data["violations"]:
             assert "rule" in v
             assert "message" in v
             assert "severity" in v

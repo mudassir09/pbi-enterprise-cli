@@ -9,11 +9,26 @@ from pydantic import BaseModel
 try:
     from pathlib import Path
 
-    from fastapi import FastAPI, HTTPException
+    from fastapi import Depends, FastAPI, HTTPException, Security
     from fastapi.responses import FileResponse
+    from fastapi.security import APIKeyHeader
     from fastapi.staticfiles import StaticFiles
 
+    from pbi_cli.server.auth import verify_api_key
+
     app = FastAPI(title="pbi-server", version="4.0.0.dev0", docs_url="/api/docs")
+
+    _api_key_header = APIKeyHeader(name="X-PBI-API-Key", auto_error=False)
+
+    def _require_key(api_key: str | None = Security(_api_key_header)) -> str:
+        if not api_key or not verify_api_key(api_key):
+            raise HTTPException(
+                status_code=403,
+                detail="Missing or invalid API key. Set PBI_SERVER_KEY and pass X-PBI-API-Key header.",
+            )
+        return api_key
+
+    _auth = Depends(_require_key)
 
     # ── Singleton backend ──────────────────────────────────────────────────
     _backend: Any = None
@@ -56,21 +71,21 @@ try:
 
     # ── Model ──────────────────────────────────────────────────────────────
 
-    @app.get("/api/tables")
+    @app.get("/api/tables", dependencies=[_auth])
     def list_tables() -> list[dict]:
         return get_backend().table_list()
 
-    @app.get("/api/columns")
+    @app.get("/api/columns", dependencies=[_auth])
     def list_columns(table: str | None = None) -> list[dict]:
         return get_backend().column_list(table=table)
 
-    @app.get("/api/relationships")
+    @app.get("/api/relationships", dependencies=[_auth])
     def list_relationships() -> list[dict]:
         return get_backend().relationship_list()
 
     # ── Measures ───────────────────────────────────────────────────────────
 
-    @app.get("/api/measures")
+    @app.get("/api/measures", dependencies=[_auth])
     def list_measures(table: str | None = None) -> list[dict]:
         return get_backend().measure_list(table=table)
 
@@ -81,7 +96,7 @@ try:
         formatString: str = ""
         description: str = ""
 
-    @app.post("/api/measures", status_code=201)
+    @app.post("/api/measures", status_code=201, dependencies=[_auth])
     def create_measure(body: MeasureCreate) -> dict:
         kwargs: dict[str, Any] = {}
         if body.formatString:
@@ -98,7 +113,7 @@ try:
         formatString: str | None = None
         description: str | None = None
 
-    @app.patch("/api/measures/{table}/{name}")
+    @app.patch("/api/measures/{table}/{name}", dependencies=[_auth])
     def update_measure(table: str, name: str, body: MeasureUpdate) -> dict:
         kwargs = {k: v for k, v in body.model_dump().items() if v is not None}
         try:
@@ -106,7 +121,7 @@ try:
         except KeyError:
             raise HTTPException(status_code=404, detail=f"Measure '{name}' not found in '{table}'")
 
-    @app.delete("/api/measures/{table}/{name}", status_code=204)
+    @app.delete("/api/measures/{table}/{name}", status_code=204, dependencies=[_auth])
     def delete_measure(table: str, name: str) -> None:
         try:
             get_backend().measure_delete(table, name)
@@ -118,26 +133,26 @@ try:
     class DaxQuery(BaseModel):
         expression: str
 
-    @app.post("/api/dax/query")
+    @app.post("/api/dax/query", dependencies=[_auth])
     def dax_query(body: DaxQuery) -> list[dict]:
         try:
             return get_backend().dax_query(body.expression)
         except Exception as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
-    @app.post("/api/dax/validate")
+    @app.post("/api/dax/validate", dependencies=[_auth])
     def dax_validate(body: DaxQuery) -> dict:
         return get_backend().dax_validate(body.expression)
 
     # ── Governance ─────────────────────────────────────────────────────────
 
-    @app.get("/api/govern/check")
+    @app.get("/api/govern/check", dependencies=[_auth])
     def govern_check() -> list[dict]:
         from pbi_cli.governance.engine import GovernanceEngine
 
         return GovernanceEngine(get_backend()).run_all()
 
-    @app.post("/api/govern/fix")
+    @app.post("/api/govern/fix", dependencies=[_auth])
     def govern_fix() -> dict:
         from pbi_cli.governance.engine import GovernanceEngine
 
@@ -149,7 +164,11 @@ try:
 
     # ── Docs ───────────────────────────────────────────────────────────────
 
-    @app.get("/api/docs/markdown", response_class=__import__("fastapi").responses.PlainTextResponse)
+    @app.get(
+        "/api/docs/markdown",
+        dependencies=[_auth],
+        response_class=__import__("fastapi").responses.PlainTextResponse,
+    )
     def docs_markdown() -> str:
         from pbi_cli.docs_gen.markdown import MarkdownDocsGenerator
 
@@ -157,14 +176,14 @@ try:
 
     # ── Suggest ────────────────────────────────────────────────────────────
 
-    @app.get("/api/suggest/measures")
+    @app.get("/api/suggest/measures", dependencies=[_auth])
     def suggest_measures() -> list[dict]:
         b = get_backend()
         from pbi_cli.commands.model import _build_measure_suggestions
 
         return _build_measure_suggestions(b.table_list(), b.column_list())
 
-    @app.post("/api/suggest/visuals")
+    @app.post("/api/suggest/visuals", dependencies=[_auth])
     def suggest_visuals(body: dict) -> list[dict]:
         from pbi_cli.intelligence.visual_recommender import VisualRecommender
 

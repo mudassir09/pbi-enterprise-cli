@@ -1,5 +1,7 @@
 ---
 name: power-bi-modeling
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for semantic model design: star schema, dimensional modeling, relationships,
   calculated columns, data types, model optimization, and scaffolding from source

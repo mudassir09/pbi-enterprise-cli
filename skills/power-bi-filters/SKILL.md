@@ -1,5 +1,7 @@
 ---
 name: power-bi-filters
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for configuring filters in Power BI reports: visual-level, page-level, and
   report-level filters, filter pane setup, DAX filter patterns, cross-filtering,

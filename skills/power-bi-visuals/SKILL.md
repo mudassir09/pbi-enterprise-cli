@@ -1,5 +1,7 @@
 ---
 name: power-bi-visuals
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for adding, configuring, and managing visuals on Power BI report pages in
   .pbip projects. Triggers on: "add a visual", "create a chart", "add a card",

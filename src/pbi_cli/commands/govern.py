@@ -51,33 +51,67 @@ def govern_init(ctx: click.Context) -> None:
     console.print(f"[green]Created:[/green] {config_file}")
 
 
+_SEVERITY_RANK = {"info": 0, "warning": 1, "error": 2}
+
+
 @govern.command("check")
+@click.option(
+    "--fail-on",
+    "fail_on",
+    default="error",
+    type=click.Choice(["info", "warning", "error"]),
+    show_default=True,
+    help="Exit with code 3 when any violation at this severity or higher is found.",
+)
 @click.pass_context
-def govern_check(ctx: click.Context) -> None:
-    """Run all governance rules; output violations with severity (error/warning/info)."""
+def govern_check(ctx: click.Context, fail_on: str) -> None:
+    """Run all governance rules; output violations with severity (error/warning/info).
+
+    \b
+    Exit codes:
+      0  — no violations at or above --fail-on threshold
+      3  — one or more violations at or above threshold
+
+    \b
+    CI usage:
+      pbi --backend mock --json govern check --fail-on error | tee results.json
+    """
     from pbi_cli.governance.engine import GovernanceEngine
 
     backend = get_backend(ctx)
     engine = GovernanceEngine(backend)
     violations = engine.run_all()
     is_json = ctx.obj and ctx.obj.get("output_json")
-    if violations:
-        errors = [v for v in violations if v["severity"] == "error"]
-        warnings_list = [v for v in violations if v["severity"] == "warning"]
-        if not is_json:
-            console.print(
-                f"[red]{len(errors)} errors[/red], [yellow]{len(warnings_list)} warnings[/yellow]"
-            )
-        output_json_or_table(violations, ctx, title="Governance Violations")
-        if errors:
-            raise SystemExit(1)
-    else:
-        if not is_json:
-            console.print("[green]All governance checks pass.[/green]")
-        else:
-            import click
 
-            click.echo("[]")
+    errors = [v for v in violations if v["severity"] == "error"]
+    warnings_list = [v for v in violations if v["severity"] == "warning"]
+    infos = [v for v in violations if v["severity"] == "info"]
+
+    if is_json:
+        summary = {
+            "summary": {
+                "errors": len(errors),
+                "warnings": len(warnings_list),
+                "infos": len(infos),
+                "total": len(violations),
+            },
+            "violations": violations,
+        }
+        click.echo(json.dumps(summary, indent=2))
+    elif violations:
+        console.print(
+            f"[red]{len(errors)} errors[/red], "
+            f"[yellow]{len(warnings_list)} warnings[/yellow], "
+            f"[blue]{len(infos)} info[/blue]"
+        )
+        output_json_or_table(violations, ctx, title="Governance Violations")
+    else:
+        console.print("[green]All governance checks pass.[/green]")
+
+    threshold = _SEVERITY_RANK[fail_on]
+    should_fail = any(_SEVERITY_RANK.get(v["severity"], 0) >= threshold for v in violations)
+    if should_fail:
+        raise SystemExit(3)
 
 
 @govern.command("fix")

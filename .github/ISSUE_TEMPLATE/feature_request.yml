@@ -1,0 +1,40 @@
+name: Feature Request
+description: Suggest a new command or capability
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      placeholder: "I often need to... but currently have to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      placeholder: "Add `pbi <command> <subcommand>` that..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature area
+      options:
+        - Model / DAX
+        - Governance
+        - Deployment / ALM
+        - Report / Layout
+        - Security / RLS
+        - Source profiling
+        - Performance
+        - Skills / AI
+        - Server / API
+        - Other

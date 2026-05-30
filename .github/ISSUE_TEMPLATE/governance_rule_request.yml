@@ -1,0 +1,45 @@
+name: Governance Rule Request
+description: Propose a new built-in governance rule
+labels: ["governance", "enhancement"]
+body:
+  - type: input
+    id: rule_id
+    attributes:
+      label: Suggested Rule ID
+      placeholder: "M005-no-implicit-measure-dependencies"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - error
+        - warning
+        - info
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What does this rule check?
+    validations:
+      required: true
+
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Why is this important? (link to best practices / incidents)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: auto_fixable
+    attributes:
+      label: Can this be auto-fixed?
+      options:
+        - "Yes"
+        - "No"
+        - "Partially"

@@ -1,5 +1,7 @@
 ---
 name: power-bi-patterns
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Orchestration skill for common Power BI solution patterns: end-to-end workflows,
   multi-skill coordination, and architectural patterns. Triggers on: "build a full report",

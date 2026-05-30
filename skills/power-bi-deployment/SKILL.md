@@ -1,5 +1,7 @@
 ---
 name: power-bi-deployment
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for deploying semantic models and reports to Power BI Service via XMLA,
   promoting between workspaces (Dev→Test→Prod), TMDL snapshots, and rollback

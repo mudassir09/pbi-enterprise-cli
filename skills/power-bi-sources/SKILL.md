@@ -1,5 +1,7 @@
 ---
 name: power-bi-sources
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use when connecting to data sources, profiling schemas, scaffolding star-schema
   models, or suggesting joins. Triggers on: "connect to SQL", "profile my database",

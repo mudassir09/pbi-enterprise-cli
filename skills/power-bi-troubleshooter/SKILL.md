@@ -1,5 +1,7 @@
 ---
 name: power-bi-troubleshooter
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Orchestration skill for systematic Power BI troubleshooting. Use when the user
   describes any problem without specifying the cause. Triggers on: "not working",

@@ -1,5 +1,7 @@
 ---
 name: power-bi-security
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for Row-Level Security (RLS), Object-Level Security (OLS), workspace roles,
   sensitivity labels, and secure deployment patterns. Triggers on: "RLS", "row-level

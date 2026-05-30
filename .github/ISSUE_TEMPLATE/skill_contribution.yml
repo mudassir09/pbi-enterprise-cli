@@ -1,0 +1,40 @@
+name: Skill Contribution
+description: Propose a new or improved Claude Code skill
+labels: ["skills"]
+body:
+  - type: input
+    id: skill_name
+    attributes:
+      label: Skill name
+      placeholder: "power-bi-<topic>"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - New skill
+        - Enrichment of existing skill
+    validations:
+      required: true
+
+  - type: textarea
+    id: triggers
+    attributes:
+      label: What user phrases / tasks should trigger this skill?
+    validations:
+      required: true
+
+  - type: textarea
+    id: content
+    attributes:
+      label: Key content / patterns it should teach the AI
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Reference files or external docs to include

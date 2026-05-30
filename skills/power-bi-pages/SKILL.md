@@ -1,5 +1,7 @@
 ---
 name: power-bi-pages
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for managing report pages: adding, deleting, ordering, configuring drillthrough,
   tooltip pages, and mobile layouts. Triggers on: "add a page", "delete page",

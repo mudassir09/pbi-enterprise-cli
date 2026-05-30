@@ -1,5 +1,7 @@
 ---
 name: power-bi-performance
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for Power BI performance optimization: query optimization, aggregations,
   VertiPaq engine, DirectQuery tuning, composite models, and slow visual diagnosis.

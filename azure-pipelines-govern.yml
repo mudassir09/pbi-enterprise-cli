@@ -1,0 +1,28 @@
+trigger:
+  paths:
+    include:
+      - "**/*.tmdl"
+      - "**/*.pbir"
+      - "**/model.bim"
+
+pool:
+  vmImage: windows-latest
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.11"
+
+  - script: pip install pbi-cli-tool
+    displayName: Install pbi-enterprise-cli
+
+  - script: |
+      pbi --backend mock --json govern check --fail-on error > govern-results.json
+    displayName: Power BI Governance Check
+    # Exit code 3 fails the pipeline on ERROR-severity violations
+
+  - task: PublishBuildArtifacts@1
+    condition: always()
+    inputs:
+      PathtoPublish: govern-results.json
+      ArtifactName: GovernanceReport

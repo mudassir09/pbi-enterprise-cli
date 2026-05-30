@@ -1,5 +1,7 @@
 ---
 name: power-bi-report
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for creating, scaffolding, and managing Power BI report pages in .pbip
   projects. Triggers on: "create a report", "add a page", "scaffold report",

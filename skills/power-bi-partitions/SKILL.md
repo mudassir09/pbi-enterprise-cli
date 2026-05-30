@@ -1,5 +1,7 @@
 ---
 name: power-bi-partitions
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for managing table partitions in Power BI semantic models: incremental
   refresh configuration, partition strategy, processing individual partitions,

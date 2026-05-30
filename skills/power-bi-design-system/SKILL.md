@@ -1,5 +1,7 @@
 ---
 name: power-bi-design-system
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for Power BI report design standards: branding guidelines, color systems,
   typography, spacing, reusable visual components, and corporate style consistency.

@@ -1,5 +1,7 @@
 ---
 name: power-bi-themes
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for generating, applying, and validating Power BI report themes: brand color
   palettes, WCAG accessibility compliance, JSON theme files, and theme management.

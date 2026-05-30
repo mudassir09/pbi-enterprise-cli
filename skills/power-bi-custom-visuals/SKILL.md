@@ -1,5 +1,7 @@
 ---
 name: power-bi-custom-visuals
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for working with Power BI custom visuals: AppSource marketplace visuals,
   organizational store, pbiviz files, and CustomVisuals folder in PBIR projects.

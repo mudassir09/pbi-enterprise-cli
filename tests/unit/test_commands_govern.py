@@ -50,21 +50,23 @@ class TestGovernCheck:
         # Exit 0 or 1 depending on severity; output should mention violations
         assert "warning" in result.output.lower() or result.exit_code in (0, 1)
 
-    def test_check_json_output_is_list(self, runner):
+    def test_check_json_output_has_summary_and_violations(self, runner):
         result = runner.invoke(cli, ["--backend", "mock", "--json", "govern", "check"])
         data = json.loads(result.output)
-        assert isinstance(data, list)
+        assert "summary" in data
+        assert "violations" in data
+        assert isinstance(data["violations"], list)
 
     def test_check_json_violations_have_required_fields(self, runner):
         result = runner.invoke(cli, ["--backend", "mock", "--json", "govern", "check"])
         data = json.loads(result.output)
-        for v in data:
+        for v in data["violations"]:
             assert "rule" in v
             assert "severity" in v
             assert "message" in v
             assert "autoFixable" in v
 
-    def test_check_exits_1_on_errors(self, runner, monkeypatch):
+    def test_check_exits_3_on_errors(self, runner, monkeypatch):
         from pbi_cli.governance import engine as eng
 
         monkeypatch.setattr(
@@ -81,7 +83,7 @@ class TestGovernCheck:
             ],
         )
         result = _run(runner, "govern", "check")
-        assert result.exit_code == 1
+        assert result.exit_code == 3
 
 
 # ── govern fix ────────────────────────────────────────────────────────────────

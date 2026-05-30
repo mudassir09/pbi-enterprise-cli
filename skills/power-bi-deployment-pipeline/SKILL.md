@@ -1,5 +1,7 @@
 ---
 name: power-bi-deployment-pipeline
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for CI/CD deployment pipelines for Power BI: Git integration, Fabric
   deployment pipelines, environment promotion (Dev→Test→Prod), XMLA publishing,

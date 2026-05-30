@@ -14,6 +14,7 @@ from pbi_cli.commands import (
     dax,
     deploy,
     docs,
+    env_cmd,
     filter_cmd,
     govern,
     layout,
@@ -25,6 +26,7 @@ from pbi_cli.commands import (
     security,
     server_cmd,
     skills_cmd,
+    snapshot,
     source,
     theme,
     trace,
@@ -107,6 +109,8 @@ cli.add_command(trace.trace)
 cli.add_command(trace.benchmark)
 cli.add_command(connections.connections)
 cli.add_command(skills_cmd.skills_cmd)
+cli.add_command(env_cmd.env_cmd)
+cli.add_command(snapshot.snapshot_cmd)
 cli.add_command(calendar_cmd.calendar_cmd)
 cli.add_command(calendar_cmd.culture_cmd)
 cli.add_command(repl.repl)

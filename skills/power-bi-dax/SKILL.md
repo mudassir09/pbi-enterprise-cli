@@ -1,5 +1,7 @@
 ---
 name: power-bi-dax
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for DAX measure creation, validation, testing, Time Intelligence patterns,
   CALCULATE modifiers, filter context reasoning, anti-pattern detection, and

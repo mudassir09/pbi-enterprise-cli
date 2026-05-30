@@ -1,0 +1,57 @@
+name: Power BI Governance Check
+on:
+  pull_request:
+    paths:
+      - "**/*.tmdl"
+      - "**/*.pbir"
+      - "**/visualContainer.json"
+      - "**/model.bim"
+
+jobs:
+  govern:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pbi-enterprise-cli
+        run: pip install pbi-cli-tool
+
+      - name: Run governance check
+        run: |
+          pbi --backend mock --json govern check --fail-on error | tee govern-results.json
+        # Exit code 3 = violations found; pipeline fails automatically
+
+      - name: Upload governance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governance-report
+          path: govern-results.json
+
+      - name: Comment results on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('govern-results.json', 'utf8'));
+            const s = results.summary;
+            const icon = s.errors > 0 ? '❌' : s.warnings > 0 ? '⚠️' : '✅';
+            const body = `### ${icon} Power BI Governance Report\n\n` +
+              `| Severity | Count |\n|---|---|\n` +
+              `| ❌ Errors | ${s.errors} |\n` +
+              `| ⚠️ Warnings | ${s.warnings} |\n` +
+              `| ℹ️ Info | ${s.infos} |\n\n` +
+              (s.errors > 0
+                ? `**Pipeline blocked** — fix ${s.errors} error(s) before merging.\n\nRun \`pbi govern fix --auto\` to auto-fix safe violations.`
+                : 'All governance checks passed.');
+            github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body,
+            });

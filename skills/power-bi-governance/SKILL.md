@@ -1,5 +1,7 @@
 ---
 name: power-bi-governance
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for Power BI governance: naming conventions, measure auditing, policy
   enforcement, auto-fix, governance.json configuration, and compliance checks.

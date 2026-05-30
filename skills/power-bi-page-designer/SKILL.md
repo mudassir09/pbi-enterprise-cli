@@ -1,5 +1,7 @@
 ---
 name: power-bi-page-designer
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use when the user asks to create or design a complete report page from scratch for
   a specific business domain. This skill plans the full page — what visuals, in what

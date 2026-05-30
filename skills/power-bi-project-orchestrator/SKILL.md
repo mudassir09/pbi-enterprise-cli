@@ -1,5 +1,7 @@
 ---
 name: power-bi-project-orchestrator
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use when the user asks to BUILD, CREATE, SCAFFOLD, GENERATE, or DEVELOP a
   complete Power BI solution from scratch, or when the request spans multiple

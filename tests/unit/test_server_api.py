@@ -24,11 +24,20 @@ def mock_backend(monkeypatch):
     return b
 
 
+_TEST_API_KEY = "test-api-key-for-unit-tests"
+
+
+@pytest.fixture(autouse=True)
+def set_api_key(monkeypatch):
+    """Set PBI_SERVER_KEY so auth passes in all tests."""
+    monkeypatch.setenv("PBI_SERVER_KEY", _TEST_API_KEY)
+
+
 @pytest.fixture()
 def client() -> TestClient:
     from pbi_cli.server.api import app
 
-    return TestClient(app)
+    return TestClient(app, headers={"X-PBI-API-Key": _TEST_API_KEY})
 
 
 # ── /api/status ───────────────────────────────────────────────────────────────

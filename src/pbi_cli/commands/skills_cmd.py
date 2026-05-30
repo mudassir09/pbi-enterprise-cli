@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,29 @@ from rich.console import Console
 from rich.table import Table
 
 console = Console()
+
+
+def _parse_frontmatter(md_path: Path) -> dict[str, str]:
+    """Extract YAML-like frontmatter key: value pairs from a SKILL.md."""
+    text = md_path.read_text(encoding="utf-8")
+    result: dict[str, str] = {}
+    in_front = False
+    for line in text.splitlines():
+        if line.strip() == "---":
+            if not in_front:
+                in_front = True
+                continue
+            else:
+                break
+        if in_front and ":" in line and not line.startswith(" "):
+            key, _, val = line.partition(":")
+            result[key.strip()] = val.strip().strip('"')
+    return result
+
+
+def _version_tuple(v: str) -> tuple[int, ...]:
+    """Convert '4.0.0' → (4, 0, 0)."""
+    return tuple(int(x) for x in re.split(r"[.\-]", v) if x.isdigit())
 
 # Canonical skills bundled with pbi-cli
 _BUNDLED_SKILLS: list[dict[str, Any]] = [
@@ -61,6 +85,30 @@ _BUNDLED_SKILLS: list[dict[str, Any]] = [
     {
         "name": "power-bi-project-orchestrator",
         "description": "End-to-end project orchestration workflows",
+    },
+    {
+        "name": "power-bi-advisor",
+        "description": "Master orchestrator — routes any Power BI question to the right skill",
+    },
+    {
+        "name": "power-bi-power-query",
+        "description": "M language and Power Query ETL: connectors, transformations, REST API pagination",
+    },
+    {
+        "name": "power-bi-visual-selection",
+        "description": "Which visual for which data question — decision guide and AppSource recommendations",
+    },
+    {
+        "name": "power-bi-fabric",
+        "description": "Microsoft Fabric: OneLake, Medallion, Direct Lake, RTI, Pipelines, KQL",
+    },
+    {
+        "name": "power-bi-copilot",
+        "description": "Copilot setup, Q&A synonyms, Smart Narratives, AI visuals optimisation",
+    },
+    {
+        "name": "power-bi-templates",
+        "description": "Domain starter templates: Sales, Finance, HR, Operations, Marketing",
     },
 ]
 
@@ -143,6 +191,56 @@ def skills_install(skill_names: tuple[str, ...], install_all: bool, target: str 
     console.print(f"\n[green]{installed} skill(s) installed[/green] to {target_dir}")
     if installed:
         console.print("[dim]Restart Claude Code to pick up newly installed skills.[/dim]")
+
+
+@skills_cmd.command("check")
+def skills_check() -> None:
+    """Validate that all bundled skills are compatible with the installed CLI version.
+
+    \b
+    Exit codes:
+      0  — all skills compatible
+      1  — one or more skills incompatible or missing version info
+    """
+    from pbi_cli import __version__
+
+    source_dir = _skills_source_dir()
+    cli_ver = _version_tuple(__version__)
+
+    table = Table(title=f"Skill Compatibility Check  (CLI {__version__})")
+    table.add_column("Skill")
+    table.add_column("Skill Ver", justify="center")
+    table.add_column("Requires ≥", justify="center")
+    table.add_column("Status", justify="center")
+
+    incompatible = 0
+    for skill in _BUNDLED_SKILLS:
+        md = source_dir / skill["name"] / "SKILL.md"
+        if not md.exists():
+            table.add_row(skill["name"], "?", "?", "[red]✗ missing[/red]")
+            incompatible += 1
+            continue
+        fm = _parse_frontmatter(md)
+        skill_ver = fm.get("version", "?")
+        min_cli = fm.get("min_cli_version", "")
+        if not min_cli:
+            table.add_row(skill["name"], skill_ver, "[dim]not set[/dim]", "[yellow]⚠ no constraint[/yellow]")
+            continue
+        try:
+            req = _version_tuple(min_cli)
+            if cli_ver >= req:
+                table.add_row(skill["name"], skill_ver, min_cli, "[green]✓ compatible[/green]")
+            else:
+                table.add_row(skill["name"], skill_ver, min_cli, "[red]✗ needs CLI upgrade[/red]")
+                incompatible += 1
+        except Exception:
+            table.add_row(skill["name"], skill_ver, min_cli, "[yellow]⚠ parse error[/yellow]")
+
+    console.print(table)
+    compatible = len(_BUNDLED_SKILLS) - incompatible
+    console.print(f"\n[green]{compatible} compatible[/green], [red]{incompatible} incompatible[/red]")
+    if incompatible:
+        raise SystemExit(1)
 
 
 @skills_cmd.command("uninstall")

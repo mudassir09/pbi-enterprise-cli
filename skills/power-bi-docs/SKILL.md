@@ -1,5 +1,7 @@
 ---
 name: power-bi-docs
+version: "1.0"
+min_cli_version: "4.0.0"
 description: >
   Use for generating data dictionaries, documentation, and governance reports
   for different audiences (technical, business, executive). Triggers on:
