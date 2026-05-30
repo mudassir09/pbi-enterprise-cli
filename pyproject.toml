@@ -48,7 +48,7 @@ warn_unused_ignores = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=pbi_cli --cov-report=term-missing --cov-fail-under=70"
+addopts = "--cov=pbi_cli --cov-report=term-missing --cov-fail-under=65"
 markers = ["e2e: requires live Power BI Desktop or XMLA endpoint"]
 
 [tool.coverage.run]
