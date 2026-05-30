@@ -33,10 +33,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies (dev + all optional extras except pythonnet-heavy)
         run: pip install -e ".[dev,ai,server,sources]"
-      - name: Run tests (excluding e2e)
-        run: pytest -m "not e2e" --cov=src/pbi_cli --cov-report=xml -v
-      - name: Coverage gate (>= 70%)
-        run: pytest -m "not e2e" --cov=src/pbi_cli --cov-fail-under=70
+      - name: Run tests with coverage (excluding e2e)
+        run: pytest -m "not e2e" --cov-report=xml
+        # addopts in pyproject.toml supplies --cov, --cov-fail-under=70, and omit rules
       - name: Upload coverage report
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4

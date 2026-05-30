@@ -57,3 +57,8 @@ exclude_lines = [
     "if TYPE_CHECKING",
     "raise NotImplementedError",
 ]
+omit = [
+    # TOM/XMLA backends require Windows .NET — untestable on Linux CI
+    "src/pbi_cli/backends/tom_backend.py",
+    "src/pbi_cli/backends/xmla_backend.py",
+]
