@@ -31,8 +31,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies (dev + ai extras)
-        run: pip install -e ".[dev,ai]"
+      - name: Install dependencies (dev + all optional extras except pythonnet-heavy)
+        run: pip install -e ".[dev,ai,server,sources]"
       - name: Run tests (excluding e2e)
         run: pytest -m "not e2e" --cov=src/pbi_cli --cov-report=xml -v
       - name: Coverage gate (>= 70%)
