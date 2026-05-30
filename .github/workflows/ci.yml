@@ -46,11 +46,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install dependencies (dev + all optional extras except pythonnet-heavy)
-        run: pip install -e ".[dev,ai,server,sources]"
+      - name: Install dependencies (dev + all optional extras except playwright browsers)
+        run: |
+          pip install -e ".[dev,ai,server,sources]"
+          pip install Pillow python-wcag-contrast-ratio  # viz extras minus playwright
       - name: Run tests with coverage (excluding e2e)
         run: pytest -m "not e2e" --cov-report=xml
-        # addopts in pyproject.toml supplies --cov, --cov-fail-under=65, and omit rules
+        # addopts in pyproject.toml supplies --cov, --cov-fail-under=70, and omit rules
       - name: Upload coverage report
         if: matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4

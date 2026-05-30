@@ -16,7 +16,7 @@ jobs:
           cache: pip
       - run: pip install -e ".[dev]"
       - name: Run governance rule tests
-        run: pytest tests/ -m "not e2e" -k "govern" -v
+        run: pytest tests/ -m "not e2e" -k "govern" -v --no-cov
       # Full unit tests run in ci.yml (triggered on pull_request) — no duplicate run here.
 
   skill-triggers:
