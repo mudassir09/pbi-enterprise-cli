@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ai   = ["anthropic>=0.25"]
+ai   = ["anthropic>=0.105.2"]
 viz  = ["Pillow>=10.0", "python-wcag-contrast-ratio>=1.0", "playwright>=1.44"]
 xmla = ["msal>=1.28"]
 server  = ["fastapi>=0.110", "uvicorn>=0.29"]
