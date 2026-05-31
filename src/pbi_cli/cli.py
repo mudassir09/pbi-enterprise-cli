@@ -119,26 +119,110 @@ cli.add_command(custom_visual.custom_visual)
 
 @cli.command()
 @click.option("--port", type=int, default=None, help="Explicit port (auto-detected if omitted).")
+@click.option(
+    "--install-skills/--no-install-skills",
+    default=True,
+    show_default=True,
+    help="Install bundled skills into ~/.claude/skills/ after connecting.",
+)
 @click.pass_context
-def connect(ctx: click.Context, port: int | None) -> None:
-    """Connect to the running Power BI Desktop instance and show model info."""
+def connect(ctx: click.Context, port: int | None, install_skills: bool) -> None:
+    """Auto-setup: connect to Power BI Desktop, install Claude Code skills, show model summary.
+
+    Scans for an open .pbip/.pbix session, verifies the connection, installs all
+    10 bundled skills into ~/.claude/skills/, and prints a success summary.
+    Time-to-first-value target: under 60 seconds.
+    """
+    import time
+
+    from rich.panel import Panel
+    from rich.table import Table
+
+    t0 = time.monotonic()
+
+    # --- 1. Detect and connect ---
     from pbi_cli.backends.tom_backend import TomBackend, find_pbi_port
 
+    console.print("[cyan]Scanning for Power BI Desktop...[/cyan]")
     detected = port or find_pbi_port()
     if not detected:
         console.print("[red]No running Power BI Desktop found.[/red]")
-        console.print("Open a PBIX file in Power BI Desktop and try again.")
-        raise SystemExit(1)
+        console.print(
+            "Open a .pbip or .pbix file in Power BI Desktop, then run [bold]pbi connect[/bold]."
+        )
+        raise SystemExit(2)
+
     console.print(f"[cyan]Connecting to localhost:{detected}...[/cyan]")
     b = TomBackend()
     b.connect(port=detected)
     info = b.model_info()
-    console.print(
-        f"[green]Connected![/green] Model: [bold]{info['name']}[/bold]  (CompatibilityLevel {info['compatibilityLevel']})"  # noqa: E501
-    )
     tables = b.table_list()
-    console.print(f"Tables: {', '.join(t['name'] for t in tables)}")
+    measures = b.measure_list() if hasattr(b, "measure_list") else []
     b.disconnect()
+
+    # --- 2. Install skills ---
+    skills_installed: list[str] = []
+    skills_dir = None
+    if install_skills:
+        import shutil
+        from pbi_cli.commands.skills_cmd import _BUNDLED_SKILLS, _claude_skills_dir, _skills_source_dir
+
+        source_dir = _skills_source_dir()
+        target_dir = _claude_skills_dir()
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        for skill in _BUNDLED_SKILLS:
+            src = source_dir / skill["name"]
+            if not src.exists():
+                continue
+            dst = target_dir / skill["name"]
+            if dst.exists():
+                shutil.rmtree(dst)
+            shutil.copytree(src, dst)
+            skills_installed.append(skill["name"])
+
+        skills_dir = target_dir
+
+    elapsed = time.monotonic() - t0
+
+    # --- 3. Print success summary ---
+    console.print()
+    console.print(
+        Panel.fit(
+            f"[bold green]Connected![/bold green]  "
+            f"Model: [bold]{info['name']}[/bold]  "
+            f"(CompatibilityLevel {info['compatibilityLevel']})",
+            title="pbi connect",
+        )
+    )
+
+    model_table = Table(show_header=True, header_style="bold")
+    model_table.add_column("Property")
+    model_table.add_column("Value")
+    model_table.add_row("Model name", info["name"])
+    model_table.add_row("Compatibility level", str(info["compatibilityLevel"]))
+    model_table.add_row("Tables", str(len(tables)))
+    model_table.add_row("Measures", str(len(measures)))
+    model_table.add_row("Backend port", str(detected))
+    console.print(model_table)
+
+    if tables:
+        console.print(f"\n[dim]Tables:[/dim] {', '.join(t['name'] for t in tables[:10])}"
+                      + (" ..." if len(tables) > 10 else ""))
+
+    if skills_installed:
+        console.print(
+            f"\n[green]{len(skills_installed)} skills installed[/green] → {skills_dir}"
+        )
+        console.print("[dim]Restart Claude Code to pick up the new skills.[/dim]")
+    elif install_skills:
+        console.print("\n[yellow]No skill files found in package — skipping skill install.[/yellow]")
+
+    console.print(f"\n[dim]Setup completed in {elapsed:.1f}s[/dim]")
+    console.print("\n[bold]Next steps:[/bold]")
+    console.print("  pbi model tables         — explore the semantic model")
+    console.print("  pbi govern check         — run governance rules")
+    console.print("  pbi measure list         — list all DAX measures")
 
 
 @cli.command()

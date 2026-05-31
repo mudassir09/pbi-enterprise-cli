@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pbi-enterprise-cli"
-version = "4.0.1"
-description = "Power BI one-stop-shop platform — CLI for AI-driven Power BI development"
+version = "0.1.0.dev2"
+description = "Full-stack Power BI automation CLI — XMLA/Fabric connectivity, Python-native BPA governance, semantic model management, DAX testing, PBIR authoring, and AI-powered measures"
 readme = "README.pypi.md"
 requires-python = ">=3.10"
 license = { text = "MIT AND LicenseRef-Microsoft-AS-Client-Libraries" }
@@ -13,26 +13,31 @@ keywords = ["power-bi", "cli", "dax", "tmdl", "pbir", "powerbi", "pbip", "xmla",
 authors = [
     { name = "Mudassir", email = "mir.mudassir1@gmail.com" }
 ]
+maintainers = [
+    { name = "Mudassir", email = "mir.mudassir1@gmail.com" }
+]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
-    "Topic :: Office/Business",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Database",
     "License :: OSI Approved :: MIT License",
     "Operating System :: Microsoft :: Windows",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Environment :: Console",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Systems Administration",
     "Typing :: Typed",
 ]
 dependencies = [
     "click>=8.1",
     "rich>=13.0",
-    "pythonnet>=3.0",
+    "pythonnet==3.1.0rc0",
     "pydantic>=2.0",
     "python-dotenv>=1.0",
 ]

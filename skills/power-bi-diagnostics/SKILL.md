@@ -1,179 +1,164 @@
 ---
 name: power-bi-diagnostics
-version: "1.0"
-min_cli_version: "4.0.0"
+version: "2.0"
+min_cli_version: "1.0.0"
 description: >
-  Use for diagnosing Power BI performance issues, DAX query problems, model errors,
-  connection failures, and pbi-cli setup issues. Triggers on: "slow", "performance",
-  "not working", "error", "connection failed", "timeout", "pbi doctor", "diagnose",
-  "debug", "why is my report slow", "measure returns wrong value", "blank visual".
-version: "1.0"
+  Use for pbi doctor interpretation, pythonnet/AMO resolution, platform detection,
+  connection troubleshooting, error taxonomy, and guided fix playbooks.
+  Triggers on: "pbi doctor", "not connecting", "pythonnet error", "AMO",
+  "Desktop not found", "XMLA auth failed", "connection refused", "DLL error",
+  "pbi diagnostics", "troubleshoot", "error code", "setup problem",
+  "install issue", "port scan", "backend error".
+  Do NOT trigger for DAX expression errors (→ power-bi-dax), governance
+  violations (→ power-bi-governance), or deployment auth setup (→ power-bi-deployment).
 ---
 
 # power-bi-diagnostics
 
+`pbi doctor`, connection troubleshooting, pythonnet/AMO resolution, and error playbooks.
+
 ## Quick Reference
 
 ```bash
-# Setup and connectivity diagnosis
+# Full setup check
+pbi doctor
+pbi --backend mock doctor          # test CLI works without Desktop
+pbi --json doctor                  # machine-readable output for CI
+
+# Port and connection scanning
+pbi connect                        # auto-detect Desktop, show model info
+pbi connect --port 52697           # explicit port
+
+# Trace and benchmark (performance sub-commands)
+pbi trace start --query "EVALUATE Sales" --duration 30s
+pbi benchmark --measure "Total Revenue" --iterations 10
+```
+
+---
+
+## Worked Example 1: Interpret pbi doctor output
+
+```
 pbi doctor
 
-# Model health checks
-pbi model lint
-pbi govern check
-pbi measure audit
+┌─────────────────────────┬──────────┬──────────────────────────────────────────┐
+│ Check                   │ Status   │ Detail                                   │
+├─────────────────────────┼──────────┼──────────────────────────────────────────┤
+│ Python version          │ pass     │ 3.11.9                                   │
+│ pythonnet               │ warn     │ Not installed (Windows only)             │
+│ sqlalchemy [sources]    │ warn     │ Not installed (optional)                 │
+│ fastapi [server]        │ pass     │ 0.136.3                                  │
+│ Platform                │ warn     │ linux (TOM backend requires Windows)     │
+└─────────────────────────┴──────────┴──────────────────────────────────────────┘
+```
 
-# DAX debugging
-pbi dax validate "YOUR_EXPRESSION"
-pbi dax query "EVALUATE SUMMARIZE(Sales, Sales[Region], \"Rev\", SUM(Sales[Revenue]))"
+**Reading the output:**
+- `pass` — dependency present and working
+- `warn` — optional dependency missing or non-Windows platform; mock backend still works
+- `fail` — required dependency broken; CLI may not function
 
-# Connection
+**Linux/macOS CI environment:** `warn` on pythonnet and Platform is expected and correct. The mock backend works on all platforms; Desktop/XMLA backends require Windows.
+
+---
+
+## Worked Example 2: Fix "No running Power BI Desktop found"
+
+```
 pbi connect
+Error: No running Power BI Desktop found.
+```
+
+**Diagnosis steps:**
+```bash
+# 1 — Confirm a .pbip or .pbix file is open in Desktop
+#     (pbi requires an open model, not just the Desktop app)
+
+# 2 — Check which port Desktop is using (Windows only)
+netstat -ano | findstr "LISTEN" | findstr "5269"
+
+# 3 — Try explicit port if auto-detection fails
+pbi connect --port 52697
+
+# 4 — If Desktop is open but port scan finds nothing,
+#     restart Desktop and reopen the file
 ```
 
 ---
 
-## Diagnostic Decision Tree
+## Worked Example 3: Resolve pythonnet import error on Windows
 
 ```
-Problem reported
-│
-├── Cannot connect to Power BI Desktop
-│   └── Run: pbi doctor
-│       ├── pythonnet not installed → pip install pythonnet
-│       ├── DLL load failure → check DLL directory, run pbi doctor --dlls
-│       └── No PBI process → open a .pbix file first
-│
-├── DAX measure returns blank/wrong value
-│   ├── Run: pbi dax validate "EXPRESSION"
-│   ├── Check: filter context (is CALCULATE needed?)
-│   ├── Check: relationship active? (use USERELATIONSHIP)
-│   └── Check: DIVIDE instead of "/" (avoids divide-by-zero blank)
-│
-├── Report is slow to load
-│   ├── Run: pbi measure audit (find high-complexity measures)
-│   ├── Check: bidirectional relationships (disable where possible)
-│   ├── Check: calculated columns vs. measures (move to measures)
-│   └── See Performance section below
-│
-├── Governance violation blocking pipeline
-│   ├── Run: pbi govern check --json
-│   ├── Auto-fix: pbi govern fix --auto
-│   └── Manual: review remaining violations
-│
-└── Deploy fails
-    ├── Run: pbi deploy diff --workspace "Target"
-    ├── Check: XMLA endpoint configured
-    └── Check: service principal permissions
+ImportError: No module named 'clr'
+```
+
+**Fix:**
+```bash
+# Uninstall generic pythonnet and install the pinned version
+pip uninstall pythonnet -y
+pip install pythonnet==3.1.0rc0
+
+# Verify
+python -c "import clr; print('OK')"
+
+# If still failing — .NET Framework 4.7.2+ required on Windows
+# Check:
+dotnet --list-runtimes
+# Must show "Microsoft.NETFramework.App 4.7.2" or higher
 ```
 
 ---
 
-## `pbi doctor` Output Interpretation
+## Error Code Reference
 
-```
-[OK]  pythonnet 3.0.3 loaded
-[OK]  Microsoft.AnalysisServices.Tabular.dll found
-[OK]  msmdsrv.exe running on port 52714
-[OK]  Connected to model: AdventureWorks (CompatibilityLevel 1565)
-[WARN] ADOMD DLL version mismatch: expected 19.x, found 18.x
-[FAIL] Cannot load Microsoft.AnalysisServices.Core.dll
-```
-
-| Status | Meaning | Action |
-|--------|---------|--------|
-| OK | Component healthy | None needed |
-| WARN | Functional but suboptimal | Review recommendation |
-| FAIL | Blocking issue | Follow fix instructions |
+| Exit code | Meaning | Common cause |
+|---|---|---|
+| 0 | Success | — |
+| 1 | User error | Missing required flag, invalid argument |
+| 2 | Connection error | Desktop not running, XMLA unreachable, port wrong |
+| 3 | Validation error | Governance violation, schema error, DAX invalid |
+| 4 | Operation error | TOM write failed, partial completion, DLL exception |
 
 ---
 
-## DAX Measure Debugging Checklist
+## Common Error Playbook
 
-**Step 1:** Validate syntax
-```bash
-pbi dax validate "[Total Revenue] = SUM(Sales[Revenue])"
-```
-
-**Step 2:** Test in isolation
-```bash
-pbi dax query "EVALUATE ROW(\"Test\", SUM(Sales[Revenue]))"
-```
-
-**Step 3:** Test with context
-```bash
-pbi dax query "EVALUATE CALCULATETABLE(ROW(\"Test\", SUM(Sales[Revenue])), Sales[Region] = \"East\")"
-```
-
-**Step 4:** Check dependencies
-```bash
-pbi model lineage --measure "[Total Revenue]"
-```
-
-**Step 5:** Run full audit
-```bash
-pbi measure audit --json
-```
+| Error message | Root cause | Fix |
+|---|---|---|
+| `No running Power BI Desktop found` | Desktop not open or no model loaded | Open a `.pbip` file in Desktop |
+| `pythonnet.Runtime.PythonException: clr` | pythonnet version mismatch | `pip install pythonnet==3.1.0rc0` |
+| `ADOMD: Connection refused` | XMLA endpoint wrong or firewall | Verify endpoint URL; check Premium/Fabric capacity is running |
+| `401 Unauthorized` (XMLA) | Token expired or wrong tenant | Re-run `pbi connections add`; check `--tenant-id` |
+| `403 Forbidden` (XMLA) | Service principal lacks workspace access | Add SP as Member in the workspace |
+| `AMO: The session has been cancelled` | Timeout on large model push | Add `--timeout 3600` |
+| `DurableId overflow` | PBIR file with invalid ID | Run `pack.py` auto-repair or regenerate the PBIR file |
 
 ---
 
-## Common DAX Return Values and Their Meaning
+## Platform Matrix
 
-| Returns | Likely Cause |
-|---------|-------------|
-| BLANK() | No matching rows; check filter context |
-| 0 | Aggregation returned zero (not blank) — may be correct |
-| Same value everywhere | Filter context not applied; missing CALCULATE |
-| Error: Circular dependency | Measure references itself directly or indirectly |
-| Error: Column not found | Typo in table or column name; check with `pbi model columns` |
-| #ERROR in visual | DAX evaluation error; use `pbi dax validate` |
-
----
-
-## Performance Diagnosis
-
-### Measure Complexity
-```bash
-pbi measure audit --json | jq '.[] | select(.complexityScore > 50)'
-```
-
-High complexity (> 50) measures are the primary cause of slow visuals.
-
-### Expensive Patterns to Detect
-
-```dax
--- AVOID: FILTER(ALL()) on large tables
-Revenue Filtered = CALCULATE(SUM(Sales[Revenue]), FILTER(ALL(Sales), Sales[Region] = "East"))
--- PREFER:
-Revenue East = CALCULATE(SUM(Sales[Revenue]), Sales[Region] = "East")
-
--- AVOID: Nested iterators
-= SUMX(Products, SUMX(RELATEDTABLE(Sales), Sales[Revenue]))
--- PREFER: Pre-aggregate with SUMMARIZE
-
--- AVOID: COUNT(column) on non-key column
-= COUNT(Sales[OrderID])  -- scans all rows
--- PREFER:
-= COUNTROWS(Sales)  -- same result, faster
-```
-
-### Relationship Issues
-
-```bash
-pbi model relationships --json | jq '.[] | select(.isActive == false)'
-```
-
-Inactive relationships with bidirectional filter direction cause fan traps.
+| Platform | Desktop backend | XMLA backend | Mock backend |
+|---|---|---|---|
+| Windows 10/11 | ✓ (requires Desktop open) | ✓ (requires Premium/Fabric) | ✓ |
+| Windows Server | ✗ (no Desktop) | ✓ | ✓ |
+| Linux / macOS | ✗ | ✗ (pythonnet limitation) | ✓ |
+| GitHub Actions ubuntu-latest | ✗ | ✗ | ✓ |
+| GitHub Actions windows-latest | ✓ | ✓ | ✓ |
 
 ---
 
-## Setup Issues Reference
+## Edge Cases
 
-| Issue | Fix |
-|-------|-----|
-| `No module named 'clr'` | `pip install pythonnet` |
-| `Could not load type System.ComponentModel` | Use net45 DLLs (not netcoreapp) — run `pbi doctor --dlls` |
-| `No running Power BI Desktop found` | Open a .pbix file first, then retry |
-| `Port 0 in netstat` | PBI not finished loading; wait 10 seconds and retry |
-| `Access denied to MSMDSRV` | Run terminal as same user who opened Power BI Desktop |
-| `ADOMD connection refused` | Ensure model is loaded (not just Desktop window, but file is open) |
+**`pbi doctor` passes but `pbi model tables` still fails:** The CLI is installed correctly but Desktop isn't running or no `.pbip` is open. `doctor` checks Python dependencies, not Desktop state.
+
+**pythonnet installs but `clr` import fails at runtime:** A second Python environment has a conflicting pythonnet version. Check `where python` and `pip show pythonnet` to confirm you're in the right venv.
+
+**Mock backend returns empty results for custom commands:** The mock backend simulates a synthetic model. Commands that call backend-specific methods return canned data. For real validation, switch to `--backend desktop`.
+
+---
+
+## Cross-skill handoffs
+
+- XMLA connection auth setup → **power-bi-deployment**
+- Governance check failures → **power-bi-governance**
+- DAX validation errors → **power-bi-dax**
+- Performance tracing (slow queries) → **power-bi-performance**

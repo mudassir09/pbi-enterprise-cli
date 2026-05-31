@@ -1,12 +1,13 @@
 # pbi-enterprise-cli
 
-> Full-stack Power BI automation from the command line — semantic model management, report authoring, governance enforcement, DAX testing, deployment pipelines, and 30 Claude Code skills.
+> Enterprise-grade Power BI automation CLI — XMLA/Fabric connectivity without Desktop, Python-native BPA governance, semantic model management, PBIR authoring, DAX testing, deployment pipelines, and 10 Claude Code skills.
 
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-575%20passing-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-71%25-yellow)
-![Version](https://img.shields.io/badge/version-4.0.0--dev-orange)
+[![CI](https://github.com/mudassir09/pbi-enterprise-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/mudassir09/pbi-enterprise-cli/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/mudassir09/pbi-enterprise-cli/graph/badge.svg)](https://codecov.io/gh/mudassir09/pbi-enterprise-cli)
+[![PyPI](https://img.shields.io/pypi/v/pbi-enterprise-cli)](https://pypi.org/project/pbi-enterprise-cli/)
+[![Python](https://img.shields.io/pypi/pyversions/pbi-enterprise-cli)](https://pypi.org/project/pbi-enterprise-cli/)
+[![License](https://img.shields.io/github/license/mudassir09/pbi-enterprise-cli)](https://github.com/mudassir09/pbi-enterprise-cli/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/pypi/dm/pbi-enterprise-cli)](https://pypi.org/project/pbi-enterprise-cli/)
 
 ---
 
@@ -54,22 +55,31 @@ The same CLI works against three backends — swap with `--backend`:
 
 ## Installation
 
-**Base install** (semantic model, governance, DAX, report authoring):
+**Recommended — [uv](https://docs.astral.sh/uv/) (fastest, manages Python automatically, no PATH issues on Windows):**
+```bash
+uv tool install pbi-enterprise-cli
+uv tool install "pbi-enterprise-cli[all]"   # all optional features
+```
+
+**Alternative — [pipx](https://pipx.pypa.io/) (good isolation, requires pipx pre-installed):**
+```bash
+pipx install pbi-enterprise-cli
+```
+
+**Fallback — pip (universal):**
 ```bash
 pip install pbi-enterprise-cli
 ```
 
-**Optional feature groups:**
+**With extras:**
 ```bash
-pip install "pbi-enterprise-cli[ai]"       # Claude AI measure generation
-pip install "pbi-enterprise-cli[xmla]"     # XMLA auth (MSAL)
-pip install "pbi-enterprise-cli[sources]"  # SQL / Excel / REST profiling
-pip install "pbi-enterprise-cli[viz]"      # WCAG theme validation, screenshots
-pip install "pbi-enterprise-cli[server]"   # Authenticated FastAPI REST server
-pip install "pbi-enterprise-cli[all]"      # Everything
+uv tool install "pbi-enterprise-cli[ai,xmla]"     # Claude AI + XMLA/Fabric
+uv tool install "pbi-enterprise-cli[sources]"     # SQL / Excel / REST profiling
+uv tool install "pbi-enterprise-cli[server]"      # FastAPI REST server
+uv tool install "pbi-enterprise-cli[viz]"         # WCAG theme validation
 ```
 
-> **Requirements:** Python 3.10+. The `desktop` and `xmla` backends require Windows and the AMO .NET assemblies (installed with Power BI Desktop).
+> **Requirements:** Python 3.10–3.13. The `desktop` and `xmla` backends require Windows and AMO .NET assemblies (bundled in the wheel — no separate Desktop install needed for XMLA).
 
 ---
 
@@ -109,10 +119,44 @@ pbi source scaffold --source "mssql://server/SalesDW" \
 
 ---
 
+## The only Python-native BPA runner for Power BI
+
+`pbi-enterprise-cli` is the only Python-native implementation of the [Best Practice Analyzer](https://docs.tabulareditor.com/BPA/Best-Practice-Analyzer.html) — the same rule engine used by Tabular Editor, now runnable in pure Python without installing Tabular Editor, .NET 6, or any C# toolchain.
+
+**What this means in practice:**
+
+- Run BPA rules in GitHub Actions on `ubuntu-latest` using the mock backend — zero infrastructure
+- Use the same Microsoft community BPA rules that enterprise BI teams already govern by
+- Gate pull requests: `exit code 1` on any BPA error blocks the merge
+- Write custom Python plugins in `~/.pbi-cli/rules/` — no C# required
+
+```bash
+# Run Microsoft community BPA rules (fetched live, same as Tabular Editor)
+pbi govern bpa check
+
+# Filter to errors only — CI gate
+pbi govern bpa check --severity error
+
+# Use a local corporate rule file
+pbi govern bpa check --file ./governance/CorpBPARules.json
+
+# JSON output for downstream tooling
+pbi --json govern bpa check --file ./governance/CorpBPARules.json
+```
+
+**GitHub Actions governance gate (works on `ubuntu-latest` — no Windows runner needed):**
+
+```yaml
+- name: BPA governance gate
+  run: pbi --backend mock govern bpa check --severity error
+  # exits 1 on BPA errors → blocks PR merge
+```
+
+---
+
 ## Governance & CI/CD
 
-Built-in rules + BPA (Best Practice Analyzer) run out of the box.
-Drop a `.py` file in `~/.pbi-cli/rules/` to add organisation-specific rules.
+Built-in rules + BPA run out of the box. Drop a `.py` file in `~/.pbi-cli/rules/` to add organisation-specific rules.
 
 ```bash
 pbi govern rules              # list all built-in + plugin rules
@@ -217,12 +261,12 @@ Full auth guide: [docs/auth/xmla-auth.md](docs/auth/xmla-auth.md)
 
 ---
 
-## Claude Code Skills (30 skills)
+## Claude Code Skills (10 skills)
 
 Install Power BI skills into Claude Code for AI-assisted development:
 
 ```bash
-# Install all 30 skills
+# Install all 10 skills
 pbi skills install --all
 
 # Check compatibility with current CLI version

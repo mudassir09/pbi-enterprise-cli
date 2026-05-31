@@ -1,13 +1,17 @@
 ---
 name: power-bi-governance
-version: "1.0"
-min_cli_version: "4.0.0"
+version: "2.0"
+min_cli_version: "1.0.0"
 description: >
-  Use for Power BI governance: naming conventions, measure auditing, policy
-  enforcement, auto-fix, governance.json configuration, and compliance checks.
+  Use for Power BI governance: built-in rules, BPA (Best Practice Analyzer),
+  custom plugin authoring, auto-fix, CI/CD gate, severity filtering, naming
+  conventions, sensitivity labels, and compliance checks.
   Triggers on: "governance", "naming convention", "audit", "compliance", "pbi govern",
-  "naming rules", "measure naming", "table naming", "auto-fix", "policy".
-version: "1.0"
+  "BPA", "Best Practice Analyzer", "naming rules", "measure naming", "table naming",
+  "auto-fix", "policy", "CI gate", "exit code 1", "governance plugin",
+  "custom rule", "sensitivity label", "pbi govern bpa".
+  Do NOT trigger for report visual issues (→ power-bi-report-design), DAX
+  expression authoring (→ power-bi-dax), or RLS security (→ power-bi-security-and-docs).
 ---
 
 # power-bi-governance

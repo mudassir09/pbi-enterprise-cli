@@ -1,238 +1,143 @@
 ---
 name: power-bi-performance
-version: "1.0"
-min_cli_version: "4.0.0"
+version: "2.0"
+min_cli_version: "1.0.0"
 description: >
-  Use for Power BI performance optimization: query optimization, aggregations,
-  VertiPaq engine, DirectQuery tuning, composite models, and slow visual diagnosis.
-  Triggers on: "performance", "slow", "aggregation", "VertiPaq", "DirectQuery",
-  "composite model", "query folding", "pre-aggregation", "report takes long to load".
-version: "1.0"
+  Use for query performance tracing, benchmarking, VertiPaq Analyzer diagnostics,
+  storage engine vs formula engine analysis, and slow DAX investigation.
+  Triggers on: "slow query", "performance", "VertiPaq", "trace", "benchmark",
+  "storage engine", "formula engine", "DirectQuery slow", "cardinality",
+  "pbi trace", "pbi benchmark", "DAX Studio equivalent", "query plan",
+  "memory pressure", "model size".
+  Do NOT trigger for DAX expression authoring (→ power-bi-dax) or model
+  schema redesign (→ power-bi-modeling).
 ---
 
 # power-bi-performance
 
+Query tracing, benchmarking, VertiPaq analysis, and storage/formula engine diagnostics.
+
 ## Quick Reference
 
 ```bash
-# Audit measure complexity
-pbi measure audit --json | jq '.[] | select(.complexityScore > 30)'
+# Trace a DAX query
+pbi trace start --query "EVALUATE SUMMARIZE(Sales, Calendar[Year], \"Rev\", SUM(Sales[Revenue]))"
+pbi trace start --measure "Total Revenue" --duration 30s
+pbi trace start --query-file ./queries/slow.dax --output ./traces/slow-trace.json
 
-# Check relationships for performance issues
-pbi model relationships --json
+# Benchmark a measure
+pbi benchmark --measure "Total Revenue" --iterations 10
+pbi benchmark --measure "YTD Revenue" --iterations 20 --json
 
-# Validate a DAX query execution plan
-pbi dax query "EVALUATE ROW(\"Total\", [Total Sales])"
-
-# Run performance diagnostics
-pbi doctor --performance
+# VertiPaq / model size analysis
+pbi trace model-stats
+pbi trace model-stats --json | jq '.tables | sort_by(.sizeBytes) | reverse | .[0:5]'
 ```
 
 ---
 
-## VertiPaq Storage Engine
-
-Power BI uses VertiPaq (xVelocity in-memory columnar storage):
-
-| Characteristic | Detail |
-|----------------|--------|
-| Storage | Columnar, dictionary-encoded |
-| Compression | Run-length encoding (RLE) per column |
-| Cardinality | High-cardinality columns compress poorly |
-| Best for | < 200M rows; < 100 columns per table |
-
-### Column Cardinality Impact
-
-| Column Type | Cardinality | Compression | Action |
-|------------|-------------|-------------|--------|
-| Status (Low/Med/High) | 3 | Excellent | Keep |
-| Country | 50 | Very good | Keep |
-| Product SKU | 50,000 | Good | Keep if needed |
-| Order ID | 10,000,000 | Poor | Remove if not needed |
-| Timestamp (seconds) | Very high | Very poor | Round to day/hour |
-
----
-
-## Import vs. DirectQuery vs. Composite
-
-| Mode | Pros | Cons | Use When |
-|------|------|------|----------|
-| Import | Fast queries; full DAX | Data is stale until refresh; size limit | < 1GB model; batch analytics |
-| DirectQuery | Always current; no size limit | Slow queries; limited DAX | Real-time; very large data |
-| Dual | Both — auto-selects best | Complex setup | Dimensions in DQ models |
-| Composite | Mix Import + DQ | Complex; relationship limits | Large DQ fact + Import dims |
-
----
-
-## DAX Performance Patterns
-
-### Fast Patterns
-
-```dax
--- PREFER: Simple filter argument
-Revenue East = CALCULATE(SUM(Sales[Revenue]), Sales[Region] = "East")
-
--- PREFER: COUNTROWS over COUNT
-Row Count = COUNTROWS(Sales)
-
--- PREFER: DISTINCTCOUNT directly
-Unique Customers = DISTINCTCOUNT(Sales[CustomerID])
-
--- PREFER: Pre-calculated date boundaries
-Last 12 Months Revenue = CALCULATE(
-    SUM(Sales[Revenue]),
-    DATESINPERIOD(Date[Date], MAX(Date[Date]), -12, MONTH)
-)
-```
-
-### Slow Patterns to Avoid
-
-```dax
--- AVOID: FILTER(ALL()) iterates full table
-Revenue East SLOW = CALCULATE(
-    SUM(Sales[Revenue]),
-    FILTER(ALL(Sales), Sales[Region] = "East")
-)
-
--- AVOID: Nested row-by-row iterators
-Complex = SUMX(Products, SUMX(RELATEDTABLE(Sales), Sales[Revenue]))
--- PREFER: SUMMARIZE then aggregate
-
--- AVOID: COUNT on non-key column (scans all rows)
-Order Count = COUNT(Sales[OrderDate])
--- PREFER:
-Order Count = COUNTROWS(Sales)
-
--- AVOID: IF with complex both-branch evaluation
-Bad Metric = IF([Profit] > 0, SUMX(...), SUMX(...))
--- PREFER: Store branching result in variable
-Good Metric = VAR _profit = [Profit]
-              VAR _if_positive = SUMX(...)
-              VAR _if_negative = SUMX(...)
-              RETURN IF(_profit > 0, _if_positive, _if_negative)
-```
-
----
-
-## Aggregations (Pre-aggregated Tables)
-
-For tables > 50M rows, create an aggregation table:
-
-### Source Table (Detail)
-```
-Sales: 50M rows — DateKey, ProductKey, CustomerKey, Revenue, Quantity
-```
-
-### Aggregation Table
-```
-Sales_Agg: 50K rows — DateKey, ProductKey, SUM(Revenue), SUM(Quantity), COUNT(*)
-```
-
-### TMDL Configuration
-
-```tmdl
-table Sales_Agg
-    column DateKey
-        dataType: int64
-    column ProductKey
-        dataType: int64
-    column Revenue_SUM
-        dataType: double
-        summarizeBy: sum
-
-    aggregation
-        groupBy: DateKey
-        groupBy: ProductKey
-        measure: Revenue_SUM → SUM(Sales[Revenue])
-        measure: Row_Count → COUNTROWS(Sales)
-```
-
-Power BI automatically routes queries: if the query can be answered from `Sales_Agg`, it uses that; otherwise falls back to `Sales`.
-
----
-
-## Query Folding (DirectQuery)
-
-Query folding = pushing transformations to the source database (not run in Power BI).
-
-### Foldable Operations
-
-```powerquery
-// These fold to SQL WHERE clause
-Table.SelectRows(source, each [Region] = "East")
-Table.SelectColumns(source, {"DateKey", "Revenue"})
-Table.Group(source, {"DateKey"}, {{"Revenue", List.Sum, type number}})
-```
-
-### Non-Foldable (breaks folding)
-
-```powerquery
-// These break query folding — avoid in large tables
-Table.AddColumn(source, "Custom", each Text.Upper([Region]))  // custom function
-Table.Buffer(source)
-Table.Distinct(source)
-```
-
-Check if folding is active: right-click a step in Power Query → "View Native Query". If grayed out, folding is broken.
-
----
-
-## Relationship Performance
-
-### Single-direction (recommended)
-
-```
-Date[DateKey] → Sales[DateKey]   -- filter from Date to Sales
-```
-
-### Avoid Bidirectional
-
-Bidirectional relationships cause:
-- Fan trap issues with multiple fact tables
-- Slower query performance (double filter propagation)
-- Unexpected DISTINCTCOUNT results
+## Worked Example 1: Profile a slow visual
 
 ```bash
-# Find all bidirectional relationships
-pbi model relationships --json | jq '.[] | select(.crossFilteringBehavior == "bothDirections")'
+# 1 — Capture a trace while the slow visual refreshes
+pbi trace start --duration 60s --output ./traces/dashboard-trace.json
+
+# (manually refresh the slow visual in Desktop during the 60s window)
+
+# 2 — Inspect the trace
+cat ./traces/dashboard-trace.json | jq '.events[] | select(.durationMs > 500)'
+
+# 3 — Benchmark the suspected measure
+pbi benchmark --measure "Complex KPI" --iterations 20 --json
 ```
 
 ---
 
-## Partition Strategy for Performance
-
-Large tables should be partitioned — queries that target a date range skip irrelevant partitions:
-
-| Table Size | Partition By | Estimated Speedup |
-|------------|-------------|-------------------|
-| 1M–50M rows | Monthly | 10–12× |
-| 50M–500M rows | Weekly or Daily | 30–50× |
-| > 500M rows | Daily + DirectQuery current | 100×+ |
-
----
-
-## Performance Monitoring
+## Worked Example 2: VertiPaq table size analysis
 
 ```bash
-# Find high-complexity measures (primary slow-query cause)
-pbi measure audit --json
+pbi trace model-stats --json > model-stats.json
 
-# Check for inactive relationships being used
-pbi model relationships --json | jq '.[] | select(.isActive == false)'
+# Top 5 tables by size
+jq '.tables | sort_by(.sizeBytes) | reverse | .[0:5] | 
+    .[] | {name: .name, sizeMB: (.sizeBytes / 1048576 | round), 
+           rows: .rowCount, cardinality: .columnCardinality}' model-stats.json
+```
 
-# List large tables by row count
-pbi model tables --json | jq 'sort_by(-.rowCount)'
+Expected output:
+```json
+{"name": "Sales", "sizeMB": 842, "rows": 42000000, "cardinality": 450000}
+{"name": "WebEvents", "sizeMB": 214, "rows": 180000000, "cardinality": 98000}
+```
+
+High cardinality on a column that isn't used in relationships or slicers is a top candidate for removal.
+
+---
+
+## Worked Example 3: Identify formula engine vs storage engine bottleneck
+
+```bash
+pbi trace start --measure "Expensive KPI" --duration 10s --output ./traces/kpi.json
+
+# Formula engine time > 80% of total → DAX rewrite needed
+# Storage engine time > 80% → data model restructuring needed
+jq '{
+  totalMs: .summary.durationMs,
+  formulaEngineMs: .summary.formulaEngineMs,
+  storageEngineMs: .summary.storageEngineMs,
+  fePercent: (.summary.formulaEngineMs / .summary.durationMs * 100 | round)
+}' ./traces/kpi.json
 ```
 
 ---
 
-## Common Performance Fixes
+## Storage vs Formula Engine Decision Guide
 
-| Symptom | Likely Cause | Fix |
-|---------|-------------|-----|
-| All visuals slow | High-cardinality column | Remove or reduce precision (round timestamps) |
-| Single visual slow | Complex DAX measure | Refactor to remove nested iterators |
-| First load slow | No aggregation table | Add agg table for large fact tables |
-| DirectQuery timeouts | Source query not folding | Check for non-foldable Power Query steps |
-| Refresh takes hours | No incremental refresh | Configure RangeStart/RangeEnd partition |
-| Filter propagation wrong | Bidirectional relationship | Switch to single direction |
+| Symptom | Engine | Diagnosis |
+|---|---|---|
+| Query fast in cache, slow on cold start | Storage engine | Compression issue or high cardinality |
+| Query always slow regardless of cache | Formula engine | Inefficient DAX — iterators, nested CALCULATE |
+| DirectQuery slow | Storage engine | SQL query sent to source; add indexes |
+| `SUMMARIZE` slow | Formula engine | Replace with `SUMMARIZECOLUMNS` |
+| `FILTER(ALL(Table), ...)` slow | Formula engine | Use column filter in CALCULATE instead |
+
+---
+
+## Common DAX Performance Fixes
+
+| Anti-pattern | Problem | Fix |
+|---|---|---|
+| `FILTER(ALL(Sales), Sales[Region] = "EMEA")` | Full table scan | `CALCULATE(SUM(...), Sales[Region] = "EMEA")` |
+| `SUMX(Sales, Sales[Qty] * Sales[Price])` | Row-by-row iteration | Pre-calculate in a column if static |
+| Nested `CALCULATE` with multiple `FILTER` | Multiple passes | Merge filters into one `CALCULATE` |
+| `RELATED()` inside iterators | Expensive lookup per row | Denormalize the column to the fact table |
+| Many-to-many with bidirectional filter | Cross-filter overhead | Use `CROSSFILTER(column, column, BOTH)` only where needed |
+
+---
+
+## VertiPaq Optimization Targets
+
+| Metric | Warning threshold | Action |
+|---|---|---|
+| Column cardinality | > 1M distinct values | Hide or remove if not used in filters/relationships |
+| Table row count | > 100M rows | Consider aggregations or DirectQuery |
+| Model size | > 1 GB | Apply column removal, aggregations, or Fabric DirectLake |
+| String column size | > 200 MB | Replace with integer key and a lookup dimension |
+
+---
+
+## Edge Cases
+
+**`pbi trace start` captures nothing:** The Desktop model must be actively running a query during the trace window. Trigger the slow visual manually during the capture period.
+
+**Benchmark returns inconsistent results:** The first 1–2 iterations include cold-cache overhead. Discard outliers and use the median of iterations 3–N. Use `--iterations 20` for stable results.
+
+**Model stats show unexpectedly large "hidden" columns:** Power BI creates internal date tables for each date column. Use `pbi model columns --hidden` to identify and consider disabling auto-date tables.
+
+---
+
+## Cross-skill handoffs
+
+- DAX expression rewriting for performance → **power-bi-dax**
+- Model schema changes (removing high-cardinality columns) → **power-bi-modeling**
+- Connection/backend errors during trace → **power-bi-diagnostics**

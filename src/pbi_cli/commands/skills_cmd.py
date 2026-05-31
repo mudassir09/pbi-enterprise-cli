@@ -36,79 +36,78 @@ def _version_tuple(v: str) -> tuple[int, ...]:
     """Convert '4.0.0' → (4, 0, 0)."""
     return tuple(int(x) for x in re.split(r"[.\-]", v) if x.isdigit())
 
-# Canonical skills bundled with pbi-cli
+# Consolidated skill set: 24 narrow skills → 10 broad category-based skills.
+# Every original topic area is preserved inside the consolidated skill files.
 _BUNDLED_SKILLS: list[dict[str, Any]] = [
-    {"name": "power-bi-dax", "description": "DAX query, validate, and unit-test workflows"},
     {
         "name": "power-bi-modeling",
-        "description": "Semantic model management: tables, columns, relationships",
+        "description": (
+            "Star schema design, source profiling, partitions, incremental refresh, "
+            "calendar generation, M queries, and locale settings"
+        ),
+    },
+    {
+        "name": "power-bi-dax",
+        "description": (
+            "DAX authoring, validation, Time Intelligence, YAML unit-test suites, "
+            "filter context, design patterns, and measure audit"
+        ),
+    },
+    {
+        "name": "power-bi-performance",
+        "description": (
+            "Query tracing, benchmarking, VertiPaq Analyzer, "
+            "storage vs formula engine diagnosis, and slow DAX investigation"
+        ),
+    },
+    {
+        "name": "power-bi-report-design",
+        "description": (
+            "Report pages, 32 visual types, bookmarks, drillthrough, auto-layout, "
+            "conditional formatting, filter pane, and PBIR authoring"
+        ),
+    },
+    {
+        "name": "power-bi-design-system",
+        "description": (
+            "WCAG-compliant theme generation, brand colour enforcement, typography, "
+            "and custom visual SDK (scaffold, build, package, import .pbiviz)"
+        ),
     },
     {
         "name": "power-bi-governance",
-        "description": "Governance rules, auto-fix, and custom plugin authoring",
+        "description": (
+            "Built-in rules + BPA runner, custom plugin authoring, auto-fix, "
+            "CI gate (exit code 1), severity/category filtering, and naming conventions"
+        ),
     },
-    {"name": "power-bi-report", "description": "Report page and scaffold management"},
-    {"name": "power-bi-visuals", "description": "Visual add, list, and conditional formatting"},
     {
-        "name": "power-bi-sources",
-        "description": "Data source profiling and star-schema scaffolding",
+        "name": "power-bi-security-and-docs",
+        "description": (
+            "RLS role definition, DAX row-filter expressions, perspective management, "
+            "role testing, data dictionary generation, audit logs, and lineage docs"
+        ),
     },
-    {"name": "power-bi-security", "description": "RLS role management and row-filter testing"},
-    {"name": "power-bi-partitions", "description": "Partition management and incremental refresh"},
-    {"name": "power-bi-deployment", "description": "Deploy and promote models via XMLA"},
-    {"name": "power-bi-deployment-pipeline", "description": "CI/CD pipeline integration patterns"},
-    {"name": "power-bi-themes", "description": "WCAG-compliant theme generation"},
-    {"name": "power-bi-layout", "description": "Shelf-packing auto-layout and templates"},
     {
-        "name": "power-bi-performance",
-        "description": "Query tracing, benchmarking, and model health",
+        "name": "power-bi-deployment",
+        "description": (
+            "TMDL snapshot/diff/restore, XMLA push to Premium/Fabric, "
+            "multi-stage pipeline orchestration, and service principal / device-flow auth"
+        ),
     },
-    {"name": "power-bi-docs", "description": "Data dictionary and documentation generation"},
     {
         "name": "power-bi-diagnostics",
-        "description": "Doctor, environment checks, and troubleshooting",
-    },
-    {"name": "power-bi-filters", "description": "Report filter management"},
-    {
-        "name": "power-bi-custom-visuals",
-        "description": "Custom visual SDK — scaffold, build, package, import",
-    },
-    {"name": "power-bi-patterns", "description": "DAX and model design patterns"},
-    {"name": "power-bi-troubleshooter", "description": "Guided troubleshooting workflows"},
-    {"name": "power-bi-testing", "description": "DAX unit-test suite authoring and CI integration"},
-    {"name": "power-bi-pages", "description": "Page type management (drillthrough, tooltip)"},
-    {"name": "power-bi-page-designer", "description": "Page layout and visual arrangement"},
-    {
-        "name": "power-bi-design-system",
-        "description": "Colour palette, typography, and brand consistency",
+        "description": (
+            "pbi doctor interpretation, pythonnet/AMO resolution, platform detection, "
+            "connection troubleshooting, error taxonomy, and fix playbook"
+        ),
     },
     {
         "name": "power-bi-project-orchestrator",
-        "description": "End-to-end project orchestration workflows",
-    },
-    {
-        "name": "power-bi-advisor",
-        "description": "Master orchestrator — routes any Power BI question to the right skill",
-    },
-    {
-        "name": "power-bi-power-query",
-        "description": "M language and Power Query ETL: connectors, transformations, pagination",
-    },
-    {
-        "name": "power-bi-visual-selection",
-        "description": "Which visual for which data question — decision guide and AppSource picks",
-    },
-    {
-        "name": "power-bi-fabric",
-        "description": "Microsoft Fabric: OneLake, Medallion, Direct Lake, RTI, Pipelines, KQL",
-    },
-    {
-        "name": "power-bi-copilot",
-        "description": "Copilot setup, Q&A synonyms, Smart Narratives, AI visuals optimisation",
-    },
-    {
-        "name": "power-bi-templates",
-        "description": "Domain starter templates: Sales, Finance, HR, Operations, Marketing",
+        "description": (
+            "Coordinates multi-skill workflows: model → DAX → governance → report → deploy. "
+            "Knows which skill to invoke, handles handoffs, resolves conflicts"
+        ),
     },
 ]
 

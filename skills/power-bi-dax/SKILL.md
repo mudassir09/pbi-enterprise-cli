@@ -1,211 +1,236 @@
 ---
 name: power-bi-dax
-version: "1.0"
-min_cli_version: "4.0.0"
+version: "2.0"
+min_cli_version: "1.0.0"
 description: >
-  Use for DAX measure creation, validation, testing, Time Intelligence patterns,
-  CALCULATE modifiers, filter context reasoning, anti-pattern detection, and
-  measure complexity analysis. Triggers on: "write a DAX", "create a measure",
-  "CALCULATE", "SUMX", "Time Intelligence", "YTD", "DATEADD", "filter context",
-  "DAX not working", "validate this DAX", "pbi measure", "pbi dax".
-version: "1.0"
+  Use for DAX measure authoring, validation, YAML unit-test suites, filter context
+  reasoning, Time Intelligence patterns, optimisation, and design patterns.
+  Triggers on: "write a DAX", "create a measure", "CALCULATE", "SUMX", "Time Intelligence",
+  "YTD", "DATEADD", "filter context", "DAX not working", "validate this DAX",
+  "pbi measure", "pbi dax", "pbi testing", "dax test suite", "pbi filter",
+  "filter context", "row context", "iterator", "DAX pattern".
+  Do NOT trigger for report visual layout (→ power-bi-report-design), model schema
+  design (→ power-bi-modeling), or governance naming rules (→ power-bi-governance).
 ---
 
 # power-bi-dax
 
-## Quick Reference: pbi dax Commands
+DAX authoring, testing, filter context, Time Intelligence, and design patterns.
+
+## Quick Reference
 
 ```bash
+# Measure management
+pbi measure list
+pbi measure list --table Sales --json
+pbi measure add --table Sales --name "Total Revenue" --expression "SUM(Sales[Revenue])" \
+  --format-string "#,0.00" --description "Net revenue after discounts"
+pbi measure update --table Sales --name "Total Revenue" --expression "SUM(Sales[Net])"
+pbi measure delete --table Sales --name "Old Measure"
+pbi measure audit                     # complexity scores, missing descriptions
+pbi measure generate "YTD revenue by product" --table Sales  # AI-assisted
+
+# DAX query and validation
 pbi dax validate "TOTALYTD(SUM(Sales[Revenue]), Calendar[Date])"
 pbi dax query "EVALUATE SUMMARIZE(Sales, Sales[Region], \"Revenue\", SUM(Sales[Revenue]))"
-pbi dax test --suite ./tests/measures/time_intelligence.yaml
+pbi dax query --file ./queries/topN.dax --json
 
-pbi measure add --table Sales --name "Total Revenue" --expression "SUM(Sales[Revenue])" --format-string "#,0.00"
-pbi measure generate "year-to-date revenue" --table Sales --name "YTD Revenue"
-pbi measure audit
-pbi measure list --table Sales
+# Unit test suites
+pbi dax test --suite ./tests/measures/time_intelligence.yaml
+pbi dax test --suite ./tests/ --fail-fast
+pbi dax test --suite ./tests/measures/sales.yaml --json
+
+# Filter management
+pbi filter add --visual "Sales Chart" --type relative-date --period last-30-days
+pbi filter add --visual "Top Products" --type topN --field Product[Name] --n 10
+pbi filter add --page "Overview" --type basic --field Region[Name] --values "EMEA,APAC"
+pbi filter list
+pbi filter remove --visual "Sales Chart" --type relative-date
+```
+
+---
+
+## Worked Example 1: Add and test a YTD measure
+
+```bash
+# Add measure
+pbi measure add \
+  --table Sales \
+  --name "YTD Revenue" \
+  --expression "TOTALYTD(SUM(Sales[Revenue]), Calendar[Date])" \
+  --format-string "#,0.00" \
+  --description "Revenue accumulated from 1 Jan to current date"
+
+# Validate expression
+pbi dax validate "TOTALYTD(SUM(Sales[Revenue]), Calendar[Date])"
+
+# Write a unit test
+cat > ./tests/ytd.yaml << 'EOF'
+suite: YTD Revenue
+measures:
+  - name: YTD Revenue
+    table: Sales
+    tests:
+      - description: "Full year 2024 = sum of all 2024 rows"
+        filters:
+          Calendar[Year]: 2024
+          Calendar[Date]: "2024-12-31"
+        expected: 4823991.50
+        tolerance: 0.01
+      - description: "January only"
+        filters:
+          Calendar[Year]: 2024
+          Calendar[MonthNum]: 1
+        expected: 341200.00
+        tolerance: 0.01
+EOF
+
+pbi dax test --suite ./tests/ytd.yaml
+```
+
+---
+
+## Worked Example 2: Audit all measures missing a format string and fix in batch
+
+```bash
+# Get all measures missing format strings as JSON
+pbi measure audit --json | jq '[.[] | select(.formatString == null or .formatString == "")]'
+
+# Fix each one (example loop)
+pbi measure audit --json \
+  | jq -r '.[] | select(.formatString == null) | [.table, .name] | @tsv' \
+  | while IFS=$'\t' read table name; do
+      pbi measure update --table "$table" --name "$name" --format-string "#,0.00"
+    done
+```
+
+---
+
+## Worked Example 3: CI-safe DAX test suite
+
+```yaml
+# .github/workflows/dax-tests.yml
+- name: Run DAX unit tests
+  run: pbi --backend mock dax test --suite ./tests/measures/ --json > dax-results.json
+- name: Upload results
+  uses: actions/upload-artifact@v4
+  with:
+    name: dax-test-results
+    path: dax-results.json
+```
+
+Unit test YAML schema:
+```yaml
+suite: Sales Measures
+measures:
+  - name: Total Revenue
+    table: Sales
+    tests:
+      - description: "Single row"
+        context: {Sales[Revenue]: 100.00}
+        expected: 100.00
+      - description: "Zero when no rows"
+        context: {}
+        expected: 0
 ```
 
 ---
 
 ## Time Intelligence Pattern Library
 
-All Time Intelligence patterns require an active relationship between the fact table and a Calendar/Date table with a contiguous date range.
-
-### Year-to-Date
+All patterns require an active relationship between the fact table and a Calendar table with a contiguous date range.
 
 ```dax
+-- Year-to-date
 YTD Revenue = TOTALYTD(SUM(Sales[Revenue]), Calendar[Date])
 
--- With custom fiscal year end (e.g., 30 June)
-YTD Revenue (FY) = TOTALYTD(SUM(Sales[Revenue]), Calendar[Date], "06/30")
-```
+-- Fiscal YTD (June year end)
+Fiscal YTD = TOTALYTD(SUM(Sales[Revenue]), Calendar[Date], "06-30")
 
-### Same Period Last Year
+-- Prior year same period
+PY Revenue = CALCULATE(SUM(Sales[Revenue]), SAMEPERIODLASTYEAR(Calendar[Date]))
 
-```dax
-Revenue LY = CALCULATE(SUM(Sales[Revenue]), SAMEPERIODLASTYEAR(Calendar[Date]))
+-- Year-over-year growth %
+YoY Growth % =
+VAR _cy = SUM(Sales[Revenue])
+VAR _py = CALCULATE(SUM(Sales[Revenue]), SAMEPERIODLASTYEAR(Calendar[Date]))
+RETURN DIVIDE(_cy - _py, _py)
 
-YoY Growth % = DIVIDE([Total Revenue] - [Revenue LY], [Revenue LY])
-```
-
-### Month-over-Month
-
-```dax
-Revenue PM = CALCULATE(SUM(Sales[Revenue]), DATEADD(Calendar[Date], -1, MONTH))
-
-MoM Change % = DIVIDE([Total Revenue] - [Revenue PM], [Revenue PM])
-```
-
-### Running Total
-
-```dax
-Running Revenue = CALCULATE(
+-- Rolling 12 months
+R12M Revenue = CALCULATE(
     SUM(Sales[Revenue]),
-    FILTER(ALL(Calendar[Date]), Calendar[Date] <= MAX(Calendar[Date]))
+    DATESINPERIOD(Calendar[Date], LASTDATE(Calendar[Date]), -12, MONTH)
 )
-```
 
-### Parallel Period (same period, prior year)
+-- Month-to-date
+MTD Revenue = TOTALMTD(SUM(Sales[Revenue]), Calendar[Date])
 
-```dax
-Revenue PP = CALCULATE(SUM(Sales[Revenue]), PARALLELPERIOD(Calendar[Date], -1, YEAR))
-```
-
----
-
-## CALCULATE Modifier Reference
-
-| Modifier | Effect | Use When |
-|----------|--------|----------|
-| `ALL(Table)` | Removes all filters on table | Total, % of grand total |
-| `ALL(Table[Column])` | Removes filters on one column | Rank, running total |
-| `ALLEXCEPT(Table, Col1, Col2)` | Keeps only specified filters | Subtotals with context |
-| `KEEPFILTERS(expr)` | Intersects rather than replaces filters | Additive filtering |
-| `REMOVEFILTERS(Table)` | Alias for ALL — removes filters | Clear, explicit intent |
-| `CROSSFILTER(col1, col2, dir)` | Changes relationship filter direction | Many-to-many workarounds |
-
----
-
-## Filter Context Reasoning Guide
-
-**Row context** is created by iterators (SUMX, FILTER, ADDCOLUMNS). It applies to the current row.
-
-**Filter context** is created by slicers, visual filters, and CALCULATE. It filters the table.
-
-```dax
--- SUMX creates row context; the inner expression sees each row
-Revenue with Tax = SUMX(Sales, Sales[Revenue] * 1.1)
-
--- CALCULATE changes filter context; SUM sees filtered rows
-East Revenue = CALCULATE(SUM(Sales[Revenue]), Sales[Region] = "East")
-
--- Context transition: CALCULATE inside SUMX converts row context to filter context
-Sales[Revenue by Category] = SUMX(Sales, CALCULATE(SUM(Sales[Revenue])))
-```
-
-**When FILTER(ALL(...)) is needed vs. CALCULATE:**
-
-```dax
--- This is WRONG for running totals (filters out future dates):
-CALCULATE(SUM(Sales[Revenue]), Calendar[Date] <= MAX(Calendar[Date]))
-
--- This is CORRECT (ALL removes existing date filter first):
-CALCULATE(SUM(Sales[Revenue]), FILTER(ALL(Calendar[Date]), Calendar[Date] <= MAX(Calendar[Date])))
+-- Quarter-to-date
+QTD Revenue = TOTALQTD(SUM(Sales[Revenue]), Calendar[Date])
 ```
 
 ---
 
-## Common DAX Anti-Patterns
-
-### 1. Expensive SUMX over large tables
+## Filter Context Patterns
 
 ```dax
--- AVOID: iterates every row, slow on millions of rows
-Revenue = SUMX(Sales, Sales[Quantity] * Sales[Unit Price])
+-- Remove all filters on a table
+All Revenue = CALCULATE(SUM(Sales[Revenue]), ALL(Sales))
 
--- PREFER: if the calculated column already exists
-Revenue = SUM(Sales[Revenue])
+-- Remove filters on one column
+Unfiltered Product Revenue = CALCULATE(SUM(Sales[Revenue]), ALL(Product[Category]))
 
--- If column doesn't exist, SUMX is fine — just be aware of cardinality
-```
+-- Preserve context, add a filter
+High Value Sales =
+CALCULATE(SUM(Sales[Revenue]), Sales[Amount] > 1000)
 
-### 2. Hardcoded dates
+-- ALLEXCEPT — remove all but selected columns
+Region Total = CALCULATE(SUM(Sales[Revenue]), ALLEXCEPT(Sales, Sales[Region]))
 
-```dax
--- AVOID: breaks when new year arrives
-YTD = CALCULATE(SUM(Sales[Revenue]), YEAR(Sales[Date]) = 2024)
-
--- PREFER: dynamic
-YTD = TOTALYTD(SUM(Sales[Revenue]), Calendar[Date])
-```
-
-### 3. Circular dependency
-
-```dax
--- AVOID: Measure A references Measure B which references Measure A
-[Measure A] = [Measure B] + 1
-[Measure B] = [Measure A] - 1  -- circular!
-
--- FIX: break the cycle by referencing base columns directly
-[Measure B] = SUM(Sales[Revenue]) - 1
-```
-
-### 4. Ambiguous relationship without USERELATIONSHIP
-
-```dax
--- When Sales has both OrderDate and ShipDate relating to Calendar:
-Revenue by Ship Date = CALCULATE(
-    SUM(Sales[Revenue]),
-    USERELATIONSHIP(Sales[ShipDate], Calendar[Date])
-)
+-- KEEPFILTERS — don't override existing filters
+Revenue (safe) = CALCULATE(SUM(Sales[Revenue]), KEEPFILTERS(Sales[Status] = "Active"))
 ```
 
 ---
 
-## Measure Complexity Scoring
+## VAR / RETURN pattern (always prefer over repeated expressions)
 
-Complexity score estimates cognitive load and execution cost. Target: < 50 per measure.
-
-| Factor | Points |
-|--------|--------|
-| Each nested iterator (SUMX, FILTER, ADDCOLUMNS) | +10 |
-| Each CALCULATE | +5 |
-| Each ALL/ALLEXCEPT | +5 |
-| Expression length > 200 chars | +10 |
-| Expression length > 400 chars | +20 |
-| Time Intelligence function | +5 |
-| DIVIDE (safe division) | 0 (encouraged) |
-
-Run `pbi measure audit` to compute scores for all measures.
+```dax
+Margin % =
+VAR _revenue = SUM(Sales[Revenue])
+VAR _cost    = SUM(Sales[Cost])
+VAR _margin  = _revenue - _cost
+RETURN
+    DIVIDE(_margin, _revenue, 0)
+```
 
 ---
 
-## DAX Test YAML Format
+## Anti-patterns to avoid
 
-```yaml
-suite: "Time Intelligence Measures"
-connection: mock   # or "desktop" for live tests
-tests:
-  - name: "YTD Revenue returns correct value for Dec 2024"
-    measure: "Sales[YTD Revenue]"
-    filters:
-      - table: Calendar
-        column: Year
-        value: 2024
-      - table: Calendar
-        column: Month
-        value: 12
-    expected: 1250000
-    tolerance: 0.01   # 1% tolerance for floating point
+| Anti-pattern | Problem | Fix |
+|---|---|---|
+| `FILTER(ALL(Table), ...)` in CALCULATE | Scans entire table, ignores existing filters | Use `KEEPFILTERS` or column filter |
+| Nested CALCULATE without purpose | Confusing, often redundant | Flatten into one CALCULATE |
+| Hardcoded years: `[Year] = 2024` | Breaks in next calendar year | Use `YEAR(TODAY())` |
+| `COUNTROWS(FILTER(...))` | Slow for large tables | Use `CALCULATE(COUNTROWS(...), ...)` |
+| `IF(ISBLANK(x), 0, x)` | Verbose | Use `x + 0` or `COALESCE(x, 0)` |
 
-  - name: "Revenue LY is null for earliest year"
-    measure: "Sales[Revenue LY]"
-    filters:
-      - table: Calendar
-        column: Year
-        value: 2020
-    expected: null
-```
+---
 
-Run: `pbi dax test --suite ./tests/measures/time_intelligence.yaml`
+## Edge Cases
+
+**DAX validation returns "column not found":** The expression references a column name that doesn't match the model exactly — DAX is case-insensitive but the table/column must exist. Run `pbi model columns --table <name>` to confirm exact names.
+
+**Unit test fails with "context mismatch":** The mock backend applies filter context differently from Desktop for complex CALCULATE chains. Add `--backend desktop` to run tests against the live model for verification.
+
+**`pbi measure generate` (AI) produces wrong format string:** Pass `--format-string` explicitly to override the generated value. AI generation is a starting point, not a final answer.
+
+---
+
+## Cross-skill handoffs
+
+- Model schema (adding tables, relationships) → **power-bi-modeling**
+- Report-level and visual filters in the canvas → **power-bi-report-design**
+- Governance check on measure naming and descriptions → **power-bi-governance**
+- Performance profiling of slow DAX → **power-bi-performance**

@@ -1,192 +1,204 @@
 ---
 name: power-bi-deployment
-version: "1.0"
-min_cli_version: "4.0.0"
+version: "2.0"
+min_cli_version: "1.0.0"
 description: >
-  Use for deploying semantic models and reports to Power BI Service via XMLA,
-  promoting between workspaces (Dev→Test→Prod), TMDL snapshots, and rollback
-  procedures. Triggers on: "deploy", "publish", "push to service", "promote",
-  "Dev to Prod", "XMLA endpoint", "pbi deploy", "pbi database export-tmdl",
-  "workspace", "rollback", "release".
-version: "1.0"
+  Use for TMDL snapshot/diff/restore, XMLA push to Premium/Fabric, multi-stage
+  pipeline orchestration, service principal and device-flow auth, and
+  environment promotion workflows.
+  Triggers on: "deploy", "promote", "push to service", "XMLA", "Fabric",
+  "Premium", "pbi deploy", "pbi snapshot", "pbi env", "pbi database",
+  "deployment pipeline", "dev to prod", "rollback", "TMDL diff",
+  "service principal", "managed identity", "environment promotion".
+  Do NOT trigger for local Desktop model editing (→ power-bi-modeling) or
+  governance gate setup (→ power-bi-governance).
 ---
 
 # power-bi-deployment
 
+XMLA deployment, model snapshots, multi-environment promotion, and CI/CD pipelines.
+
 ## Quick Reference
 
 ```bash
-# Snapshot before any deploy
-pbi database export-tmdl ./snapshots/$(date +%Y%m%d)/
+# Snapshot and rollback
+pbi snapshot create --label before-refactor
+pbi snapshot list
+pbi snapshot diff 20260531_142300_before-refactor
+pbi snapshot restore 20260531_142300_before-refactor --confirm
 
-# Deploy to a workspace
-pbi deploy push --workspace "Dev"
+# XMLA deployment
+pbi deploy push --workspace "Sales-PROD" --dataset "Sales Model"
+pbi deploy push --connection fabric-prod --dry-run
+pbi deploy status --workspace "Sales-PROD"
 
-# Compare local vs deployed (no changes applied)
-pbi deploy diff --workspace "Dev"
+# TMDL export/import
+pbi database export-tmdl ./tmdl/
+pbi database import-tmdl ./tmdl/
 
-# Promote between workspaces
-pbi deploy promote --from "Dev" --to "Staging"
-pbi deploy promote --from "Staging" --to "Production"
+# Environment management
+pbi connections add                              # interactive wizard
+pbi env list
+pbi env use fabric-dev
+pbi env diff fabric-dev fabric-prod             # compare two environments
+pbi env promote fabric-dev fabric-prod --confirm
 
-# Connect via XMLA (Premium/Fabric)
-pbi connect --xmla "powerbi://api.powerbi.com/v1.0/myorg/WorkspaceName"
+# Auth setup
+pbi connections add --type xmla \
+  --endpoint "powerbi://api.powerbi.com/v1.0/myorg/SalesPROD" \
+  --auth service-principal \
+  --tenant-id "$TENANT_ID" \
+  --client-id "$CLIENT_ID" \
+  --client-secret "$CLIENT_SECRET"
 ```
 
 ---
 
-## Deployment Workflow (3-Environment)
-
-```
-Local Desktop  →  Dev Workspace  →  Staging Workspace  →  Production
-   (edit)         (integration)        (UAT/testing)         (live)
-```
-
-### Pre-Deploy Checklist
+## Worked Example 1: Safe deploy with snapshot and rollback guard
 
 ```bash
-# 1. Run all gates
-pbi model lint               # Naming conventions pass
-pbi govern check             # No error-severity violations
-pbi dax test --suite ./tests/measures.yaml  # All assertions pass
+# 1 — Snapshot before any changes
+pbi snapshot create --label pre-deploy-$(date +%Y%m%d)
 
-# 2. Snapshot current state
-pbi database export-tmdl ./snapshots/pre-deploy/
+# 2 — Validate governance before push
+pbi --backend mock govern check --fail-on error
 
-# 3. Diff against target
-pbi deploy diff --workspace "Dev"
+# 3 — Dry-run deployment
+pbi deploy push --connection fabric-prod --dry-run
 
-# 4. Deploy
-pbi deploy push --workspace "Dev"
-```
+# 4 — Real deployment
+pbi deploy push --connection fabric-prod
 
-### Promotion Checklist
+# 5 — Verify model is live
+pbi --connection fabric-prod model tables
 
-```bash
-# Dev → Staging
-pbi deploy diff --workspace "Staging"    # Review differences
-pbi deploy promote --from "Dev" --to "Staging"
-
-# Staging → Production (requires approval gate)
-pbi deploy promote --from "Staging" --to "Production"
+# Rollback if needed
+pbi snapshot list
+pbi snapshot restore pre-deploy-20260531 --confirm
 ```
 
 ---
 
-## XMLA Endpoint Setup
-
-Power BI Premium (P-SKU) or Fabric capacity required.
-
-**Connection string format:**
-```
-powerbi://api.powerbi.com/v1.0/myorg/{WorkspaceName}
-```
-
-**Authentication:** Service principal (recommended for CI/CD):
-```bash
-# Set environment variables
-export PBI_TENANT_ID="..."
-export PBI_CLIENT_ID="..."
-export PBI_CLIENT_SECRET="..."
-
-pbi deploy push --workspace "Production" \
-  --service-principal \
-  --tenant-id $PBI_TENANT_ID \
-  --client-id $PBI_CLIENT_ID \
-  --client-secret $PBI_CLIENT_SECRET
-```
-
----
-
-## TMDL Snapshot Strategy
-
-```
-snapshots/
-  pre-deploy/           ← before each push
-  v1.0.0/              ← tagged releases
-  daily/               ← automated daily backup
-    2025-01-15/
-    2025-01-16/
-```
-
-```bash
-# Tag a release
-pbi database export-tmdl ./snapshots/v1.0.0/
-
-# Rollback to a snapshot
-pbi database import-tmdl ./snapshots/v1.0.0/
-pbi deploy push --workspace "Production"
-```
-
----
-
-## Rollback Procedure
-
-1. **Identify the last good snapshot:**
-   ```bash
-   ls ./snapshots/
-   ```
-
-2. **Import the snapshot:**
-   ```bash
-   pbi database import-tmdl ./snapshots/pre-deploy/
-   ```
-
-3. **Verify locally:**
-   ```bash
-   pbi model lint
-   pbi dax test --suite ./tests/
-   ```
-
-4. **Push rollback:**
-   ```bash
-   pbi deploy push --workspace "Production"
-   ```
-
----
-
-## Deployment Diff Output Interpretation
-
-`pbi deploy diff` returns a structured change list:
-
-```json
-{
-  "added": ["measures/[New KPI]"],
-  "modified": ["measures/[Total Revenue] (expression changed)"],
-  "deleted": [],
-  "breaking": ["relationships/Sales→CustomerHistory (removed)"]
-}
-```
-
-**Breaking changes** (highlighted in red) require stakeholder sign-off before promotion.
-
----
-
-## CI/CD Pipeline Integration (GitHub Actions)
+## Worked Example 2: Multi-stage CI/CD pipeline (GitHub Actions)
 
 ```yaml
 # .github/workflows/deploy.yml
-- name: Deploy to Dev
-  run: |
-    pip install pbi-enterprise-cli
-    pbi model lint
-    pbi dax test --suite ./tests/
-    pbi database export-tmdl ./snapshots/pre-deploy/
-    pbi deploy push --workspace "Dev"
-  env:
-    PBI_CLIENT_ID: ${{ secrets.PBI_CLIENT_ID }}
-    PBI_CLIENT_SECRET: ${{ secrets.PBI_CLIENT_SECRET }}
-    PBI_TENANT_ID: ${{ secrets.PBI_TENANT_ID }}
+name: Deploy to Fabric
+on:
+  push:
+    branches: [main]
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pbi-enterprise-cli
+      - run: pbi --backend mock govern check --fail-on error
+
+  deploy-staging:
+    needs: governance
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pbi-enterprise-cli
+      - name: Deploy to Staging
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+        run: |
+          pbi connections add --type xmla `
+            --endpoint "${{ vars.STAGING_ENDPOINT }}" `
+            --auth service-principal `
+            --tenant-id $env:TENANT_ID `
+            --client-id $env:CLIENT_ID `
+            --client-secret $env:CLIENT_SECRET `
+            --name fabric-staging
+          pbi deploy push --connection fabric-staging
+
+  deploy-prod:
+    needs: deploy-staging
+    environment: production
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pbi-enterprise-cli
+      - name: Deploy to Production
+        env:
+          TENANT_ID: ${{ secrets.TENANT_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+        run: |
+          pbi connections add --type xmla `
+            --endpoint "${{ vars.PROD_ENDPOINT }}" `
+            --auth service-principal `
+            --tenant-id $env:TENANT_ID `
+            --client-id $env:CLIENT_ID `
+            --client-secret $env:CLIENT_SECRET `
+            --name fabric-prod
+          pbi deploy push --connection fabric-prod
 ```
 
 ---
 
-## Common Deployment Errors
+## Worked Example 3: TMDL-based Git workflow
 
-| Error | Cause | Fix |
-|-------|-------|-----|
-| `XMLA not configured` | Workspace isn't Premium/Fabric | Upgrade capacity or use TMDL file export |
-| `Transaction conflict` | Another user is editing the model | Wait and retry; `pbi deploy push --force` as last resort |
-| `Schema version mismatch` | Local TMDL uses newer compatibility level | Set `--compatibility-level 1550` to match target |
-| `Circular dependency detected` | New measure creates a cycle | Run `pbi measure audit` to identify |
-| `Authentication failed` | Service principal not granted workspace access | Add SP to workspace as Member |
+```bash
+# On feature branch: export TMDL, edit, import, review diff
+pbi database export-tmdl ./tmdl/
+git add ./tmdl/ && git commit -m "model: add Sales[Margin %] column"
+
+# On PR: show TMDL diff as review artifact
+git diff main...HEAD ./tmdl/
+
+# On merge to main: deploy
+pbi database import-tmdl ./tmdl/
+pbi deploy push --connection fabric-dev
+```
+
+---
+
+## Authentication Modes
+
+| Mode | When to use | Setup |
+|---|---|---|
+| `interactive` | Personal dev, one-off tasks | Browser popup, no config needed |
+| `device-flow` | CI with no browser, shared accounts | Code printed to terminal |
+| `service-principal` | Production CI/CD, automation | App registration + secret/cert |
+| `managed-identity` | Azure-hosted runners | No secrets needed — IMDS automatic |
+
+### Service principal setup (one-time)
+
+```bash
+# Register an app in Entra ID, grant "Dataset.ReadWrite.All" + "Workspace.ReadWrite.All"
+pbi connections add \
+  --type xmla \
+  --endpoint "powerbi://api.powerbi.com/v1.0/myorg/MyWorkspace" \
+  --auth service-principal \
+  --tenant-id "00000000-0000-0000-0000-000000000000" \
+  --client-id "00000000-0000-0000-0000-000000000000" \
+  --client-secret "your-secret" \
+  --name prod-xmla
+```
+
+---
+
+## Edge Cases
+
+**XMLA push fails with 403:** The service principal is not a Workspace Member or Admin — add it in the Power BI service under Workspace → Access.
+
+**`pbi deploy push` hangs:** Large models (>1 GB) can take 10–30 minutes over XMLA. Use `--timeout 3600` to extend the default 5-minute timeout.
+
+**Snapshot restore fails after compatibility level change:** The snapshot was taken at a different compatibility level. Restore is blocked — inspect the TMDL diff and apply changes selectively.
+
+**Device-flow in GitHub Actions:** Not supported in non-interactive runners. Use `service-principal` or `managed-identity` in CI.
+
+---
+
+## Cross-skill handoffs
+
+- Model schema changes before deploying → **power-bi-modeling**
+- Governance gate before deploy → **power-bi-governance**
+- RLS roles and security validation → **power-bi-security-and-docs**
+- End-to-end project orchestration → **power-bi-project-orchestrator**

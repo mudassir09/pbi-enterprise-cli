@@ -1,240 +1,173 @@
 ---
 name: power-bi-design-system
-version: "1.0"
-min_cli_version: "4.0.0"
+version: "2.0"
+min_cli_version: "1.0.0"
 description: >
-  Use for Power BI report design standards: branding guidelines, color systems,
-  typography, spacing, reusable visual components, and corporate style consistency.
-  Triggers on: "design system", "branding", "brand guidelines", "typography",
-  "spacing", "color system", "reusable components", "style guide", "corporate style".
-version: "1.0"
+  Use for WCAG-compliant theme generation, brand colour enforcement, typography
+  and spacing consistency, and custom visual SDK workflows (scaffold, build, package,
+  import .pbiviz).
+  Triggers on: "theme", "brand colour", "WCAG", "accessibility", "color palette",
+  "pbi theme", "pbi custom-visual", "pbiviz", "custom visual", "design system",
+  "typography", "brand font", "contrast ratio", "color scale theme".
+  Do NOT trigger for conditional formatting on individual visuals
+  (→ power-bi-report-design) or report page layout (→ power-bi-report-design).
 ---
 
 # power-bi-design-system
 
+WCAG themes, brand colour enforcement, typography, and custom visual SDK.
+
 ## Quick Reference
 
 ```bash
-# Apply the design system to a report
-pbi design apply --pbip "C:/Reports/MyReport" --system "corporate"
+# Theme generation from a brand colour
+pbi theme generate --brand-color "#0078D4" --output ./themes/contoso.json
+pbi theme generate --brand-color "#0078D4" --wcag AA --output ./themes/contoso.json
+pbi theme generate --brand-color "#0078D4" \
+  --font "Segoe UI" --secondary-font "Segoe UI Light" \
+  --output ./themes/contoso-full.json
 
-# Generate a theme from the design system
-pbi design export-theme --system "corporate" --output themes/corporate.json
+# Apply and validate
+pbi theme apply --file ./themes/contoso.json
+pbi theme validate --file ./themes/contoso.json          # WCAG contrast check
+pbi theme validate --file ./themes/contoso.json --level AAA
 
-# Validate report against design system
-pbi design check --pbip "C:/Reports/MyReport" --system "corporate"
+# Theme diff
+pbi theme diff ./themes/contoso-v1.json ./themes/contoso-v2.json
 
-# List registered design systems
-pbi design list
+# Custom visual SDK
+pbi custom-visual scaffold --name "WaterfallPlus" --output ./visuals/
+pbi custom-visual build --dir ./visuals/WaterfallPlus/
+pbi custom-visual package --dir ./visuals/WaterfallPlus/ --output ./dist/
+pbi custom-visual import --file ./dist/WaterfallPlus.pbiviz
+pbi custom-visual list
 ```
 
 ---
 
-## Design System Components
+## Worked Example 1: Generate a WCAG AA-compliant theme from brand colours
 
-A complete Power BI design system defines:
+```bash
+# Generate theme with automatic palette derivation
+pbi theme generate \
+  --brand-color "#004E8C" \
+  --secondary-color "#50E6FF" \
+  --font "Segoe UI" \
+  --wcag AA \
+  --output ./themes/contoso.json
 
-| Component | Purpose |
-|-----------|---------|
-| Color palette | 8+ data colors + semantic colors |
-| Typography | Font family, sizes for title/body/label |
-| Spacing grid | Padding, gutters, margins |
-| Visual templates | Pre-configured visual styles |
-| Page templates | Standard layout blueprints |
-| Icon library | Conditional formatting icons |
+# Validate all colour pairs pass AA contrast (4.5:1 text, 3:1 UI)
+pbi theme validate --file ./themes/contoso.json --level AA
 
----
+# Apply to open report
+pbi theme apply --file ./themes/contoso.json
+```
 
-## Color System
-
-### Primary Palette (8 Data Colors)
-
-Each color slot has a designated semantic role:
-
-| Slot | Role | Don't Use For |
-|------|------|--------------|
-| 1 | Primary metric, positive trend | Negative values |
-| 2 | Secondary metric | Same chart as slot 1 without contrast |
-| 3 | Tertiary metric | Text on light backgrounds (may fail WCAG) |
-| 4–6 | Supporting series | Never for critical data |
-| 7 | Neutral / baseline | Grid lines, reference lines |
-| 8 | Warning / negative | Only negative trends (red-green safe) |
-
-### Semantic Colors
-
+Generated theme structure:
 ```json
 {
-  "semanticColors": {
-    "positive": "#107C10",
-    "negative": "#D83B01",
-    "neutral": "#605E5C",
-    "warning": "#FFB900",
-    "info": "#0078D4"
-  }
-}
-```
-
-### Applying Semantic Colors in DAX (Conditional Formatting)
-
-```dax
-Profit Color =
-VAR _profit = [Profit Margin %]
-RETURN
-    SWITCH(
-        TRUE(),
-        _profit >= 0.15, "#107C10",  -- positive
-        _profit >= 0.05, "#FFB900",  -- warning
-        "#D83B01"                     -- negative
-    )
-```
-
----
-
-## Typography System
-
-### Font Hierarchy
-
-| Element | Font | Size | Weight | Color |
-|---------|------|------|--------|-------|
-| Page title | Segoe UI | 18pt | Bold | Brand primary |
-| Visual title | Segoe UI | 11pt | Bold | Near-black |
-| Axis labels | Segoe UI | 9pt | Regular | Gray #605E5C |
-| Data labels | Segoe UI | 9pt | Regular | Inherits |
-| Card KPI | Segoe UI | 28pt | Light | Brand primary |
-| Card label | Segoe UI | 10pt | Regular | Gray #605E5C |
-| Table header | Segoe UI | 10pt | Bold | White on brand |
-| Table body | Segoe UI | 9pt | Regular | Near-black |
-
-### Font Safety
-
-Use system fonts only — custom fonts require installation on every client machine:
-- **Segoe UI** — default Windows; matches Power BI Desktop UI
-- **Arial** — universal fallback
-- **Calibri** — common in Office environments
-
----
-
-## Spacing System
-
-### 8px Base Grid
-
-All spacing is multiples of 8px:
-
-| Token | Value | Use |
-|-------|-------|-----|
-| xs | 8px | Internal padding, icon gap |
-| sm | 16px | Visual margin, cell padding |
-| md | 24px | Section spacing |
-| lg | 32px | Row spacing |
-| xl | 48px | Page section headers |
-
-### Canvas Margins
-
-Standard canvas (1280×720):
-- Page edge padding: **16px** (sm)
-- Between visuals: **16px** (sm)
-- KPI card row height: **120px** (15 × 8)
-- Chart minimum height: **360px** (45 × 8)
-
----
-
-## Visual Component Library
-
-### KPI Card Component
-
-```json
-{
-  "visualType": "card",
-  "objects": {
-    "labels": [{
-      "properties": {
-        "fontSize": { "expr": { "Literal": { "Value": "28D" } } },
-        "fontFamily": { "expr": { "Literal": { "Value": "'Segoe UI Light'" } } },
-        "color": { "solid": { "color": "#0078D4" } }
+  "name": "Contoso Brand",
+  "dataColors": ["#004E8C", "#0078D4", "#50E6FF", "#B3E0FF", "#E8F4FD"],
+  "background": "#FFFFFF",
+  "foreground": "#252423",
+  "tableAccent": "#004E8C",
+  "visualStyles": {
+    "*": {
+      "*": {
+        "fontSize": [{"value": 12}],
+        "fontFamily": [{"value": "Segoe UI"}]
       }
-    }],
-    "categoryLabels": [{
-      "properties": {
-        "fontSize": { "expr": { "Literal": { "Value": "10D" } } },
-        "color": { "solid": { "color": "#605E5C" } }
-      }
-    }]
-  }
-}
-```
-
-### Chart Component Defaults
-
-```json
-{
-  "objects": {
-    "dataPoint": [{ "properties": { "defaultColor": { "solid": { "color": "#0078D4" } } } }],
-    "plotArea": [{ "properties": { "transparency": { "expr": { "Literal": { "Value": "0D" } } } } }],
-    "categoryAxis": [{
-      "properties": {
-        "labelFontSize": { "expr": { "Literal": { "Value": "9D" } } },
-        "fontFamily": { "expr": { "Literal": { "Value": "'Segoe UI'" } } }
-      }
-    }]
-  }
-}
-```
-
----
-
-## Design Consistency Rules
-
-| Rule | Check |
-|------|-------|
-| All visuals use brand font | Segoe UI or Arial only |
-| KPI cards on Row 1 only | y <= 140 for cards |
-| Slicers right-aligned | x >= 1050 or dedicated slicer column |
-| No visual overlaps | All bounding boxes non-intersecting |
-| Chart titles use brand color | `#0078D4` or configured primary |
-| Table headers use brand background | Header fill = primary color |
-| Consistent padding | All x values multiples of 16 |
-
----
-
-## Design System Configuration File
-
-Save as `design-system.json` in project root:
-
-```json
-{
-  "name": "Corporate Design System",
-  "version": "2.0",
-  "colors": {
-    "primary": "#0078D4",
-    "secondary": "#106EBE",
-    "dataColors": ["#0078D4", "#106EBE", "#00B294", "#FFB900", "#E81123", "#8764B8", "#5D5A58", "#D2D0CE"],
-    "semantic": {
-      "positive": "#107C10",
-      "negative": "#D83B01",
-      "warning": "#FFB900"
     }
-  },
-  "typography": {
-    "fontFamily": "Segoe UI",
-    "kpiSize": 28,
-    "titleSize": 11,
-    "bodySize": 9
-  },
-  "spacing": {
-    "base": 8,
-    "pagePadding": 16,
-    "visualGap": 16
   }
 }
 ```
 
 ---
 
-## Common Design System Issues
+## Worked Example 2: Scaffold and package a custom visual
 
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| Inconsistent chart colors | Missing theme file | Apply corporate theme JSON |
-| Font not rendering | Custom font not installed | Switch to Segoe UI or Arial |
-| Visual sizes don't match | Manual sizing | Run `pbi layout snap --grid 8` |
-| Semantic colors not applying | DAX color measure not bound | Add conditional formatting to visual |
+```bash
+# Create a new visual project
+pbi custom-visual scaffold --name "RevenueGauge" --template gauge --output ./visuals/
+
+# Develop the visual (TypeScript/D3)
+cd ./visuals/RevenueGauge/
+# ... edit src/visual.ts ...
+
+# Build and validate
+pbi custom-visual build --dir ./visuals/RevenueGauge/
+
+# Package into .pbiviz
+pbi custom-visual package --dir ./visuals/RevenueGauge/ --output ./dist/
+
+# Import into the open report
+pbi custom-visual import --file ./dist/RevenueGauge.pbiviz
+
+# Verify it appears in visual list
+pbi custom-visual list
+```
+
+---
+
+## Worked Example 3: Enforce brand compliance across multiple report files
+
+```bash
+# Validate the current theme against brand guidelines
+pbi theme validate --file ./themes/approved-brand.json --level AA
+
+# Diff two theme versions to review changes before rollout
+pbi theme diff ./themes/brand-2025.json ./themes/brand-2026.json
+
+# Apply approved theme to all open reports (requires Desktop)
+pbi theme apply --file ./themes/brand-2026.json
+```
+
+---
+
+## WCAG Contrast Requirements
+
+| Level | Minimum contrast | Applies to |
+|---|---|---|
+| AA (standard) | 4.5:1 | Normal text (< 18pt) |
+| AA | 3:1 | Large text (≥ 18pt or 14pt bold), UI components |
+| AAA (enhanced) | 7:1 | Normal text |
+| AAA | 4.5:1 | Large text |
+
+`pbi theme generate --wcag AA` ensures all generated colour pairs meet AA requirements. Use `--wcag AAA` for regulated industries (government, healthcare, financial).
+
+---
+
+## Custom Visual Project Structure
+
+```
+RevenueGauge/
+├── package.json
+├── pbiviz.json           # visual metadata and capabilities
+├── src/
+│   ├── visual.ts         # main visual class
+│   └── settings.ts       # formatting settings
+├── style/
+│   └── visual.less
+└── assets/
+    └── icon.png
+```
+
+---
+
+## Edge Cases
+
+**`pbi theme validate` fails with contrast warning:** Increase the luminance difference between the flagged colour pair. The tool prints the exact pair and current ratio (e.g., `#0078D4 on #FFFFFF: 4.1:1 < 4.5:1 required`).
+
+**`pbi custom-visual build` fails with TypeScript errors:** The SDK scaffolds a working stub — TypeScript errors come from edits to `visual.ts`. Run `npm run build` inside the visual directory to see the full tsc error output.
+
+**Custom visual doesn't appear after import:** Power BI Desktop requires a report restart to register new visuals. Close and reopen the report file.
+
+**Theme `dataColors` has fewer than 8 entries:** Power BI cycles through `dataColors` for series. Provide at least 8 entries to avoid colour repetition in multi-series charts.
+
+---
+
+## Cross-skill handoffs
+
+- Applying conditional formatting to individual visuals → **power-bi-report-design**
+- Report page layout and visual positioning → **power-bi-report-design**
+- Governance check for brand naming conventions → **power-bi-governance**
