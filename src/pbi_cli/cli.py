@@ -15,6 +15,7 @@ from pbi_cli.commands import (
     deploy,
     docs,
     env_cmd,
+    fabric_cmd,
     filter_cmd,
     govern,
     layout,
@@ -60,6 +61,12 @@ def _apply_dry_run(ctx: click.Context, param: click.Parameter, value: bool) -> b
     help="Output results as JSON.",
 )
 @click.option(
+    "--yaml",
+    "output_yaml",
+    is_flag=True,
+    help="Output results as YAML (structured, human-readable alternative to --json).",
+)
+@click.option(
     "--backend",
     type=click.Choice(["desktop", "xmla", "mock"]),
     default="desktop",
@@ -73,7 +80,9 @@ def _apply_dry_run(ctx: click.Context, param: click.Parameter, value: bool) -> b
     help="Override the local Analysis Services port (desktop backend).",
 )
 @click.pass_context
-def cli(ctx: click.Context, output_json: bool, backend: str, port: int | None) -> None:
+def cli(  # noqa: PLR0913
+    ctx: click.Context, output_json: bool, output_yaml: bool, backend: str, port: int | None
+) -> None:
     """pbi — Power BI one-stop-shop CLI for AI-driven development.
 
     Connect, model, visualize, govern, test, and deploy Power BI solutions
@@ -82,6 +91,7 @@ def cli(ctx: click.Context, output_json: bool, backend: str, port: int | None) -
     ctx.ensure_object(dict)
     ctx.obj.setdefault("dry_run", False)
     ctx.obj["output_json"] = output_json
+    ctx.obj["output_yaml"] = output_yaml
     ctx.obj["backend"] = backend
     if port:
         ctx.obj["port"] = port
@@ -111,6 +121,7 @@ cli.add_command(connections.connections)
 cli.add_command(skills_cmd.skills_cmd)
 cli.add_command(env_cmd.env_cmd)
 cli.add_command(snapshot.snapshot_cmd)
+cli.add_command(fabric_cmd.fabric_cmd)
 cli.add_command(calendar_cmd.calendar_cmd)
 cli.add_command(calendar_cmd.culture_cmd)
 cli.add_command(repl.repl)

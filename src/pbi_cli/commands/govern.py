@@ -231,6 +231,156 @@ def bpa_check(
         raise SystemExit(1)
 
 
+@govern.group("plugins")
+def govern_plugins() -> None:
+    """Discover and install community governance rule plugins."""
+
+
+_PLUGIN_REGISTRY_URL = (
+    "https://raw.githubusercontent.com/mudassir09/pbi-enterprise-cli/main"
+    "/community/governance-plugins/registry.json"
+)
+_PLUGIN_DIR = Path.home() / ".pbi-cli" / "rules"
+
+
+@govern_plugins.command("list")
+def plugins_list() -> None:
+    """List installed governance plugins in ~/.pbi-cli/rules/."""
+    if not _PLUGIN_DIR.exists() or not list(_PLUGIN_DIR.glob("*.py")):
+        console.print("[yellow]No plugins installed.[/yellow]")
+        console.print(f"Plugin directory: {_PLUGIN_DIR}")
+        console.print("\nInstall a plugin:  pbi govern plugins install <name>")
+        console.print("Browse plugins:    pbi govern plugins search")
+        return
+    from rich.table import Table
+
+    table = Table(title="Installed Governance Plugins")
+    table.add_column("File")
+    table.add_column("Rule ID")
+    table.add_column("Size", justify="right")
+    for f in sorted(_PLUGIN_DIR.glob("*.py")):
+        rule_id = ""
+        try:
+            for line in f.read_text(encoding="utf-8").splitlines():
+                if line.startswith("RULE_ID"):
+                    rule_id = line.split("=", 1)[-1].strip().strip('"').strip("'")
+                    break
+        except OSError:
+            pass
+        table.add_row(f.name, rule_id, f"{f.stat().st_size} B")
+    console.print(table)
+
+
+@govern_plugins.command("search")
+@click.argument("query", default="", required=False)
+def plugins_search(query: str) -> None:
+    """Search the community plugin registry for governance rules.
+
+    \b
+    Examples:
+      pbi govern plugins search                  # list all available plugins
+      pbi govern plugins search sensitivity      # filter by keyword
+    """
+    import urllib.request
+
+    from rich.table import Table
+
+    console.print(f"[cyan]Fetching registry from:[/cyan] {_PLUGIN_REGISTRY_URL}")
+    try:
+        with urllib.request.urlopen(_PLUGIN_REGISTRY_URL, timeout=10) as resp:  # noqa: S310
+            registry = json.loads(resp.read().decode())
+    except Exception as exc:
+        console.print(f"[red]Could not fetch registry:[/red] {exc}")
+        console.print(
+            "\nYou can install plugins manually — place any .py file in ~/.pbi-cli/rules/\n"
+            "that exports RULE_ID (str) and check(backend) -> list[dict]."
+        )
+        raise SystemExit(1)
+
+    plugins = registry.get("plugins", [])
+    if query:
+        plugins = [
+            p for p in plugins
+            if query.lower() in p.get("name", "").lower()
+            or query.lower() in p.get("description", "").lower()
+            or query.lower() in p.get("tags", [])
+        ]
+
+    if not plugins:
+        console.print(f"[yellow]No plugins found matching '{query}'.[/yellow]")
+        return
+
+    table = Table(title=f"Community Plugins ({len(plugins)} found)")
+    table.add_column("Name")
+    table.add_column("Rule ID")
+    table.add_column("Description")
+    table.add_column("Tags")
+    for p in plugins:
+        table.add_row(
+            p.get("name", ""),
+            p.get("rule_id", ""),
+            p.get("description", ""),
+            ", ".join(p.get("tags", [])),
+        )
+    console.print(table)
+    console.print("\nInstall a plugin:  pbi govern plugins install <name>")
+
+
+@govern_plugins.command("install")
+@click.argument("name")
+@click.option("--url", default=None, help="Direct URL to plugin .py file (overrides registry).")
+def plugins_install(name: str, url: str | None) -> None:
+    """Install a governance plugin by name from the community registry.
+
+    \b
+    The plugin .py file is downloaded to ~/.pbi-cli/rules/<name>.py
+    and is auto-discovered by pbi govern check and pbi govern rules.
+
+    \b
+    Examples:
+      pbi govern plugins install require-sensitivity-labels
+      pbi govern plugins install my-rule --url https://example.com/my_rule.py
+    """
+    import urllib.request
+
+    _PLUGIN_DIR.mkdir(parents=True, exist_ok=True)
+    dest = _PLUGIN_DIR / f"{name}.py"
+
+    if url:
+        download_url = url
+    else:
+        # Resolve URL from registry
+        console.print(f"[cyan]Looking up '{name}' in registry...[/cyan]")
+        try:
+            with urllib.request.urlopen(_PLUGIN_REGISTRY_URL, timeout=10) as resp:  # noqa: S310
+                registry = json.loads(resp.read().decode())
+        except Exception as exc:
+            console.print(f"[red]Could not fetch registry:[/red] {exc}")
+            raise SystemExit(1)
+
+        plugin = next(
+            (p for p in registry.get("plugins", []) if p.get("name") == name),
+            None,
+        )
+        if not plugin:
+            console.print(f"[red]Plugin '{name}' not found in registry.[/red]")
+            console.print("Run 'pbi govern plugins search' to browse available plugins.")
+            raise SystemExit(1)
+        download_url = plugin["url"]
+
+    console.print(f"[cyan]Downloading:[/cyan] {download_url}")
+    try:
+        with urllib.request.urlopen(download_url, timeout=15) as resp:  # noqa: S310
+            content = resp.read().decode()
+    except Exception as exc:
+        console.print(f"[red]Download failed:[/red] {exc}")
+        raise SystemExit(1)
+
+    dest.write_text(content, encoding="utf-8")
+    console.print(f"[green]Plugin installed:[/green] {dest}")
+    console.print("It will be auto-discovered on the next 'pbi govern check' run.")
+
+
 @govern.command("rules")
 @click.pass_context
 def govern_rules(ctx: click.Context) -> None:

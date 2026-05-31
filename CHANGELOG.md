@@ -6,6 +6,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- `pbi fabric` command group — Microsoft Fabric REST API: `workspaces`, `capacities`,
+  `datasets`, `refresh`, `lineage` (Bearer token or MSAL device flow auth)
+- `pbi govern plugins` command group — governance plugin marketplace:
+  `list` (installed), `search` (community registry), `install` (by name or URL)
+- `--yaml` global flag — YAML output alternative to `--json` on all commands
+- Tests: `test_commands_snapshot`, `test_commands_env`, `test_commands_fabric`,
+  `test_commands_govern_plugins`, `test_yaml_output` — 65+ new test cases
+
+### Changed
+- Coverage gate raised: 67% → 75%
+
+---
+
 ## [1.0.2] — 2026-05-31
 
 ### Fixed

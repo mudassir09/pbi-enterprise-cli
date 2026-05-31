@@ -46,9 +46,14 @@ def get_backend(ctx: click.Context) -> Any:
 
 
 def output_json_or_table(data: Any, ctx: click.Context, title: str = "") -> None:
-    """Print data as JSON or Rich table depending on --json flag."""
+    """Print data as JSON, YAML, or Rich table depending on --json/--yaml flag."""
     if ctx.obj and ctx.obj.get("output_json"):
         click.echo(json.dumps(data, indent=2, default=str))
+        return
+
+    if ctx.obj and ctx.obj.get("output_yaml"):
+        import yaml  # already a core dep
+        click.echo(yaml.dump(data, allow_unicode=True, sort_keys=False).rstrip())
         return
 
     if isinstance(data, list) and data:
