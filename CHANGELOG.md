@@ -6,6 +6,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.1] — 2026-05-31
+
+### Fixed
+- `pythonnet` constraint reverted to `>=3.0` — pinning to `==3.1.0rc0` (a pre-release)
+  blocked `uv tool install` and any resolver that refuses pre-releases by default
+- Release smoke-test rewritten to use `pip install` (not `uv tool install`) and target
+  the mock backend — avoids .NET dependency on ubuntu-latest CI runners
+
+[1.0.1]: https://github.com/mudassir09/pbi-enterprise-cli/compare/v1.0.0...v1.0.1
+
+---
+
 ## [1.0.0] — 2026-05-31
 
 First stable release. Earns the 1.0.0 number: all credibility issues resolved, live CI,
