@@ -1,7 +1,7 @@
 ---
 name: power-bi-modeling
 version: "2.0"
-min_cli_version: "1.0.0"
+min_cli_version: "0.1.0"
 description: >
   Use for semantic model design, data source profiling, partition management,
   incremental refresh, calendar table generation, and locale/culture settings.

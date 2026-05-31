@@ -1,7 +1,7 @@
 ---
 name: power-bi-deployment
 version: "2.0"
-min_cli_version: "1.0.0"
+min_cli_version: "0.1.0"
 description: >
   Use for TMDL snapshot/diff/restore, XMLA push to Premium/Fabric, multi-stage
   pipeline orchestration, service principal and device-flow auth, and

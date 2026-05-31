@@ -1,7 +1,7 @@
 ---
 name: power-bi-performance
 version: "2.0"
-min_cli_version: "1.0.0"
+min_cli_version: "0.1.0"
 description: >
   Use for query performance tracing, benchmarking, VertiPaq Analyzer diagnostics,
   storage engine vs formula engine analysis, and slow DAX investigation.

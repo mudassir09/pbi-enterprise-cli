@@ -1,7 +1,7 @@
 ---
 name: power-bi-design-system
 version: "2.0"
-min_cli_version: "1.0.0"
+min_cli_version: "0.1.0"
 description: >
   Use for WCAG-compliant theme generation, brand colour enforcement, typography
   and spacing consistency, and custom visual SDK workflows (scaffold, build, package,

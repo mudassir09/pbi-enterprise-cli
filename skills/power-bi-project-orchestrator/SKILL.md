@@ -1,7 +1,7 @@
 ---
 name: power-bi-project-orchestrator
 version: "2.0"
-min_cli_version: "1.0.0"
+min_cli_version: "0.1.0"
 description: >
   Use to coordinate multi-skill Power BI workflows: model design → DAX authoring
   → governance → report → deploy. Handles cross-skill handoffs, resolves conflicts

@@ -1,7 +1,7 @@
 ---
 name: power-bi-governance
 version: "2.0"
-min_cli_version: "1.0.0"
+min_cli_version: "0.1.0"
 description: >
   Use for Power BI governance: built-in rules, BPA (Best Practice Analyzer),
   custom plugin authoring, auto-fix, CI/CD gate, severity filtering, naming

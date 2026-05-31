@@ -123,8 +123,8 @@ class TestSkillsCheck:
         skill_dir = skills_src / "power-bi-dax"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: power-bi-dax\nversion: \"1.0\"\n"
-            "min_cli_version: \"1.0.0\"\ndescription: test\n---\nBody\n"
+            "---\nname: power-bi-dax\nversion: \"2.0\"\n"
+            "min_cli_version: \"0.1.0\"\ndescription: test\n---\nBody\n"
         )
         monkeypatch.setattr(
             "pbi_cli.commands.skills_cmd._skills_source_dir", lambda: skills_src

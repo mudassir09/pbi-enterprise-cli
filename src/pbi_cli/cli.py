@@ -164,8 +164,13 @@ def connect(ctx: click.Context, port: int | None, install_skills: bool) -> None:
     skills_installed: list[str] = []
     skills_dir = None
     if install_skills:
-        import shutil
-        from pbi_cli.commands.skills_cmd import _BUNDLED_SKILLS, _claude_skills_dir, _skills_source_dir
+        import shutil  # noqa: PLC0415
+
+        from pbi_cli.commands.skills_cmd import (  # noqa: PLC0415
+            _BUNDLED_SKILLS,
+            _claude_skills_dir,
+            _skills_source_dir,
+        )
 
         source_dir = _skills_source_dir()
         target_dir = _claude_skills_dir()
@@ -216,7 +221,9 @@ def connect(ctx: click.Context, port: int | None, install_skills: bool) -> None:
         )
         console.print("[dim]Restart Claude Code to pick up the new skills.[/dim]")
     elif install_skills:
-        console.print("\n[yellow]No skill files found in package — skipping skill install.[/yellow]")
+        console.print(
+            "\n[yellow]No skill files found in package — skipping skill install.[/yellow]"
+        )
 
     console.print(f"\n[dim]Setup completed in {elapsed:.1f}s[/dim]")
     console.print("\n[bold]Next steps:[/bold]")

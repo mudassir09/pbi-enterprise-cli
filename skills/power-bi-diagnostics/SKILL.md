@@ -1,7 +1,7 @@
 ---
 name: power-bi-diagnostics
 version: "2.0"
-min_cli_version: "1.0.0"
+min_cli_version: "0.1.0"
 description: >
   Use for pbi doctor interpretation, pythonnet/AMO resolution, platform detection,
   connection troubleshooting, error taxonomy, and guided fix playbooks.

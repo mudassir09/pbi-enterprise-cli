@@ -1,7 +1,7 @@
 ---
 name: power-bi-report-design
 version: "2.0"
-min_cli_version: "1.0.0"
+min_cli_version: "0.1.0"
 description: >
   Use for report page management, visual authoring, bookmarks, drillthrough,
   auto-layout, tooltip pages, conditional formatting, and filter pane configuration.

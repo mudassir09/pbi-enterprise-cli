@@ -1,7 +1,7 @@
 ---
 name: power-bi-dax
 version: "2.0"
-min_cli_version: "1.0.0"
+min_cli_version: "0.1.0"
 description: >
   Use for DAX measure authoring, validation, YAML unit-test suites, filter context
   reasoning, Time Intelligence patterns, optimisation, and design patterns.

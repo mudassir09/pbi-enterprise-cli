@@ -1,7 +1,7 @@
 ---
 name: power-bi-security-and-docs
 version: "2.0"
-min_cli_version: "1.0.0"
+min_cli_version: "0.1.0"
 description: >
   Use for RLS role management, DAX row-filter expressions, perspective management,
   role testing, data dictionary generation, audit logs, and lineage documentation.
