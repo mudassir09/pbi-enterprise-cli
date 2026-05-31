@@ -6,6 +6,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.2] — 2026-05-31
+
+### Fixed
+- `pyyaml>=6.0` promoted from `dev` extra to core dependency — `pbi_cli.commands.dax`
+  imports `yaml` at module level, causing `ModuleNotFoundError` on base installs
+
+[1.0.2]: https://github.com/mudassir09/pbi-enterprise-cli/compare/v1.0.1...v1.0.2
+
+---
+
 ## [1.0.1] — 2026-05-31
 
 ### Fixed
