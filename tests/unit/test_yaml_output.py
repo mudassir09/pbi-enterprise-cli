@@ -27,17 +27,13 @@ class TestYamlOutput:
         data = yaml.safe_load(result.output)
         assert isinstance(data, list)
 
-    def test_connections_yaml(self, runner, tmp_path, monkeypatch):
-        import json as _json
-        conn_file = tmp_path / "connections.json"
-        conn_file.write_text(
-            _json.dumps({"default": None, "connections": {"dev": {"backend": "mock"}}}),
-            encoding="utf-8",
-        )
-        monkeypatch.setattr("pbi_cli.commands.connections._CONNECTIONS_FILE", conn_file)
-        result = runner.invoke(cli, ["--yaml", "connections", "list"])
-        # connections list outputs a Rich table, not structured data — just check no crash
+    def test_security_roles_yaml(self, runner):
+        result = runner.invoke(cli, ["--backend", "mock", "--yaml", "security", "roles"])
         assert result.exit_code == 0
+        # security roles goes through output_json_or_table → valid YAML list
+        import yaml as _yaml
+        data = _yaml.safe_load(result.output)
+        assert isinstance(data, list)
 
     def test_yaml_and_json_mutually_exclusive_yaml_wins(self, runner):
         """--yaml takes precedence when both flags somehow set; output is valid YAML."""

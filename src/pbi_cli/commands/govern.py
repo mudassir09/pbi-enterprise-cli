@@ -273,7 +273,8 @@ def plugins_list() -> None:
 
 @govern_plugins.command("search")
 @click.argument("query", default="", required=False)
-def plugins_search(query: str) -> None:
+@click.option("--json", "output_json", is_flag=True, help="Output as JSON.")
+def plugins_search(query: str, output_json: bool) -> None:
     """Search the community plugin registry for governance rules.
 
     \b
@@ -307,7 +308,14 @@ def plugins_search(query: str) -> None:
         ]
 
     if not plugins:
-        console.print(f"[yellow]No plugins found matching '{query}'.[/yellow]")
+        if output_json:
+            click.echo("[]")
+        else:
+            console.print(f"[yellow]No plugins found matching '{query}'.[/yellow]")
+        return
+
+    if output_json:
+        click.echo(json.dumps(plugins, indent=2))
         return
 
     table = Table(title=f"Community Plugins ({len(plugins)} found)")

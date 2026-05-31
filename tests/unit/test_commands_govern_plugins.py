@@ -103,29 +103,33 @@ class TestPluginsSearch:
             "urllib.request.urlopen",
             return_value=self._mock_registry(),
         ):
-            result = _run(runner, "govern", "plugins", "search")
+            result = _run(runner, "govern", "plugins", "search", "--json")
         assert result.exit_code == 0
-        assert "require-sensitivity-labels" in result.output
-        assert "no-hardcoded-dates" in result.output
+        data = json.loads(result.output)
+        names = [p["name"] for p in data]
+        assert "require-sensitivity-labels" in names
+        assert "no-hardcoded-dates" in names
 
     def test_search_filters_by_keyword(self, runner):
         with patch(
             "urllib.request.urlopen",
             return_value=self._mock_registry(),
         ):
-            result = _run(runner, "govern", "plugins", "search", "sensitivity")
+            result = _run(runner, "govern", "plugins", "search", "sensitivity", "--json")
         assert result.exit_code == 0
-        assert "require-sensitivity-labels" in result.output
-        assert "no-hardcoded-dates" not in result.output
+        data = json.loads(result.output)
+        names = [p["name"] for p in data]
+        assert "require-sensitivity-labels" in names
+        assert "no-hardcoded-dates" not in names
 
     def test_search_no_results(self, runner):
         with patch(
             "urllib.request.urlopen",
             return_value=self._mock_registry(),
         ):
-            result = _run(runner, "govern", "plugins", "search", "nonexistent-xyz")
+            result = _run(runner, "govern", "plugins", "search", "nonexistent-xyz", "--json")
         assert result.exit_code == 0
-        assert "No plugins found" in result.output
+        assert result.output.strip() == "[]"
 
     def test_search_registry_unavailable(self, runner):
         import urllib.error
