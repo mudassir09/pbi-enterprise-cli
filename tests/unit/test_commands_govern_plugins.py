@@ -39,7 +39,10 @@ _SAMPLE_REGISTRY = {
     ]
 }
 
-_SAMPLE_PLUGIN_PY = 'RULE_ID = "custom.require-sensitivity-labels"\n\ndef check(backend):\n    return []\n'
+_SAMPLE_PLUGIN_PY = (
+    'RULE_ID = "custom.require-sensitivity-labels"\n\n'
+    "def check(backend):\n    return []\n"
+)
 
 
 class TestPluginsList:
@@ -77,7 +80,6 @@ class TestPluginsList:
 class TestPluginsSearch:
     def _mock_registry(self):
         import io
-        import urllib.response
 
         body = json.dumps(_SAMPLE_REGISTRY).encode()
 
@@ -98,7 +100,7 @@ class TestPluginsSearch:
 
     def test_search_lists_all(self, runner):
         with patch(
-            "pbi_cli.commands.govern.urllib.request.urlopen",
+            "urllib.request.urlopen",
             return_value=self._mock_registry(),
         ):
             result = _run(runner, "govern", "plugins", "search")
@@ -108,7 +110,7 @@ class TestPluginsSearch:
 
     def test_search_filters_by_keyword(self, runner):
         with patch(
-            "pbi_cli.commands.govern.urllib.request.urlopen",
+            "urllib.request.urlopen",
             return_value=self._mock_registry(),
         ):
             result = _run(runner, "govern", "plugins", "search", "sensitivity")
@@ -118,7 +120,7 @@ class TestPluginsSearch:
 
     def test_search_no_results(self, runner):
         with patch(
-            "pbi_cli.commands.govern.urllib.request.urlopen",
+            "urllib.request.urlopen",
             return_value=self._mock_registry(),
         ):
             result = _run(runner, "govern", "plugins", "search", "nonexistent-xyz")
@@ -129,7 +131,7 @@ class TestPluginsSearch:
         import urllib.error
 
         with patch(
-            "pbi_cli.commands.govern.urllib.request.urlopen",
+            "urllib.request.urlopen",
             side_effect=urllib.error.URLError("connection refused"),
         ):
             result = _run(runner, "govern", "plugins", "search")
@@ -140,7 +142,6 @@ class TestPluginsSearch:
 class TestPluginsInstall:
     def _make_mocks(self, registry=_SAMPLE_REGISTRY, plugin_content=_SAMPLE_PLUGIN_PY):
         """Return context managers that mock both registry fetch and plugin download."""
-        import io
 
         class FakeRegistryResp:
             def read(self):
@@ -156,7 +157,7 @@ class TestPluginsInstall:
 
         responses = iter([FakeRegistryResp(), FakePluginResp()])
         return patch(
-            "pbi_cli.commands.govern.urllib.request.urlopen",
+            "urllib.request.urlopen",
             side_effect=lambda *a, **kw: next(responses),
         )
 
@@ -173,14 +174,13 @@ class TestPluginsInstall:
         rules_dir = tmp_path / "rules"
         monkeypatch.setattr("pbi_cli.commands.govern._PLUGIN_DIR", rules_dir)
 
-        import io
 
         class FakeResp:
             def read(self): return _SAMPLE_PLUGIN_PY.encode()
             def __enter__(self): return self
             def __exit__(self, *a): pass
 
-        with patch("pbi_cli.commands.govern.urllib.request.urlopen", return_value=FakeResp()):
+        with patch("urllib.request.urlopen", return_value=FakeResp()):
             result = _run(
                 runner, "govern", "plugins", "install", "my-rule",
                 "--url", "https://example.com/my_rule.py",
@@ -192,14 +192,13 @@ class TestPluginsInstall:
         rules_dir = tmp_path / "rules"
         monkeypatch.setattr("pbi_cli.commands.govern._PLUGIN_DIR", rules_dir)
 
-        import io
 
         class FakeResp:
             def read(self): return json.dumps(_SAMPLE_REGISTRY).encode()
             def __enter__(self): return self
             def __exit__(self, *a): pass
 
-        with patch("pbi_cli.commands.govern.urllib.request.urlopen", return_value=FakeResp()):
+        with patch("urllib.request.urlopen", return_value=FakeResp()):
             result = _run(runner, "govern", "plugins", "install", "does-not-exist")
         assert result.exit_code != 0
         assert "not found" in result.output.lower()

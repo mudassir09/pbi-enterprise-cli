@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
@@ -28,8 +28,10 @@ class TestFabricWorkspaces:
     def test_workspaces_lists_results(self, runner):
         payload = {
             "value": [
-                {"id": "ws-001", "name": "Sales Workspace", "type": "Workspace", "state": "Active"},
-                {"id": "ws-002", "name": "Finance Workspace", "type": "Workspace", "state": "Active"},
+                {"id": "ws-001", "name": "Sales Workspace", "type": "Workspace",
+                 "state": "Active"},
+                {"id": "ws-002", "name": "Finance Workspace", "type": "Workspace",
+                 "state": "Active"},
             ]
         }
         with _mock_token(), patch(
@@ -41,7 +43,9 @@ class TestFabricWorkspaces:
         assert "Finance Workspace" in result.output
 
     def test_workspaces_json_output(self, runner):
-        payload = {"value": [{"id": "ws-001", "name": "Sales", "type": "Workspace", "state": "Active"}]}
+        payload = {"value": [
+            {"id": "ws-001", "name": "Sales", "type": "Workspace", "state": "Active"}
+        ]}
         with _mock_token(), patch(
             "pbi_cli.commands.fabric_cmd._api_get", return_value=payload
         ):
