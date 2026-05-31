@@ -49,10 +49,16 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Install published package from PyPI
-        # Use pip — resolves pythonnet>=3.0 correctly without prerelease flags.
-        # Strip leading 'v' from tag: v1.0.1 → 1.0.1
-        run: pip install "pbi-enterprise-cli==${GITHUB_REF_NAME#v}"
+      - name: Wait for PyPI CDN propagation then install
+        # PyPI CDN can take 60-120 s to propagate a new release.
+        # Retry up to 6 times with 30 s backoff (max wait ~3 min).
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for i in 1 2 3 4 5 6; do
+            pip install "pbi-enterprise-cli==$VERSION" && break
+            echo "Attempt $i failed — waiting 30 s for PyPI propagation..."
+            sleep 30
+          done
       - name: Verify CLI entry point
         run: pbi --version
       - name: Run doctor against mock backend
