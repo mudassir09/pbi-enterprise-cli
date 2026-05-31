@@ -6,6 +6,55 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.0] — 2026-05-31
+
+First stable release. Earns the 1.0.0 number: all credibility issues resolved, live CI,
+10-skill architecture shipped, visual README, and community infrastructure in place.
+
+### Added
+- **Skills: 24 → 10 consolidated** — every original topic preserved and deepened inside
+  broader category-based skills; each skill now has command reference, 3+ worked examples,
+  edge cases, cross-skill handoffs, and enterprise CI/CD patterns
+  - New: `power-bi-report-design` (absorbs report, visuals, pages, layout, page-designer, filters)
+  - New: `power-bi-security-and-docs` (absorbs security, docs)
+  - Rewritten: modeling, dax, performance, design-system, governance, deployment, diagnostics,
+    project-orchestrator
+- **`pbi connect` auto-setup** — detects open Desktop session, installs all 10 skills to
+  `~/.claude/skills/`, prints Rich model summary (name, tables, measures, port), shows next
+  steps; target <60 s time-to-first-value
+- **SVG visual assets** — `docs/assets/banner.svg`, `architecture.svg`, `before-after.svg`
+- **README overhaul** — banner, differentiators, quickstart, before/after diagram,
+  architecture diagram, BPA marketing section, consolidated skills table, CI/CD gate YAML
+- **GitHub community files** — structured issue templates (bug, feature, skill idea),
+  PR template with skill-change checklist, CODEOWNERS
+- **GitHub Discussions** — three seeded threads: Getting started Q&A, Show and tell,
+  Feature requests & roadmap
+
+### Changed
+- `pyproject.toml` version: `0.1.0.dev2` → `1.0.0`
+- Classifier: `3 - Alpha` → `4 - Beta`
+- `pythonnet` pinned: `>=3.0` → `==3.1.0rc0`
+- Python 3.13 added to CI matrix and classifiers
+- `release.yml`: added `workflow_dispatch`, Trusted Publishing (OIDC), post-release smoke-test
+- Install docs: uv-first three-tier block (uv → pipx → pip)
+- All 10 skill `min_cli_version` set to `0.1.0` (was `4.0.0`)
+
+### Fixed
+- Static hardcoded badges (`547 passing`, `65%+`) replaced with live GitHub Actions /
+  Codecov / shields.io badges
+- `__version__` now matches `pyproject.toml` (was `4.0.0.dev0`)
+- Release pipeline previously published `dev0` but not `dev1`/`dev2` — fixed trigger
+  and added smoke-test job
+
+### Notes
+- Versions 4.0.0 and 4.0.1 were yanked — version history jumps from 0.1.0.dev2 to 1.0.0
+- Next release will be 1.1.0 (minor): `pbi connect` XMLA auto-detection, governance plugin
+  marketplace, Fabric REST API commands
+
+[1.0.0]: https://github.com/mudassir09/pbi-enterprise-cli/compare/v0.1.0.dev2...v1.0.0
+
+---
+
 ## [4.0.1] — 2026-05-30
 
 ### Changed
