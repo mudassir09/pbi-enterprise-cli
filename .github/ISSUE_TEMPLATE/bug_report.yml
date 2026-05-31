@@ -1,16 +1,31 @@
 name: Bug Report
-description: Report a reproducible bug in pbi-cli
-labels: ["bug"]
+description: Something isn't working as expected
+labels: ["bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
-      value: "Thanks for reporting a bug. Fill in the fields below so we can reproduce it."
+      value: |
+        Thanks for taking the time to report a bug. Fill in as much detail as you can — it helps us fix things faster.
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      description: Which backend were you using when the bug occurred?
+      options:
+        - desktop (Power BI Desktop via TOM)
+        - xmla (Power BI Premium / Microsoft Fabric)
+        - mock (CI / testing)
+        - Not applicable
+    validations:
+      required: true
 
   - type: input
     id: version
     attributes:
-      label: pbi-cli version
-      placeholder: "pbi --version"
+      label: pbi-enterprise-cli version
+      description: Run `pbi --version` to find this
+      placeholder: "0.1.0.dev2"
     validations:
       required: true
 
@@ -18,26 +33,26 @@ body:
     id: python
     attributes:
       label: Python version
-      placeholder: "python --version"
+      description: Run `python --version`
+      placeholder: "3.11.9"
     validations:
       required: true
 
-  - type: dropdown
-    id: backend
+  - type: input
+    id: os
     attributes:
-      label: Backend
-      options:
-        - desktop
-        - xmla
-        - mock
+      label: Operating system
+      placeholder: "Windows 11, Ubuntu 22.04, macOS 14..."
     validations:
       required: true
 
   - type: textarea
     id: command
     attributes:
-      label: Command run
-      placeholder: "pbi govern check --fail-on warning"
+      label: Command that triggered the bug
+      description: The exact `pbi` command you ran
+      render: bash
+      placeholder: pbi govern check --fail-on error
     validations:
       required: true
 
@@ -45,17 +60,28 @@ body:
     id: expected
     attributes:
       label: Expected behaviour
+      description: What did you expect to happen?
     validations:
       required: true
 
   - type: textarea
     id: actual
     attributes:
-      label: Actual behaviour (include full error output)
+      label: Actual behaviour
+      description: What actually happened? Include the full error output.
+      render: text
     validations:
       required: true
 
   - type: textarea
-    id: repro
+    id: doctor
     attributes:
-      label: Steps to reproduce
+      label: pbi doctor output
+      description: Run `pbi doctor` and paste the output here
+      render: text
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else that might be relevant (governance.json, model size, network setup, etc.)

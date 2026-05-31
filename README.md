@@ -1,6 +1,8 @@
-# pbi-enterprise-cli
+<div align="center">
+  <img src="docs/assets/banner.svg" alt="pbi-enterprise-cli" width="100%"/>
+</div>
 
-> Enterprise-grade Power BI automation CLI — XMLA/Fabric connectivity without Desktop, Python-native BPA governance, semantic model management, PBIR authoring, DAX testing, deployment pipelines, and 10 Claude Code skills.
+<div align="center">
 
 [![CI](https://github.com/mudassir09/pbi-enterprise-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/mudassir09/pbi-enterprise-cli/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/mudassir09/pbi-enterprise-cli/graph/badge.svg)](https://codecov.io/gh/mudassir09/pbi-enterprise-cli)
@@ -9,47 +11,20 @@
 [![License](https://img.shields.io/github/license/mudassir09/pbi-enterprise-cli)](https://github.com/mudassir09/pbi-enterprise-cli/blob/main/LICENSE)
 [![Downloads](https://img.shields.io/pypi/dm/pbi-enterprise-cli)](https://pypi.org/project/pbi-enterprise-cli/)
 
----
-
-## What it does
-
-`pbi-cli` gives you a single `pbi` command that covers every layer of Power BI development — no clicking through the Desktop UI, no manual file editing, no proprietary tooling dependencies.
-
-| Area | Commands |
-|---|---|
-| **Semantic model** | `pbi model` — tables, columns, relationships, lint, lineage |
-| **DAX measures** | `pbi measure` — add, update, delete, AI-generate |
-| **DAX testing** | `pbi dax` — query, validate, YAML unit-test suites |
-| **Source profiling** | `pbi source` — SQL, Excel, CSV, REST APIs → star-schema scaffold |
-| **Report authoring** | `pbi report` — pages, bookmarks (PBIR GA format) |
-| **Visuals** | `pbi visual` — 17 visual types, colour-scale & data-bar formatting |
-| **Layout** | `pbi layout` — shelf-packing auto-layout, named templates |
-| **Themes** | `pbi theme` — generate WCAG-compliant themes from a brand colour |
-| **Filters** | `pbi filter` — relative-date, TopN, basic value filters |
-| **Governance** | `pbi govern` — built-in rules + BPA + custom plugin system, `--fail-on` CI gate |
-| **Security (RLS)** | `pbi security` — role add/delete/test |
-| **Partitions** | `pbi partition` — add, refresh, delete |
-| **Deployment** | `pbi deploy` — snapshot, diff, push via XMLA |
-| **Snapshots** | `pbi snapshot` — create, list, restore, diff — model rollback |
-| **Environments** | `pbi env` — named connections, use, diff, promote (dev→prod) |
-| **TMDL** | `pbi database` — export / import TMDL snapshots |
-| **Docs** | `pbi docs` — markdown/Confluence data dictionary, audit log |
-| **Diagnostics** | `pbi doctor` — check pythonnet, optional deps, platform |
-| **Watch mode** | `pbi watch` — re-run governance + DAX tests on file change |
-| **REST API** | `pbi server` — authenticated FastAPI server for pipeline integration |
-| **Skills** | `pbi skills` — install, list, check 30 Claude Code Power BI skills |
+</div>
 
 ---
 
-## Backends
+**pbi-enterprise-cli** is the enterprise-grade Power BI automation CLI — XMLA/Fabric connectivity without Desktop, the only Python-native BPA governance runner, semantic model management, DAX testing, PBIR authoring, and 10 Claude Code skills.
 
-The same CLI works against three backends — swap with `--backend`:
+**Key differentiators vs alternatives:**
 
-| Backend | When to use |
-|---|---|
-| `desktop` (default) | Local Power BI Desktop open with a `.pbip` project |
-| `xmla` | Power BI Premium or Microsoft Fabric — no Desktop required |
-| `mock` | CI pipelines, unit tests, demos — zero infrastructure |
+- **XMLA / Fabric without Desktop** — connect directly to Premium or Fabric workspaces via service principal or managed identity; no GUI required
+- **Python-native BPA runner** — the only Python implementation of Best Practice Analyzer; runs on `ubuntu-latest` in CI with zero extra tooling
+- **Three backends, one API** — `desktop` (TOM), `xmla` (Premium/Fabric), `mock` (CI) — same commands, same output, swap with `--backend`
+- **AMO DLLs bundled** — works after `pip install`; no separate Desktop installation needed for XMLA
+- **CI/CD first** — governance gate, DAX unit tests, and snapshot/rollback all work in GitHub Actions on `ubuntu-latest`
+- **10 Claude Code skills** — install with `pbi connect` for AI-assisted Power BI development in under 60 seconds
 
 ---
 
@@ -61,17 +36,17 @@ uv tool install pbi-enterprise-cli
 uv tool install "pbi-enterprise-cli[all]"   # all optional features
 ```
 
-**Alternative — [pipx](https://pipx.pypa.io/) (good isolation, requires pipx pre-installed):**
+**Alternative — [pipx](https://pipx.pypa.io/):**
 ```bash
 pipx install pbi-enterprise-cli
 ```
 
-**Fallback — pip (universal):**
+**Fallback — pip:**
 ```bash
 pip install pbi-enterprise-cli
 ```
 
-**With extras:**
+**With specific extras:**
 ```bash
 uv tool install "pbi-enterprise-cli[ai,xmla]"     # Claude AI + XMLA/Fabric
 uv tool install "pbi-enterprise-cli[sources]"     # SQL / Excel / REST profiling
@@ -79,237 +54,206 @@ uv tool install "pbi-enterprise-cli[server]"      # FastAPI REST server
 uv tool install "pbi-enterprise-cli[viz]"         # WCAG theme validation
 ```
 
-> **Requirements:** Python 3.10–3.13. The `desktop` and `xmla` backends require Windows and AMO .NET assemblies (bundled in the wheel — no separate Desktop install needed for XMLA).
+> **Requirements:** Python 3.10–3.13. The `desktop` and `xmla` backends require Windows. The `mock` backend works on Linux and macOS — CI pipelines need no Windows runner for governance, BPA, and DAX tests.
 
 ---
 
-## Quick Start
+## 60-Second Quickstart
 
 ```bash
-# Check your setup
+# 1. Verify setup
 pbi doctor
 
-# Connect to open Power BI Desktop and inspect the model
+# 2. Connect to open Power BI Desktop + install all 10 Claude Code skills
+pbi connect
+
+# 3. Explore the model
 pbi model tables
-pbi model relationships
 pbi measure list
 
-# Run governance checks (exit code 3 on errors — CI safe)
+# 4. Run governance and BPA
 pbi govern check --fail-on error
+pbi govern bpa check --severity error
 
-# Auto-fix safe violations (PascalCase, missing format strings, etc.)
+# 5. Fix safe violations automatically
 pbi govern fix --auto
 
-# Add a measure
-pbi measure add \
-  --table Sales \
-  --name "Total Revenue" \
-  --expression "SUM(Sales[Revenue])" \
-  --format-string "#,0.00" \
-  --description "Net revenue after discounts"
+# 6. Run DAX unit tests
+pbi dax test --suite ./tests/measures/
 
-# Run DAX unit tests
-pbi dax test --suite tests/fixtures/measures/sales_suite.yaml
-
-# Profile a SQL source and scaffold a star-schema model
-pbi source profile --source "mssql://server/SalesDW" --output json
-pbi source scaffold --source "mssql://server/SalesDW" \
-  --output ./MyModel.SemanticModel/definition/
+# 7. Deploy to Fabric (XMLA)
+pbi deploy push --connection fabric-prod
 ```
 
 ---
 
-## The only Python-native BPA runner for Power BI
+## Before vs After
 
-`pbi-enterprise-cli` is the only Python-native implementation of the [Best Practice Analyzer](https://docs.tabulareditor.com/BPA/Best-Practice-Analyzer.html) — the same rule engine used by Tabular Editor, now runnable in pure Python without installing Tabular Editor, .NET 6, or any C# toolchain.
+<div align="center">
+  <img src="docs/assets/before-after.svg" alt="Before and after pbi-enterprise-cli" width="100%"/>
+</div>
 
-**What this means in practice:**
+---
 
-- Run BPA rules in GitHub Actions on `ubuntu-latest` using the mock backend — zero infrastructure
-- Use the same Microsoft community BPA rules that enterprise BI teams already govern by
-- Gate pull requests: `exit code 1` on any BPA error blocks the merge
-- Write custom Python plugins in `~/.pbi-cli/rules/` — no C# required
+## Command Reference
+
+| Area | Commands |
+|---|---|
+| **Semantic model** | `pbi model` — tables, columns, relationships, lint, lineage |
+| **DAX measures** | `pbi measure` — add, update, delete, AI-generate, audit |
+| **DAX testing** | `pbi dax` — query, validate, YAML unit-test suites |
+| **Source profiling** | `pbi source` — SQL, Excel, CSV, REST → star-schema scaffold |
+| **Calendar** | `pbi calendar` — generate date tables, fiscal year, mark-as-date-table |
+| **Report authoring** | `pbi report` — pages, bookmarks, drillthrough (PBIR GA format) |
+| **Visuals** | `pbi visual` — 32 visual types, conditional formatting, data bars |
+| **Layout** | `pbi layout` — shelf-packing auto-layout, named templates |
+| **Themes** | `pbi theme` — generate WCAG-compliant themes from a brand colour |
+| **Filters** | `pbi filter` — relative-date, TopN, basic value filters |
+| **Governance** | `pbi govern` — built-in rules + BPA + custom plugins, `--fail-on` CI gate |
+| **Security (RLS)** | `pbi security` — role add/delete/test, perspectives |
+| **Partitions** | `pbi partition` — add, refresh, delete, incremental refresh |
+| **Deployment** | `pbi deploy` — snapshot, diff, push via XMLA |
+| **Snapshots** | `pbi snapshot` — create, list, restore, diff — model rollback |
+| **Environments** | `pbi env` — named connections, use, diff, promote (dev → prod) |
+| **TMDL** | `pbi database` — export / import TMDL snapshots |
+| **Docs** | `pbi docs` — markdown/Confluence data dictionary, lineage, audit log |
+| **Diagnostics** | `pbi doctor` — check pythonnet, optional deps, platform |
+| **Watch mode** | `pbi watch` — re-run governance + DAX tests on file change |
+| **REST API** | `pbi server` — authenticated FastAPI server for pipeline integration |
+| **Skills** | `pbi skills` — install, list, check 10 Claude Code Power BI skills |
+
+---
+
+## Three-Backend Architecture
+
+<div align="center">
+  <img src="docs/assets/architecture.svg" alt="Three-backend architecture" width="100%"/>
+</div>
+
+| Backend | When to use | Requires |
+|---|---|---|
+| `desktop` (default) | Local Power BI Desktop with a `.pbip` project open | Windows + Desktop |
+| `xmla` | Power BI Premium or Microsoft Fabric — no Desktop | Windows + MSAL (`[xmla]` extra) |
+| `mock` | CI pipelines, unit tests, demos | Nothing — works on Linux/macOS |
 
 ```bash
-# Run Microsoft community BPA rules (fetched live, same as Tabular Editor)
+# Swap with --backend
+pbi --backend mock govern check --fail-on error    # CI on ubuntu-latest
+pbi --backend xmla model tables                    # Fabric without Desktop
+pbi --backend desktop measure list                 # local Desktop (default)
+```
+
+---
+
+## The Only Python-Native BPA Runner
+
+`pbi-enterprise-cli` is the only Python-native implementation of the [Best Practice Analyzer](https://docs.tabulareditor.com/BPA/Best-Practice-Analyzer.html) — run the same rule engine used by Tabular Editor without installing .NET 6 or Tabular Editor itself.
+
+```bash
+# Microsoft community BPA rules (fetched live — same ruleset as Tabular Editor)
 pbi govern bpa check
 
-# Filter to errors only — CI gate
+# Filter to errors only — safe CI gate
 pbi govern bpa check --severity error
 
-# Use a local corporate rule file
+# Local corporate rule file
 pbi govern bpa check --file ./governance/CorpBPARules.json
 
 # JSON output for downstream tooling
-pbi --json govern bpa check --file ./governance/CorpBPARules.json
+pbi --json govern bpa check --severity error
 ```
 
-**GitHub Actions governance gate (works on `ubuntu-latest` — no Windows runner needed):**
+**GitHub Actions governance gate — works on `ubuntu-latest`, no Windows runner needed:**
 
 ```yaml
 - name: BPA governance gate
   run: pbi --backend mock govern bpa check --severity error
-  # exits 1 on BPA errors → blocks PR merge
+```
+
+**Custom governance plugin** — drop a `.py` file in `~/.pbi-cli/rules/`:
+
+```python
+from pbi_cli.governance.engine import GovernanceRule, Violation
+
+class NoHardcodedDatesRule(GovernanceRule):
+    id = "custom.no-hardcoded-dates"
+    severity = "error"
+
+    def check(self, model) -> list[Violation]:
+        return [
+            Violation(self, f"Measure '{m.name}' contains a hardcoded year")
+            for m in model.measures
+            if "2024" in m.expression or "2025" in m.expression
+        ]
 ```
 
 ---
 
-## Governance & CI/CD
+## Claude Code Skills
 
-Built-in rules + BPA run out of the box. Drop a `.py` file in `~/.pbi-cli/rules/` to add organisation-specific rules.
-
-```bash
-pbi govern rules              # list all built-in + plugin rules
-pbi govern check --fail-on error    # exit 3 on violations — CI gate
-pbi --json govern check       # structured {summary, violations} JSON output
-pbi govern fix --auto         # auto-fix PascalCase, format strings, folders
-```
-
-### BPA Compatibility
+Run `pbi connect` to install all 10 skills into `~/.claude/skills/` in one step:
 
 ```bash
-# Microsoft community rules (fetched live — same as Tabular Editor)
-pbi govern bpa check
-
-# Local rule set
-pbi govern bpa check --file ./BPARules.json
-
-# Filter by severity or category
-pbi govern bpa check --severity error --category Performance
+pbi connect    # connects to Desktop + installs skills + prints model summary
 ```
 
-### GitHub Actions
+Or install manually:
 
-Copy `.github/workflows/pbi-govern.yml` from this repo — it runs governance on every PR,
-fails on errors, and posts a summary comment automatically.
+```bash
+pbi skills install --all
+pbi skills check          # verify compatibility with installed CLI version
+```
+
+| Skill | Covers |
+|---|---|
+| `power-bi-modeling` | Star schema, source profiling, partitions, incremental refresh, calendar, M queries |
+| `power-bi-dax` | DAX authoring, Time Intelligence, YAML unit tests, filter context, design patterns |
+| `power-bi-performance` | Query tracing, benchmarking, VertiPaq, storage vs formula engine |
+| `power-bi-report-design` | Pages, 32 visual types, bookmarks, drillthrough, auto-layout, conditional formatting |
+| `power-bi-design-system` | WCAG themes, brand colours, typography, custom visual SDK |
+| `power-bi-governance` | Built-in rules, BPA, custom plugins, auto-fix, CI gate |
+| `power-bi-security-and-docs` | RLS, perspectives, role testing, data dictionary, lineage, audit logs |
+| `power-bi-deployment` | XMLA deploy, TMDL snapshots, multi-environment promotion, auth setup |
+| `power-bi-diagnostics` | `pbi doctor`, pythonnet/AMO resolution, error playbook, connection troubleshooting |
+| `power-bi-project-orchestrator` | Coordinates multi-skill workflows: model → DAX → governance → report → deploy |
+
+---
+
+## CI/CD Integration
+
+Full governance + BPA + DAX tests run on `ubuntu-latest` with the mock backend — no Windows runner, no Power BI infrastructure.
 
 ```yaml
-# One-liner governance gate for your own repo:
-- run: pbi --backend mock --json govern check --fail-on error
+# .github/workflows/pbi-govern.yml
+name: Power BI Governance
+
+on: [push, pull_request]
+
+jobs:
+  govern:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pbi-enterprise-cli
+
+      - name: Governance rules
+        run: pbi --backend mock govern check --fail-on error
+
+      - name: BPA check
+        run: pbi --backend mock govern bpa check --severity error
+
+      - name: DAX unit tests
+        run: pbi --backend mock dax test --suite ./tests/measures/
+
+      - name: Upload governance report
+        if: always()
+        run: pbi --backend mock --json govern check > governance-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: governance-report
+          path: governance-report.json
 ```
-
-See also `azure-pipelines-govern.yml` for Azure DevOps.
-
----
-
-## Snapshots & Rollback
-
-```bash
-# Save a snapshot before risky changes
-pbi snapshot create --label before-refactor
-
-# See all snapshots
-pbi snapshot list
-
-# Diff current model against a snapshot
-pbi snapshot diff 20260530_142300_before-refactor
-
-# Restore (requires --confirm)
-pbi snapshot restore 20260530_142300_before-refactor --confirm
-```
-
----
-
-## Multi-Environment Support
-
-Named connections in `~/.pbi-cli/connections.json` — switch with one command:
-
-```bash
-pbi connections add           # interactive wizard
-pbi env list                  # show all environments
-pbi env use fabric-dev        # set default
-pbi env promote fabric-dev fabric-prod --confirm   # deploy dev → prod
-```
-
-See `docs/auth/xmla-auth.md` for service principal, managed identity, and interactive auth.
-
----
-
-## Authenticated REST Server
-
-```bash
-# Generate a key
-export PBI_SERVER_KEY=$(pbi server generate-key)
-
-# Start server (localhost-only by default)
-pbi server start
-
-# Call the API
-curl -H "X-PBI-API-Key: $PBI_SERVER_KEY" http://localhost:7788/api/tables
-```
-
-The server binds to `127.0.0.1` by default. Use `--host 0.0.0.0` only behind a firewall.
-All endpoints require the `X-PBI-API-Key` header — no unauthenticated access.
-
----
-
-## XMLA Backend
-
-Connect to Power BI Premium or Fabric without Desktop:
-
-```bash
-# Add a named connection
-pbi connections add
-
-# Use it
-pbi --connection fabric-prod model tables
-pbi --connection fabric-prod govern check --fail-on error
-pbi --connection fabric-prod deploy push --workspace "Sales-PROD"
-```
-
-Full auth guide: [docs/auth/xmla-auth.md](docs/auth/xmla-auth.md)
-
----
-
-## Claude Code Skills (10 skills)
-
-Install Power BI skills into Claude Code for AI-assisted development:
-
-```bash
-# Install all 10 skills
-pbi skills install --all
-
-# Check compatibility with current CLI version
-pbi skills check
-
-# Install specific skills
-pbi skills install power-bi-dax power-bi-governance
-```
-
-**30 bundled skills:**
-
-| Skill | Purpose |
-|---|---|
-| `power-bi-advisor` | Master orchestrator — routes any question to the right skill |
-| `power-bi-dax` | DAX measures, time intelligence, VAR/RETURN patterns |
-| `power-bi-modeling` | Star schema, relationships, dimensional design |
-| `power-bi-power-query` | M language, ETL, REST API connectors, query folding |
-| `power-bi-performance` | Query optimisation, VertiPaq, DAX Studio patterns |
-| `power-bi-rls-security` | Dynamic RLS, hierarchy security, OLS |
-| `power-bi-themes` | WCAG-compliant themes, brand palettes |
-| `power-bi-layout` | Shelf-packing auto-layout, navigation patterns |
-| `power-bi-report` | Report pages, bookmarks, drillthrough |
-| `power-bi-visual-selection` | Which visual for which data question |
-| `power-bi-visuals` | Visual add/configure, conditional formatting |
-| `power-bi-governance` | Rules, auto-fix, custom plugins, BPA |
-| `power-bi-deployment` | XMLA deploy, snapshot, diff, rollback |
-| `power-bi-deployment-pipeline` | Git integration, CI/CD, Azure DevOps |
-| `power-bi-fabric` | OneLake, Medallion, Direct Lake, RTI, KQL |
-| `power-bi-copilot` | Copilot setup, Q&A synonyms, Smart Narratives, AI visuals |
-| `power-bi-templates` | Starter templates: Sales, Finance, HR, Operations, Marketing |
-| `power-bi-sources` | SQL/Fabric/REST profiling, star-schema scaffold |
-| `power-bi-docs` | Data dictionary, measure catalog, ERDs |
-| `power-bi-testing` | DAX unit tests, regression suites, CI integration |
-| `power-bi-security` | RLS, OLS, workspace roles |
-| `power-bi-partitions` | Partition strategy, incremental refresh |
-| `power-bi-diagnostics` | Doctor, environment checks, troubleshooting |
-| `power-bi-patterns` | End-to-end workflows, design patterns |
-| `power-bi-pages` | Drillthrough, tooltip pages, mobile layout |
-| `power-bi-filters` | Visual, page, and report-level filters |
-| `power-bi-design-system` | Brand consistency, typography, colour systems |
-| `power-bi-page-designer` | Full page design from business domain description |
-| `power-bi-project-orchestrator` | End-to-end project orchestration |
-| `power-bi-troubleshooter` | Guided troubleshooting workflows |
 
 ---
 
@@ -323,30 +267,32 @@ pbi skills install power-bi-dax power-bi-governance
 | `--connection <name>` | Use a named connection from `~/.pbi-cli/connections.json` |
 | `--port 5000` | Desktop local server port |
 
----
-
 ## Exit Code Contract
 
 | Code | Meaning |
-|------|---------|
-| 0 | Success |
-| 1 | User error — bad args, missing flags |
-| 2 | Connection error — Desktop not open, XMLA unreachable |
-| 3 | Validation error — governance violation, schema error |
-| 4 | Operation error — TOM write failed, partial completion |
-
-See [STABILITY.md](STABILITY.md) for the full API stability policy.
-
----
+|---|---|
+| `0` | Success |
+| `1` | User error — bad args, missing flags |
+| `2` | Connection error — Desktop not open, XMLA unreachable |
+| `3` | Validation error — governance violation, schema error |
+| `4` | Operation error — TOM write failed, partial completion |
 
 ## Environment Variables
 
 | Variable | Purpose |
 |---|---|
 | `ANTHROPIC_API_KEY` | Claude AI for `pbi measure generate` |
-| `PBI_SERVER_KEY` | API key for `pbi server start` (required) |
+| `PBI_SERVER_KEY` | API key for `pbi server start` |
 | `PBI_CLIENT_SECRET` | Service principal secret for XMLA connections |
 | `PBI_REST_BEARER` | Default Bearer token for REST source profiling |
+
+---
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, branch strategy, and the PR process.
+
+**Good First Issues** are labelled [`good first issue`](https://github.com/mudassir09/pbi-enterprise-cli/issues?q=label%3A%22good+first+issue%22) — these are self-contained tasks with clear acceptance criteria and no deep context required.
 
 ---
 
@@ -354,34 +300,17 @@ See [STABILITY.md](STABILITY.md) for the full API stability policy.
 
 | Document | Contents |
 |---|---|
-| [docs/auth/xmla-auth.md](docs/auth/xmla-auth.md) | XMLA auth: service principal, managed identity, interactive |
+| [docs/auth/xmla-auth.md](docs/auth/xmla-auth.md) | XMLA auth: service principal, managed identity, device flow |
 | [docs/deployment.md](docs/deployment.md) | Snapshot format, diff algorithm, push safety, rollback |
-| [docs/source-profiling.md](docs/source-profiling.md) | Source types, classification logic, scaffold output |
-| [STABILITY.md](STABILITY.md) | Stable command surface, exit code contract, deprecation policy |
-| [MAINTAINERS.md](MAINTAINERS.md) | Maintainer team, support SLAs, release process |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
+| [SECURITY.md](SECURITY.md) | Security policy and vulnerability reporting |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branch strategy, coding standards, PR guide |
-
----
-
-## Development
-
-```bash
-git clone https://github.com/mudassir09/pbi-enterprise-cli.git
-cd pbi-enterprise-cli
-pip install -e ".[all]"
-
-# Run the full test suite (575 tests, ~7 s)
-python -m pytest
-
-# Lint
-ruff check src/ tests/
-
-# Type check
-mypy src/
-```
+| [STABILITY.md](STABILITY.md) | Stable command surface, exit code contract, deprecation policy |
 
 ---
 
 ## License
 
-[MIT](LICENSE) — © 2026 Mudassir
+MIT © [Mudassir](https://github.com/mudassir09) — see [LICENSE](LICENSE).
+
+The bundled AMO/ADOMD client libraries are licensed under the [Microsoft Software License Terms](https://go.microsoft.com/fwlink/?LinkId=2179979).

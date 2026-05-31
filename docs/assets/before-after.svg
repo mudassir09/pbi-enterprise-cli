@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="340" viewBox="0 0 900 340">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0D1117"/>
+      <stop offset="100%" style="stop-color:#161B22"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="340" fill="url(#bg)" rx="12"/>
+  <rect x="0" y="0" width="900" height="4" fill="#0078D4" rx="2"/>
+
+  <!-- Title -->
+  <text x="450" y="36" font-family="'Segoe UI', system-ui, sans-serif" font-size="15"
+        font-weight="600" fill="#8B949E" text-anchor="middle" letter-spacing="2">
+    BEFORE vs AFTER
+  </text>
+
+  <!-- ─── BEFORE panel ─── -->
+  <rect x="30" y="55" width="390" height="265" fill="#161B22" rx="10"
+        stroke="#DA3633" stroke-width="1.5"/>
+  <rect x="30" y="55" width="390" height="36" fill="#DA363320" rx="10"/>
+  <rect x="30" y="79" width="390" height="12" fill="#DA363320"/>
+  <text x="225" y="79" font-family="'Segoe UI', system-ui, sans-serif" font-size="13"
+        font-weight="700" fill="#F85149" text-anchor="middle">✗  Without pbi-enterprise-cli</text>
+
+  <!-- Before steps -->
+  <text x="55" y="115" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8B949E">1. Open Power BI Desktop manually</text>
+  <text x="55" y="137" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8B949E">2. Click through Model view to audit measures</text>
+  <text x="55" y="159" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8B949E">3. Manually check each naming convention</text>
+  <text x="55" y="181" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8B949E">4. Run Tabular Editor separately for BPA</text>
+  <text x="55" y="203" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8B949E">5. Write DAX in the formula bar</text>
+  <text x="55" y="225" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8B949E">6. Export TMDL manually via external tools</text>
+  <text x="55" y="247" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8B949E">7. Deploy via Power BI Service UI</text>
+  <text x="55" y="269" font-family="'Segoe UI', system-ui, sans-serif" font-size="12" fill="#8B949E">8. Write custom CI scripts to glue it together</text>
+
+  <!-- Time estimate -->
+  <rect x="55" y="286" width="340" height="22" fill="#DA363320" rx="6"/>
+  <text x="225" y="301" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
+        fill="#F85149" text-anchor="middle">⏱  45–90 minutes per model review cycle</text>
+
+  <!-- Divider arrow -->
+  <text x="450" y="188" font-family="'Segoe UI', system-ui, sans-serif" font-size="28"
+        fill="#0078D4" text-anchor="middle">→</text>
+
+  <!-- ─── AFTER panel ─── -->
+  <rect x="480" y="55" width="390" height="265" fill="#161B22" rx="10"
+        stroke="#3FB950" stroke-width="1.5"/>
+  <rect x="480" y="55" width="390" height="36" fill="#3FB95020" rx="10"/>
+  <rect x="480" y="79" width="390" height="12" fill="#3FB95020"/>
+  <text x="675" y="79" font-family="'Segoe UI', system-ui, sans-serif" font-size="13"
+        font-weight="700" fill="#3FB950" text-anchor="middle">✓  With pbi-enterprise-cli</text>
+
+  <!-- After: terminal lines -->
+  <rect x="500" y="98" width="350" height="176" fill="#0D1117" rx="6" stroke="#30363D" stroke-width="1"/>
+
+  <text x="516" y="118" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#484F58">$</text>
+  <text x="530" y="118" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#58A6FF">pbi connect</text>
+  <text x="516" y="134" font-family="'Consolas','Courier New',monospace" font-size="10" fill="#3FB950">✓ Connected — Sales Model (1500)</text>
+
+  <text x="516" y="152" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#484F58">$</text>
+  <text x="530" y="152" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#58A6FF">pbi govern check --fail-on error</text>
+  <text x="516" y="168" font-family="'Consolas','Courier New',monospace" font-size="10" fill="#F0883E">⚠ 3 violations found</text>
+
+  <text x="516" y="186" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#484F58">$</text>
+  <text x="530" y="186" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#58A6FF">pbi govern fix --auto</text>
+  <text x="516" y="202" font-family="'Consolas','Courier New',monospace" font-size="10" fill="#3FB950">✓ 3 issues fixed automatically</text>
+
+  <text x="516" y="220" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#484F58">$</text>
+  <text x="530" y="220" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#58A6FF">pbi govern bpa check --severity error</text>
+  <text x="516" y="236" font-family="'Consolas','Courier New',monospace" font-size="10" fill="#3FB950">✓ All BPA rules pass</text>
+
+  <text x="516" y="254" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#484F58">$</text>
+  <text x="530" y="254" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#58A6FF">pbi deploy push --connection fabric-prod</text>
+  <text x="516" y="270" font-family="'Consolas','Courier New',monospace" font-size="10" fill="#3FB950">✓ Deployed to Fabric workspace</text>
+
+  <!-- Time estimate -->
+  <rect x="505" y="286" width="340" height="22" fill="#3FB95020" rx="6"/>
+  <text x="675" y="301" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
+        fill="#3FB950" text-anchor="middle">⏱  Under 5 minutes · scriptable · CI/CD ready</text>
+</svg>

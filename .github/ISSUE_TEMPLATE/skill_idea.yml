@@ -1,0 +1,54 @@
+name: Skill Idea
+description: Suggest an improvement or new scenario for a Claude Code Power BI skill
+labels: ["skills", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        pbi-enterprise-cli ships 10 Claude Code skills that give AI assistants deep Power BI knowledge. If a skill is missing a scenario, handles something wrong, or could go deeper — let us know.
+
+  - type: dropdown
+    id: skill
+    attributes:
+      label: Which skill?
+      options:
+        - power-bi-modeling
+        - power-bi-dax
+        - power-bi-performance
+        - power-bi-report-design
+        - power-bi-design-system
+        - power-bi-governance
+        - power-bi-security-and-docs
+        - power-bi-deployment
+        - power-bi-diagnostics
+        - power-bi-project-orchestrator
+        - New skill (doesn't fit any existing one)
+    validations:
+      required: true
+
+  - type: textarea
+    id: scenario
+    attributes:
+      label: What scenario is missing or wrong?
+      description: |
+        Describe what you asked Claude Code to do, what the skill produced, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What should the skill do instead?
+      description: If you have a concrete suggestion — a command, a DAX pattern, a worked example — include it here.
+
+  - type: checkboxes
+    id: type
+    attributes:
+      label: Type of change
+      options:
+        - label: Missing command reference
+        - label: Missing worked example
+        - label: Missing edge case / error handling
+        - label: Missing cross-skill handoff guidance
+        - label: Wrong or outdated information
+        - label: New scenario that needs a new skill

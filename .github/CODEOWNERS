@@ -1,0 +1,5 @@
+# Global owner — reviews all PRs by default
+*  @mudassir09
+
+# Skills need careful review — tag skill maintainer explicitly
+/skills/  @mudassir09

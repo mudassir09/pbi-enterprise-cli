@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="300" viewBox="0 0 1200 300">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0D1117;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#161B22;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0078D4;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#50E6FF;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="pill-bg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0078D4;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#50E6FF;stop-opacity:0.15"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="300" fill="url(#bg)" rx="12"/>
+
+  <!-- Top accent bar -->
+  <rect x="0" y="0" width="1200" height="4" fill="url(#accent)" rx="2"/>
+
+  <!-- Left geometric decoration -->
+  <rect x="40" y="40" width="3" height="220" fill="url(#accent)" opacity="0.6" rx="2"/>
+  <rect x="52" y="70" width="3" height="160" fill="url(#accent)" opacity="0.3" rx="2"/>
+
+  <!-- Right geometric decoration -->
+  <rect x="1157" y="40" width="3" height="220" fill="url(#accent)" opacity="0.6" rx="2"/>
+  <rect x="1145" y="70" width="3" height="160" fill="url(#accent)" opacity="0.3" rx="2"/>
+
+  <!-- Main title -->
+  <text x="600" y="118" font-family="'Segoe UI', system-ui, -apple-system, sans-serif"
+        font-size="52" font-weight="700" fill="#FFFFFF" text-anchor="middle"
+        letter-spacing="-1">pbi-enterprise-cli</text>
+
+  <!-- Gradient underline -->
+  <rect x="200" y="130" width="800" height="3" fill="url(#accent)" rx="2" opacity="0.8"/>
+
+  <!-- Tagline -->
+  <text x="600" y="172" font-family="'Segoe UI', system-ui, -apple-system, sans-serif"
+        font-size="18" font-weight="400" fill="#8B949E" text-anchor="middle">
+    Enterprise Power BI automation — XMLA/Fabric · BPA Governance · DAX Testing · Claude Code Skills
+  </text>
+
+  <!-- Feature pills -->
+  <!-- XMLA/Fabric -->
+  <rect x="148" y="198" width="140" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="218" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
+        fill="#50E6FF" text-anchor="middle">XMLA / Fabric</text>
+
+  <!-- Python BPA -->
+  <rect x="306" y="198" width="148" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="380" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
+        fill="#50E6FF" text-anchor="middle">Python-native BPA</text>
+
+  <!-- 3 Backends -->
+  <rect x="472" y="198" width="120" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="532" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
+        fill="#50E6FF" text-anchor="middle">3 Backends</text>
+
+  <!-- CI/CD Ready -->
+  <rect x="610" y="198" width="120" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="670" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
+        fill="#50E6FF" text-anchor="middle">CI/CD Ready</text>
+
+  <!-- 10 Skills -->
+  <rect x="748" y="198" width="106" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="801" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
+        fill="#50E6FF" text-anchor="middle">10 AI Skills</text>
+
+  <!-- 500+ Tests -->
+  <rect x="872" y="198" width="118" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="931" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
+        fill="#50E6FF" text-anchor="middle">500+ Tests</text>
+
+  <!-- Install hint -->
+  <rect x="380" y="248" width="440" height="34" fill="#161B22" rx="8" stroke="#30363D" stroke-width="1"/>
+  <text x="400" y="270" font-family="'Consolas', 'Courier New', monospace" font-size="13"
+        fill="#8B949E">$</text>
+  <text x="418" y="270" font-family="'Consolas', 'Courier New', monospace" font-size="13"
+        fill="#58A6FF">uv tool install</text>
+  <text x="570" y="270" font-family="'Consolas', 'Courier New', monospace" font-size="13"
+        fill="#FFFFFF"> pbi-enterprise-cli</text>
+</svg>
