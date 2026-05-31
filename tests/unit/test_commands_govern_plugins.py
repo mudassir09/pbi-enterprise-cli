@@ -129,7 +129,7 @@ class TestPluginsSearch:
         ):
             result = _run(runner, "govern", "plugins", "search", "nonexistent-xyz", "--json")
         assert result.exit_code == 0
-        assert result.output.strip() == "[]"
+        assert result.output.strip() == "[]", f"Expected '[]', got: {result.output!r}"
 
     def test_search_registry_unavailable(self, runner):
         import urllib.error

@@ -27,10 +27,9 @@ class TestYamlOutput:
         data = yaml.safe_load(result.output)
         assert isinstance(data, list)
 
-    def test_security_roles_yaml(self, runner):
-        result = runner.invoke(cli, ["--backend", "mock", "--yaml", "security", "roles"])
+    def test_model_relationships_yaml(self, runner):
+        result = runner.invoke(cli, ["--backend", "mock", "--yaml", "model", "relationships"])
         assert result.exit_code == 0
-        # security roles goes through output_json_or_table → valid YAML list
         import yaml as _yaml
         data = _yaml.safe_load(result.output)
         assert isinstance(data, list)

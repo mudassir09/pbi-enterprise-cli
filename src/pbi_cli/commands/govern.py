@@ -286,16 +286,20 @@ def plugins_search(query: str, output_json: bool) -> None:
 
     from rich.table import Table
 
-    console.print(f"[cyan]Fetching registry from:[/cyan] {_PLUGIN_REGISTRY_URL}")
+    if not output_json:
+        console.print(f"[cyan]Fetching registry from:[/cyan] {_PLUGIN_REGISTRY_URL}")
     try:
         with urllib.request.urlopen(_PLUGIN_REGISTRY_URL, timeout=10) as resp:  # noqa: S310
             registry = json.loads(resp.read().decode())
     except Exception as exc:
-        console.print(f"[red]Could not fetch registry:[/red] {exc}")
-        console.print(
-            "\nYou can install plugins manually — place any .py file in ~/.pbi-cli/rules/\n"
-            "that exports RULE_ID (str) and check(backend) -> list[dict]."
-        )
+        if output_json:
+            click.echo(json.dumps({"error": str(exc)}))
+        else:
+            console.print(f"[red]Could not fetch registry:[/red] {exc}")
+            console.print(
+                "\nYou can install plugins manually — place any .py file in ~/.pbi-cli/rules/\n"
+                "that exports RULE_ID (str) and check(backend) -> list[dict]."
+            )
         raise SystemExit(1)
 
     plugins = registry.get("plugins", [])
