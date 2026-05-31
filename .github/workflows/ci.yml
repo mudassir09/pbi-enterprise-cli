@@ -53,12 +53,16 @@ jobs:
       - name: Run tests with coverage (excluding e2e)
         run: pytest -m "not e2e" --cov-report=xml
         # addopts in pyproject.toml supplies --cov, --cov-fail-under=70, and omit rules
-      - name: Upload coverage report
+      - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'
-        uses: actions/upload-artifact@v7
+        uses: codecov/codecov-action@v5
         with:
-          name: coverage-xml
-          path: coverage.xml
+          files: coverage.xml
+          flags: unittests
+          name: pbi-enterprise-cli
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   windows-test:
     name: Windows Tests — TOM/XMLA backends (Python 3.11)
