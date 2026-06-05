@@ -8,7 +8,7 @@
 [![codecov](https://codecov.io/gh/mudassir09/pbi-enterprise-cli/graph/badge.svg)](https://codecov.io/gh/mudassir09/pbi-enterprise-cli)
 [![PyPI](https://img.shields.io/pypi/v/pbi-enterprise-cli?cacheSeconds=300)](https://pypi.org/project/pbi-enterprise-cli/)
 [![Python](https://img.shields.io/pypi/pyversions/pbi-enterprise-cli?cacheSeconds=300)](https://pypi.org/project/pbi-enterprise-cli/)
-[![License](https://img.shields.io/github/license/mudassir09/pbi-enterprise-cli)](https://github.com/mudassir09/pbi-enterprise-cli/blob/main/LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue)](https://github.com/mudassir09/pbi-enterprise-cli/blob/main/LICENSE)
 [![Downloads](https://img.shields.io/pypi/dm/pbi-enterprise-cli)](https://pypi.org/project/pbi-enterprise-cli/)
 
 </div>
