@@ -4,12 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pbi-enterprise-cli"
-version = "1.0.2"
-description = "Full-stack Power BI automation CLI — XMLA/Fabric connectivity, Python-native BPA governance, semantic model management, DAX testing, PBIR authoring, and AI-powered measures"
+version = "1.1.0"
+description = "Power BI & Microsoft Fabric automation CLI — TMDL/XMLA/REST backends, Python-native BPA governance, DAX testing & lint, PBIR authoring, MCP server, AI measures"
 readme = "README.pypi.md"
 requires-python = ">=3.10"
 license = { text = "MIT AND LicenseRef-Microsoft-AS-Client-Libraries" }
-keywords = ["power-bi", "cli", "dax", "tmdl", "pbir", "powerbi", "pbip", "xmla", "fabric"]
+keywords = [
+    "power-bi", "powerbi", "cli", "dax", "tmdl", "pbir", "xmla",
+    "fabric", "microsoft-fabric", "governance", "bpa",
+    "semantic-model", "claude-code", "ai-agent", "mcp",
+]
 authors = [
     { name = "Mudassir", email = "mir.mudassir1@gmail.com" }
 ]
@@ -81,7 +85,7 @@ warn_unused_ignores = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=pbi_cli --cov-report=term-missing --cov-fail-under=68"
+addopts = "--cov=pbi_cli --cov-report=term-missing --cov-fail-under=75"
 markers = ["e2e: requires live Power BI Desktop or XMLA endpoint"]
 
 [tool.coverage.run]

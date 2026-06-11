@@ -7,12 +7,14 @@ from rich.console import Console
 
 from pbi_cli import __version__
 from pbi_cli.commands import (
+    agent_cmd,
     calendar_cmd,
     connections,
     custom_visual,
     database,
     dax,
     deploy,
+    devops_cmd,
     docs,
     env_cmd,
     fabric_cmd,
@@ -20,8 +22,11 @@ from pbi_cli.commands import (
     govern,
     layout,
     measure,
+    migrate_cmd,
     model,
+    ops_cmd,
     partition,
+    pquery_cmd,
     repl,
     report,
     security,
@@ -29,6 +34,8 @@ from pbi_cli.commands import (
     skills_cmd,
     snapshot,
     source,
+    tenant_cmd,
+    test_cmd,
     theme,
     trace,
     visual,
@@ -68,10 +75,11 @@ def _apply_dry_run(ctx: click.Context, param: click.Parameter, value: bool) -> b
 )
 @click.option(
     "--backend",
-    type=click.Choice(["desktop", "xmla", "mock"]),
+    type=click.Choice(["desktop", "xmla", "mock", "file", "rest"]),
     default="desktop",
     show_default=True,
-    help="Backend to use for Power BI connection.",
+    help="Backend: desktop (TOM), xmla (Premium/Fabric), mock (CI fixtures), "
+    "file (TMDL/PBIP folder — any OS), rest (executeQueries API — any OS).",
 )
 @click.option(
     "--port",
@@ -79,9 +87,21 @@ def _apply_dry_run(ctx: click.Context, param: click.Parameter, value: bool) -> b
     default=None,
     help="Override the local Analysis Services port (desktop backend).",
 )
+@click.option(
+    "--path",
+    "model_path",
+    type=click.Path(),
+    default=None,
+    help="TMDL/PBIP project folder (file backend). Defaults to the current directory.",
+)
 @click.pass_context
 def cli(  # noqa: PLR0913
-    ctx: click.Context, output_json: bool, output_yaml: bool, backend: str, port: int | None
+    ctx: click.Context,
+    output_json: bool,
+    output_yaml: bool,
+    backend: str,
+    port: int | None,
+    model_path: str | None,
 ) -> None:
     """pbi — Power BI one-stop-shop CLI for AI-driven development.
 
@@ -95,6 +115,8 @@ def cli(  # noqa: PLR0913
     ctx.obj["backend"] = backend
     if port:
         ctx.obj["port"] = port
+    if model_path:
+        ctx.obj["path"] = model_path
 
 
 # Register command groups
@@ -126,6 +148,16 @@ cli.add_command(calendar_cmd.calendar_cmd)
 cli.add_command(calendar_cmd.culture_cmd)
 cli.add_command(repl.repl)
 cli.add_command(custom_visual.custom_visual)
+cli.add_command(tenant_cmd.tenant_cmd)
+cli.add_command(test_cmd.test_cmd)
+cli.add_command(devops_cmd.init_cmd)
+cli.add_command(devops_cmd.diff_cmd)
+cli.add_command(agent_cmd.mcp_cmd)
+cli.add_command(agent_cmd.ask_cmd)
+cli.add_command(agent_cmd.introspect_cmd)
+cli.add_command(pquery_cmd.pquery_cmd)
+cli.add_command(ops_cmd.ops_cmd)
+cli.add_command(migrate_cmd.migrate_cmd)
 
 
 @cli.command()

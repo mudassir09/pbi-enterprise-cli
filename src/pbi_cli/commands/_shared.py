@@ -25,6 +25,24 @@ def get_backend(ctx: click.Context) -> Any:
         if backend_name == "mock":
             b: Any = MockTomBackend()
             b.connect()
+        elif backend_name == "file":
+            from pbi_cli.backends.file_backend import FileBackend
+
+            try:
+                b = FileBackend(path=obj.get("path"))
+            except FileNotFoundError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise click.Abort()
+            b.connect()
+        elif backend_name == "rest":
+            from pbi_cli.backends.rest_backend import RestBackend
+
+            b = RestBackend()
+            try:
+                b.connect()
+            except ConnectionError as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise click.Abort()
         elif backend_name == "xmla":
             b = XmlaBackend()
         else:

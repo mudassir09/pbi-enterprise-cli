@@ -172,3 +172,145 @@ def dax_test(ctx: click.Context, suite: str) -> None:
     console.print(f"\n[bold]{passed} passed, {failed} failed[/bold] out of {len(tests)} tests")
     if failed:
         raise SystemExit(1)
+
+
+@dax.command("format")
+@click.option("--expression", "-e", default=None, help="Format a single DAX expression.")
+@click.option("--measure", "measure_ref", default=None,
+              help="Format one measure, referenced as Table[Name].")
+@click.option("--all", "format_all", is_flag=True, help="Format every measure in the model.")
+@click.option("--write", is_flag=True, help="Persist formatted expressions back to the model.")
+@click.option("--check", is_flag=True,
+              help="Exit 1 if any measure is not already formatted (CI / pre-commit gate).")
+@click.option("--width", default=100, show_default=True, help="Line width before breaking args.")
+@click.pass_context
+def dax_format(  # noqa: PLR0913
+    ctx: click.Context,
+    expression: str | None,
+    measure_ref: str | None,
+    format_all: bool,
+    write: bool,
+    check: bool,
+    width: int,
+) -> None:
+    """Format DAX (DAX Formatter conventions: uppercase functions, long-line style)."""
+    from pbi_cli.dax_tools import format_dax
+
+    if expression:
+        click.echo(format_dax(expression, width=width))
+        return
+
+    backend = get_backend(ctx)
+    measures = backend.measure_list()
+    if measure_ref:
+        import re as _re
+
+        m = _re.match(r"^(?:'([^']+)'|([^\[]+))\[([^\]]+)\]$", measure_ref)
+        if not m:
+            raise click.ClickException("Use the form Table[Measure Name].")
+        table, name = (m.group(1) or m.group(2)), m.group(3)
+        measures = [x for x in measures if x["table"] == table and x["name"] == name]
+        if not measures:
+            raise click.ClickException(f"Measure {measure_ref} not found.")
+    elif not format_all and not check:
+        raise click.ClickException("Pass --expression, --measure, --all, or --check.")
+
+    changed: list[dict[str, str]] = []
+    for m in measures:
+        formatted = format_dax(m.get("expression", ""), width=width)
+        if formatted != (m.get("expression") or "").strip():
+            changed.append({"table": m["table"], "name": m["name"], "formatted": formatted})
+
+    if check:
+        if changed:
+            for c in changed:
+                console.print(f"[yellow]needs formatting:[/yellow] {c['table']}[{c['name']}]")
+            console.print(f"\n[bold]{len(changed)} of {len(measures)} measures need formatting.[/bold]")  # noqa: E501
+            raise SystemExit(1)
+        console.print(f"[green]All {len(measures)} measures formatted.[/green]")
+        return
+
+    for c in changed:
+        if write:
+            backend.measure_update(c["table"], c["name"], expression=c["formatted"])
+            console.print(f"[green]formatted:[/green] {c['table']}[{c['name']}]")
+        else:
+            console.print(f"\n[bold]{c['table']}[{c['name']}][/bold]")
+            click.echo(c["formatted"])
+    if not changed:
+        console.print("[green]Nothing to format.[/green]")
+    elif not write:
+        console.print(f"\n[dim]{len(changed)} measure(s) would change — re-run with --write.[/dim]")
+
+
+@dax.command("lint")
+@click.option("--expression", "-e", default=None, help="Lint a single DAX expression.")
+@click.option(
+    "--fail-on",
+    type=click.Choice(["error", "warning", "info", "never"]),
+    default="never",
+    show_default=True,
+    help="Exit 3 when violations at or above this severity exist (CI gate).",
+)
+@click.pass_context
+def dax_lint(ctx: click.Context, expression: str | None, fail_on: str) -> None:
+    """Static DAX analysis: DIVIDE, EARLIER, volatile functions, filter anti-patterns."""
+    from pbi_cli.dax_tools import lint_expression, lint_measures
+
+    if expression:
+        violations = lint_expression("<expression>", expression)
+    else:
+        backend = get_backend(ctx)
+        violations = lint_measures(backend.measure_list())
+
+    output_json_or_table(violations, ctx, title="DAX Lint")
+    if not violations and not (ctx.obj or {}).get("output_json"):
+        console.print("[green]No DAX lint violations.[/green]")
+
+    rank = {"error": 3, "warning": 2, "info": 1, "never": 99}
+    worst = max((rank.get(v["severity"], 0) for v in violations), default=0)
+    if worst >= rank[fail_on]:
+        raise SystemExit(3)
+
+
+@dax.command("coverage")
+@click.option(
+    "--suite", "suites", multiple=True, type=click.Path(exists=True),
+    help="YAML suite file or directory (repeatable). Default: ./tests/measures",
+)
+@click.pass_context
+def dax_coverage(ctx: click.Context, suites: tuple[str, ...]) -> None:
+    """Report which measures are covered by YAML test suites and which are not."""
+    import re as _re
+
+    paths: list[Path] = []
+    for s in suites or (["tests/measures"] if Path("tests/measures").exists() else []):
+        p = Path(s)
+        paths.extend(sorted(p.glob("*.y*ml")) if p.is_dir() else [p])
+    if not paths:
+        raise click.ClickException("No suite files found — pass --suite.")
+
+    referenced: set[str] = set()
+    for p in paths:
+        data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+        for test in data.get("tests", []):
+            ref = test.get("measure", "")
+            m = _re.match(r"^(?:'[^']+'|[^\[]+)\[([^\]]+)\]$", ref)
+            if m:
+                referenced.add(m.group(1))
+            for token in _re.findall(r"\[([^\]]+)\]", test.get("dax", "")):
+                referenced.add(token)
+
+    backend = get_backend(ctx)
+    measures = backend.measure_list()
+    covered = [m for m in measures if m["name"] in referenced]
+    untested = [m for m in measures if m["name"] not in referenced]
+    pct = round(100 * len(covered) / len(measures)) if measures else 100
+
+    result = {
+        "measures": len(measures),
+        "covered": len(covered),
+        "coverage_pct": pct,
+        "untested": [f"{m['table']}[{m['name']}]" for m in untested],
+    }
+    output_json_or_table(result, ctx, title="DAX Test Coverage")

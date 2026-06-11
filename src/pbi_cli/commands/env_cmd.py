@@ -144,3 +144,38 @@ def env_promote(ctx: click.Context, source_env: str, target_env: str, confirm: b
         "Ensure both connections have 'backend': 'xmla' and valid auth configured.\n"
         "Run 'pbi deploy snapshot' + 'pbi deploy push' for manual promotion."
     )
+
+
+@env_cmd.command("drift")
+@click.option("--path", "model_path", default=".",
+              show_default=True, help="TMDL/PBIP folder that represents source of truth (git).")
+@click.option(
+    "--fail-on-drift", is_flag=True,
+    help="Exit 3 if the live model differs from the repo (CI guard against prod edits).",
+)
+@click.pass_context
+def env_drift(ctx: click.Context, model_path: str, fail_on_drift: bool) -> None:
+    """Detect drift between the repo TMDL and the live connected model.
+
+    Compares the git-tracked TMDL definition (--path) against whatever backend
+    the CLI is connected to (--backend xmla/desktop/rest), and reports
+    object-level differences. Use in CI to catch direct edits to production.
+    """
+    from pbi_cli.backends.file_backend import FileBackend
+    from pbi_cli.commands._shared import get_backend, output_json_or_table
+    from pbi_cli.model_diff import semantic_diff, snapshot_state
+
+    repo_backend = FileBackend(path=model_path)
+    repo_backend.connect()
+    live_backend = get_backend(ctx)
+
+    result = semantic_diff(snapshot_state(repo_backend), snapshot_state(live_backend))
+    if ctx.obj and (ctx.obj.get("output_json") or ctx.obj.get("output_yaml")):
+        output_json_or_table(result, ctx)
+    elif not result["has_changes"]:
+        console.print("[green]No drift — live model matches the repo.[/green]")
+    else:
+        output_json_or_table(result["changes"], ctx, title="Drift (repo -> live)")
+        console.print(f"\n[bold red]{len(result['changes'])} drifted object(s)[/bold red]")
+    if fail_on_drift and result["has_changes"]:
+        raise SystemExit(3)

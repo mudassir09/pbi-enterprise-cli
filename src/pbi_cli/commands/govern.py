@@ -63,8 +63,26 @@ _SEVERITY_RANK = {"info": 0, "warning": 1, "error": 2}
     show_default=True,
     help="Exit with code 3 when any violation at this severity or higher is found.",
 )
+@click.option(
+    "--sarif", "sarif_path", type=click.Path(), default=None,
+    help="Write violations as SARIF 2.1.0 (GitHub code scanning).",
+)
+@click.option(
+    "--markdown", "markdown_path", type=click.Path(), default=None,
+    help="Write a markdown summary (PR comments, job summaries).",
+)
+@click.option(
+    "--comment-pr", is_flag=True,
+    help="Post the markdown summary as a comment on the current PR (GitHub Actions).",
+)
 @click.pass_context
-def govern_check(ctx: click.Context, fail_on: str) -> None:
+def govern_check(
+    ctx: click.Context,
+    fail_on: str,
+    sarif_path: str | None,
+    markdown_path: str | None,
+    comment_pr: bool,
+) -> None:
     """Run all governance rules; output violations with severity (error/warning/info).
 
     \b
@@ -82,6 +100,24 @@ def govern_check(ctx: click.Context, fail_on: str) -> None:
     engine = GovernanceEngine(backend)
     violations = engine.run_all()
     is_json = ctx.obj and ctx.obj.get("output_json")
+
+    if sarif_path or markdown_path or comment_pr:
+        from pbi_cli.governance.exporters import post_pr_comment, to_markdown, to_sarif
+
+        if sarif_path:
+            Path(sarif_path).write_text(
+                json.dumps(to_sarif(violations), indent=2), encoding="utf-8"
+            )
+            console.print(f"[green]SARIF written:[/green] {sarif_path}")
+        if markdown_path:
+            Path(markdown_path).write_text(to_markdown(violations), encoding="utf-8")
+            console.print(f"[green]Markdown written:[/green] {markdown_path}")
+        if comment_pr:
+            try:
+                post_pr_comment(to_markdown(violations))
+                console.print("[green]PR comment posted.[/green]")
+            except Exception as exc:
+                console.print(f"[red]PR comment failed:[/red] {exc}")
 
     errors = [v for v in violations if v["severity"] == "error"]
     warnings_list = [v for v in violations if v["severity"] == "warning"]
@@ -414,3 +450,158 @@ def govern_rules(ctx: click.Context) -> None:
         console.print(
             "\n[yellow]No plugin rules loaded.[/yellow] Place *.py rule files in ~/.pbi-cli/rules/"
         )
+
+
+@govern.command("scan")
+@click.option(
+    "--workspace", "workspace_ids", multiple=True,
+    help="Workspace id to scan (repeatable). Default: all workspaces visible to the admin API.",
+)
+@click.option("--max-workspaces", default=100, show_default=True,
+              help="Cap on workspaces scanned in one run.")
+@click.option(
+    "--fail-on", default="error", type=click.Choice(["info", "warning", "error"]),
+    show_default=True, help="Exit 3 when any violation at this severity or higher is found.",
+)
+@click.option("--timeout", default=300, show_default=True, help="Scan poll timeout (seconds).")
+@click.pass_context
+def govern_scan(
+    ctx: click.Context,
+    workspace_ids: tuple[str, ...],
+    max_workspaces: int,
+    fail_on: str,
+    timeout: int,
+) -> None:
+    """Tenant-wide governance: run rules over every dataset via the Scanner (admin) API.
+
+    Requires a token with Tenant.Read.All (admin) consent. Uses the metadata
+    scanning API (workspaces/getInfo) with dataset schema + expressions, then
+    runs the local governance engine against each scanned dataset.
+    """
+    import time
+
+    from pbi_cli import fabric_api
+    from pbi_cli.backends.mock_backend import MockTomBackend
+    from pbi_cli.governance.engine import GovernanceEngine
+
+    token = fabric_api.get_token()
+    base = fabric_api.POWERBI_API_BASE
+    quiet = bool(ctx.obj and (ctx.obj.get("output_json") or ctx.obj.get("output_yaml")))
+
+    ids = list(workspace_ids)
+    if not ids:
+        if not quiet:
+            console.print("[cyan]Listing workspaces via admin API...[/cyan]")
+        modified = fabric_api.get(f"{base}/admin/workspaces/modified", token)
+        ids = [w["id"] for w in (modified if isinstance(modified, list) else [])]
+    ids = ids[:max_workspaces]
+    if not ids:
+        raise click.ClickException("No workspaces found to scan.")
+
+    if not quiet:
+        console.print(f"[cyan]Requesting scan of {len(ids)} workspace(s)...[/cyan]")
+    scan = fabric_api.post(
+        f"{base}/admin/workspaces/getInfo"
+        "?datasetSchema=True&datasetExpressions=True&lineage=True",
+        token,
+        payload={"workspaces": ids},
+    )
+    scan_id = scan["id"]
+
+    deadline = time.monotonic() + timeout
+    while True:
+        status = fabric_api.get(f"{base}/admin/workspaces/scanStatus/{scan_id}", token)
+        if status.get("status") == "Succeeded":
+            break
+        if time.monotonic() > deadline:
+            raise click.ClickException(f"Scan {scan_id} did not finish within {timeout}s.")
+        time.sleep(2)
+
+    result = fabric_api.get(f"{base}/admin/workspaces/scanResult/{scan_id}", token)
+
+    all_violations: list[dict] = []
+    datasets_scanned = 0
+    for ws in result.get("workspaces", []):
+        for ds in ws.get("datasets", []):
+            datasets_scanned += 1
+            fixture: dict = {
+                "model": {"name": ds.get("name", ""), "compatibility_level": 1600},
+                "tables": [], "columns": [], "measures": [], "relationships": [],
+            }
+            for t in ds.get("tables", []):
+                fixture["tables"].append(
+                    {"name": t.get("name", ""), "isHidden": bool(t.get("isHidden"))}
+                )
+                for c in t.get("columns", []):
+                    fixture["columns"].append({
+                        "table": t.get("name", ""), "name": c.get("name", ""),
+                        "dataType": c.get("dataType", ""), "isHidden": bool(c.get("isHidden")),
+                    })
+                for m in t.get("measures", []):
+                    fixture["measures"].append({
+                        "table": t.get("name", ""), "name": m.get("name", ""),
+                        "expression": m.get("expression", ""),
+                        "description": m.get("description", ""),
+                        "formatString": "",
+                    })
+            b = MockTomBackend(fixture=fixture)
+            b.connect()
+            for v in GovernanceEngine(b).run_all():
+                v["workspace"] = ws.get("name", ws.get("id", ""))
+                v["dataset"] = ds.get("name", "")
+                all_violations.append(v)
+
+    summary = {
+        "workspaces": len(result.get("workspaces", [])),
+        "datasets": datasets_scanned,
+        "violations": len(all_violations),
+    }
+    if ctx.obj and (ctx.obj.get("output_json") or ctx.obj.get("output_yaml")):
+        output_json_or_table({"summary": summary, "violations": all_violations}, ctx)
+    else:
+        console.print(
+            f"\n[bold]Scanned {summary['datasets']} datasets in "
+            f"{summary['workspaces']} workspaces — {summary['violations']} violations[/bold]"
+        )
+        if all_violations:
+            output_json_or_table(all_violations, ctx, title="Tenant Governance Violations")
+
+    threshold = _SEVERITY_RANK[fail_on]
+    if any(_SEVERITY_RANK.get(v["severity"], 0) >= threshold for v in all_violations):
+        raise SystemExit(3)
+
+
+@govern.command("explain")
+@click.option("--rule", "rule_filter", default=None, help="Explain only this rule id.")
+@click.option("--model", "model_id", default="claude-sonnet-4-6", show_default=True)
+@click.pass_context
+def govern_explain(ctx: click.Context, rule_filter: str | None, model_id: str) -> None:
+    """AI explanation of current violations with concrete fix suggestions (requires [ai] extra)."""
+    try:
+        import anthropic
+    except ImportError:
+        raise click.ClickException(
+            "The [ai] extra is required: pip install 'pbi-enterprise-cli[ai]' "
+            "and set ANTHROPIC_API_KEY."
+        )
+    from pbi_cli.governance.engine import GovernanceEngine
+
+    backend = get_backend(ctx)
+    violations = GovernanceEngine(backend).run_all()
+    if rule_filter:
+        violations = [v for v in violations if v.get("rule") == rule_filter]
+    if not violations:
+        console.print("[green]No violations to explain.[/green]")
+        return
+
+    client = anthropic.Anthropic()
+    prompt = (
+        "You are a Power BI governance expert. For each violation below, explain in 1-2 "
+        "sentences why the rule matters and give the exact fix (DAX/TMDL/property change). "
+        "Be concrete and brief.\n\nViolations:\n"
+        + json.dumps(violations[:50], indent=2)
+    )
+    message = client.messages.create(
+        model=model_id, max_tokens=2000, messages=[{"role": "user", "content": prompt}]
+    )
+    console.print(str(getattr(message.content[0], "text", "")))

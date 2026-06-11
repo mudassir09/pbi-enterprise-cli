@@ -559,3 +559,96 @@ def report_page_type_reset(ctx: click.Context, pbip: str, page: str) -> None:
     b = PbirBackend(pbip)
     b.page_set_type(page, "Normal")
     console.print(f"[green]Page reset:[/green] '{page}' is now a normal report page.")
+
+
+# ── Report intelligence: lint, field usage, diff, accessibility ───────────────
+
+
+@report.command("lint")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option(
+    "--fail-on", default="never", show_default=True,
+    type=click.Choice(["error", "warning", "info", "never"]),
+    help="Exit 3 when findings at or above this severity exist (CI gate).",
+)
+@click.pass_context
+def report_lint(ctx: click.Context, pbip: str, fail_on: str) -> None:
+    """Lint the report layer: visual density, hidden visuals, alt text, overlaps."""
+    from pbi_cli.pbir_analysis import lint_report, load_report
+
+    violations = lint_report(load_report(pbip))
+    output_json_or_table(violations, ctx, title="Report Lint")
+    if not violations and not (ctx.obj or {}).get("output_json"):
+        console.print("[green]No report lint findings.[/green]")
+    rank = {"error": 3, "warning": 2, "info": 1, "never": 99}
+    worst = max((rank.get(v["severity"], 0) for v in violations), default=0)
+    if worst >= rank[fail_on]:
+        raise SystemExit(3)
+
+
+@report.command("field-usage")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--unused-only", is_flag=True, help="Print only unused columns/measures.")
+@click.pass_context
+def report_field_usage(ctx: click.Context, pbip: str, unused_only: bool) -> None:
+    """Cross-reference model fields with report visuals: find unused columns/measures.
+
+    Model metadata comes from the active backend — use `--backend file --path <pbip>`
+    to analyze a PBIP repo with no Desktop at all.
+    """
+    from pbi_cli.commands._shared import get_backend
+    from pbi_cli.pbir_analysis import field_usage, load_report
+
+    backend = get_backend(ctx)
+    usage = field_usage(load_report(pbip), backend.column_list(), backend.measure_list())
+    if unused_only:
+        usage = {"unused_columns": usage["unused_columns"],
+                 "unused_measures": usage["unused_measures"]}
+    output_json_or_table(usage, ctx, title="Field Usage")
+    if not (ctx.obj and (ctx.obj.get("output_json") or ctx.obj.get("output_yaml"))):
+        n = len(usage.get("unused_columns", [])) + len(usage.get("unused_measures", []))
+        console.print(f"\n[bold]{n} unused field(s)[/bold] — candidates for removal.")
+
+
+@report.command("diff")
+@click.argument("old_path", type=click.Path(exists=True))
+@click.argument("new_path", type=click.Path(exists=True))
+@click.pass_context
+def report_diff(ctx: click.Context, old_path: str, new_path: str) -> None:
+    """Human-readable visual-level diff between two report versions.
+
+    Compare a PR branch against main:
+      git worktree add /tmp/main main && pbi report diff /tmp/main/MyReport . 
+    """
+    from pbi_cli.pbir_analysis import diff_reports, load_report
+
+    result = diff_reports(load_report(old_path), load_report(new_path))
+    if ctx.obj and (ctx.obj.get("output_json") or ctx.obj.get("output_yaml")):
+        output_json_or_table(result, ctx)
+        return
+    if not result["has_changes"]:
+        console.print("[green]No report changes.[/green]")
+        return
+    output_json_or_table(result["changes"], ctx, title="Report Changes")
+    console.print(f"\n[bold]{len(result['changes'])} change(s)[/bold]")
+
+
+@report.command("a11y")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option(
+    "--fail-on", default="never", show_default=True,
+    type=click.Choice(["error", "warning", "info", "never"]),
+)
+@click.pass_context
+def report_a11y(ctx: click.Context, pbip: str, fail_on: str) -> None:
+    """Accessibility audit: alt text, visible titles, explicit tab order."""
+    from pbi_cli.pbir_analysis import a11y_check, load_report
+
+    findings = a11y_check(load_report(pbip))
+    output_json_or_table(findings, ctx, title="Accessibility Audit")
+    if not findings and not (ctx.obj or {}).get("output_json"):
+        console.print("[green]No accessibility findings.[/green]")
+    rank = {"error": 3, "warning": 2, "info": 1, "never": 99}
+    worst = max((rank.get(v["severity"], 0) for v in findings), default=0)
+    if worst >= rank[fail_on]:
+        raise SystemExit(3)

@@ -1,0 +1,161 @@
+"""MCP server — expose pbi-enterprise-cli capabilities to any MCP client.
+
+A dependency-free stdio implementation of the Model Context Protocol
+(JSON-RPC 2.0 over stdin/stdout, protocol 2024-11-05). Cursor, VS Code
+Copilot, Windsurf, Claude Desktop, and any other MCP client can call the
+model, DAX, governance, lint, and test surface directly.
+
+Note: ADR-001 removed MCP as an *internal* transport between the CLI and TOM.
+This server is the opposite direction — an *outward-facing* integration layer
+for third-party agents; the CLI still talks to TOM in-process.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from typing import Any
+
+PROTOCOL_VERSION = "2024-11-05"
+
+
+def _tool(name: str, description: str, properties: dict | None = None,
+          required: list[str] | None = None) -> dict[str, Any]:
+    return {
+        "name": name,
+        "description": description,
+        "inputSchema": {
+            "type": "object",
+            "properties": properties or {},
+            "required": required or [],
+        },
+    }
+
+
+TOOLS: list[dict[str, Any]] = [
+    _tool("model_info", "Get semantic model name and metadata."),
+    _tool("list_tables", "List all tables in the model."),
+    _tool("list_columns", "List columns, optionally for one table.",
+          {"table": {"type": "string", "description": "Optional table name filter."}}),
+    _tool("list_measures", "List all DAX measures with expressions.",
+          {"table": {"type": "string", "description": "Optional table name filter."}}),
+    _tool("list_relationships", "List model relationships."),
+    _tool("run_dax", "Execute a DAX query and return rows (live backends only).",
+          {"query": {"type": "string", "description": "A DAX query, e.g. EVALUATE ..."}},
+          ["query"]),
+    _tool("govern_check", "Run all governance rules; returns violations."),
+    _tool("dax_lint", "Run the static DAX linter over all measures."),
+    _tool("format_dax", "Format a DAX expression (DAX Formatter conventions).",
+          {"expression": {"type": "string"}}, ["expression"]),
+    _tool("add_measure", "Add a DAX measure to a table.",
+          {"table": {"type": "string"}, "name": {"type": "string"},
+           "expression": {"type": "string"},
+           "format_string": {"type": "string"}},
+          ["table", "name", "expression"]),
+]
+
+
+class McpServer:
+    """Stdio JSON-RPC loop dispatching MCP requests to a pbi backend."""
+
+    def __init__(self, backend: Any) -> None:
+        self._backend = backend
+
+    # --- Tool implementations ---
+
+    def call_tool(self, name: str, args: dict[str, Any]) -> Any:
+        b = self._backend
+        if name == "model_info":
+            return b.model_info()
+        if name == "list_tables":
+            return b.table_list()
+        if name == "list_columns":
+            return b.column_list(args.get("table"))
+        if name == "list_measures":
+            return b.measure_list(args.get("table"))
+        if name == "list_relationships":
+            return b.relationship_list()
+        if name == "run_dax":
+            return b.dax_query(args["query"])
+        if name == "govern_check":
+            from pbi_cli.governance.engine import GovernanceEngine
+
+            return GovernanceEngine(b).run_all()
+        if name == "dax_lint":
+            from pbi_cli.dax_tools import lint_measures
+
+            return lint_measures(b.measure_list())
+        if name == "format_dax":
+            from pbi_cli.dax_tools import format_dax
+
+            return {"formatted": format_dax(args["expression"])}
+        if name == "add_measure":
+            kwargs = {}
+            if args.get("format_string"):
+                kwargs["formatString"] = args["format_string"]
+            return b.measure_add(args["table"], args["name"], args["expression"], **kwargs)
+        raise ValueError(f"Unknown tool: {name}")
+
+    # --- JSON-RPC plumbing ---
+
+    def handle(self, request: dict[str, Any]) -> dict[str, Any] | None:
+        method = request.get("method", "")
+        request_id = request.get("id")
+        params = request.get("params") or {}
+
+        if method == "initialize":
+            result: Any = {
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "pbi-enterprise-cli", "version": _version()},
+            }
+        elif method == "notifications/initialized":
+            return None
+        elif method == "tools/list":
+            result = {"tools": TOOLS}
+        elif method == "tools/call":
+            try:
+                payload = self.call_tool(params.get("name", ""), params.get("arguments") or {})
+                result = {
+                    "content": [{"type": "text",
+                                 "text": json.dumps(payload, indent=2, default=str)}],
+                    "isError": False,
+                }
+            except Exception as exc:
+                result = {
+                    "content": [{"type": "text", "text": f"Error: {exc}"}],
+                    "isError": True,
+                }
+        elif method == "ping":
+            result = {}
+        else:
+            if request_id is None:
+                return None  # unknown notification — ignore
+            return {"jsonrpc": "2.0", "id": request_id,
+                    "error": {"code": -32601, "message": f"Method not found: {method}"}}
+
+        if request_id is None:
+            return None
+        return {"jsonrpc": "2.0", "id": request_id, "result": result}
+
+    def serve_forever(self, stdin: Any = None, stdout: Any = None) -> None:
+        stdin = stdin or sys.stdin
+        stdout = stdout or sys.stdout
+        for line in stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                request = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            response = self.handle(request)
+            if response is not None:
+                stdout.write(json.dumps(response) + "\n")
+                stdout.flush()
+
+
+def _version() -> str:
+    from pbi_cli import __version__
+
+    return __version__

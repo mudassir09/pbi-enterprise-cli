@@ -15,16 +15,17 @@
 
 ---
 
-**pbi-enterprise-cli** is the enterprise-grade Power BI automation CLI — XMLA/Fabric connectivity without Desktop, the only Python-native BPA governance runner, semantic model management, DAX testing, PBIR authoring, and 10 Claude Code skills.
+**pbi-enterprise-cli** is the enterprise-grade Power BI & Microsoft Fabric automation CLI — five backends (including a pure-Python TMDL reader that needs no Windows), the only Python-native BPA governance runner, full Fabric REST coverage, DAX testing + lint + format, PBIR report intelligence, a declarative test platform, an MCP server for AI agents, and 10 Claude Code skills.
 
 **Key differentiators vs alternatives:**
 
-- **XMLA / Fabric without Desktop** — connect directly to Premium or Fabric workspaces via service principal or managed identity; no GUI required
-- **Python-native BPA runner** — the only Python implementation of Best Practice Analyzer; runs on `ubuntu-latest` in CI with zero extra tooling
-- **Three backends, one API** — `desktop` (TOM), `xmla` (Premium/Fabric), `mock` (CI) — same commands, same output, swap with `--backend`
-- **AMO DLLs bundled** — works after `pip install`; no separate Desktop installation needed for XMLA
-- **CI/CD first** — governance gate, DAX unit tests, and snapshot/rollback all work in GitHub Actions on `ubuntu-latest`
-- **10 Claude Code skills** — install with `pbi connect` for AI-assisted Power BI development in under 60 seconds
+- **Real artifacts on any OS** — the `file` backend reads TMDL/PBIP folders straight from your repo (pure Python, no .NET): governance, BPA, lint, docs, and semantic diff run against *real* models on `ubuntu-latest`
+- **Live DAX on any OS** — the `rest` backend runs DAX against any published dataset via the `executeQueries` API; the `xmla` backend gives full read/write on Windows
+- **Python-native BPA runner** — the only Python implementation of Best Practice Analyzer; same ruleset as Tabular Editor, zero extra tooling
+- **Full Fabric lifecycle** — items (CRUD via the Item Definition API), workspaces, git sync, deployment pipelines, OneLake, capacity pause/resume/scale, jobs, Direct Lake diagnostics
+- **Quality platform** — DAX lint/format, report lint + field-usage analysis, dbt-style data tests, schema contracts, RLS matrices, drift detection — all CI-gateable with exit codes and SARIF
+- **AI-agent native** — `pbi mcp serve` exposes every capability to Cursor/Copilot/Claude Desktop; `pbi ask` turns English into executed DAX; 10 Claude Code skills install in one step
+- **One-step CI** — a published GitHub Action and pre-commit hooks: the governance gate is one `uses:` line
 
 ---
 
@@ -54,7 +55,7 @@ uv tool install "pbi-enterprise-cli[server]"      # FastAPI REST server
 uv tool install "pbi-enterprise-cli[viz]"         # WCAG theme validation
 ```
 
-> **Requirements:** Python 3.10–3.13. The `desktop` and `xmla` backends require Windows. The `mock` backend works on Linux and macOS — CI pipelines need no Windows runner for governance, BPA, and DAX tests.
+> **Requirements:** Python 3.10–3.13. The `desktop` and `xmla` backends require Windows. The `file`, `rest`, and `mock` backends work on Linux and macOS — CI pipelines need no Windows runner for governance, BPA, lint, DAX tests, docs, or diff.
 
 ---
 
@@ -78,11 +79,20 @@ pbi govern bpa check --severity error
 # 5. Fix safe violations automatically
 pbi govern fix --auto
 
-# 6. Run DAX unit tests
+# 6. Run DAX unit tests + lint
 pbi dax test --suite ./tests/measures/
+pbi dax lint --fail-on error
 
-# 7. Deploy to Fabric (XMLA)
+# 7. Deploy to Fabric (XMLA — or `pbi fabric item update` from any OS)
 pbi deploy push --connection fabric-prod
+```
+
+No Desktop open? Everything above also works straight off the repo files:
+
+```bash
+pbi --backend file --path . govern check       # governance on real TMDL, any OS
+pbi --backend file --path . docs site          # data-dictionary site from the repo
+pbi ask "top 10 customers by revenue"          # English → DAX → results (rest/xmla)
 ```
 
 ---
@@ -101,7 +111,9 @@ pbi deploy push --connection fabric-prod
 |---|---|
 | **Semantic model** | `pbi model` — tables, columns, relationships, lint, lineage |
 | **DAX measures** | `pbi measure` — add, update, delete, AI-generate, audit |
-| **DAX testing** | `pbi dax` — query, validate, YAML unit-test suites |
+| **DAX testing** | `pbi dax` — query, validate, YAML unit-test suites, coverage |
+| **DAX tooling** | `pbi dax format` (offline formatter) + `pbi dax lint` (static rules) |
+| **Report analysis** | `pbi report lint / field-usage / diff / a11y` — PBIR intelligence |
 | **Source profiling** | `pbi source` — SQL, Excel, CSV, REST → star-schema scaffold |
 | **Calendar** | `pbi calendar` — generate date tables, fiscal year, mark-as-date-table |
 | **Report authoring** | `pbi report` — pages, bookmarks, drillthrough (PBIR GA format) |
@@ -109,14 +121,23 @@ pbi deploy push --connection fabric-prod
 | **Layout** | `pbi layout` — shelf-packing auto-layout, named templates |
 | **Themes** | `pbi theme` — generate WCAG-compliant themes from a brand colour |
 | **Filters** | `pbi filter` — relative-date, TopN, basic value filters |
-| **Governance** | `pbi govern` — built-in rules + BPA + custom plugins, `--fail-on` CI gate |
+| **Governance** | `pbi govern` — built-in rules + BPA + plugins, SARIF, PR comments, tenant-wide scan, AI explain |
+| **Tenant admin** | `pbi tenant` — usage analytics, access review, stale datasets, sensitivity labels |
 | **Security (RLS)** | `pbi security` — role add/delete/test, perspectives |
+| **Testing** | `pbi test` — data quality (DAX-compiled), schema contracts, RLS matrix, synthetic seed |
 | **Partitions** | `pbi partition` — add, refresh, delete, incremental refresh |
 | **Deployment** | `pbi deploy` — snapshot, diff, push via XMLA |
+| **Fabric** | `pbi fabric` — items (full CRUD), workspaces, git sync, deployment pipelines, OneLake, capacity ops, jobs, Direct Lake |
 | **Snapshots** | `pbi snapshot` — create, list, restore, diff — model rollback |
-| **Environments** | `pbi env` — named connections, use, diff, promote (dev → prod) |
+| **Environments** | `pbi env` — named connections, use, diff, promote, drift detection |
+| **Model diff** | `pbi diff` — semantic TMDL diff (paths or git refs) + release notes |
 | **TMDL** | `pbi database` — export / import TMDL snapshots |
-| **Docs** | `pbi docs` — markdown/Confluence data dictionary, lineage, audit log |
+| **Power Query** | `pbi pquery` — list M queries, query-folding analysis, M lint |
+| **Operations** | `pbi ops` — refresh orchestration, chains, health checks, webhooks |
+| **Migration** | `pbi migrate` — Direct Lake readiness, PBIX extraction, dbt interop |
+| **Docs** | `pbi docs` — data dictionary, lineage, Mermaid ERD, MkDocs site |
+| **AI & agents** | `pbi ask` (NL→DAX), `pbi mcp serve` (MCP server), `pbi introspect` |
+| **Scaffolding** | `pbi init` — tests + CI workflow + pre-commit + config in one step |
 | **Diagnostics** | `pbi doctor` — check pythonnet, optional deps, platform |
 | **Watch mode** | `pbi watch` — re-run governance + DAX tests on file change |
 | **REST API** | `pbi server` — authenticated FastAPI server for pipeline integration |
@@ -124,7 +145,7 @@ pbi deploy push --connection fabric-prod
 
 ---
 
-## Three-Backend Architecture
+## Five-Backend Architecture
 
 <div align="center">
   <img src="docs/assets/architecture.svg" alt="Three-backend architecture" width="100%"/>
@@ -134,13 +155,16 @@ pbi deploy push --connection fabric-prod
 |---|---|---|
 | `desktop` (default) | Local Power BI Desktop with a `.pbip` project open | Windows + Desktop |
 | `xmla` | Power BI Premium or Microsoft Fabric — no Desktop | Windows + MSAL (`[xmla]` extra) |
+| `file` | TMDL/PBIP folders straight from the repo — governance, lint, docs, diff | Nothing — works on Linux/macOS |
+| `rest` | Live DAX against any published dataset (executeQueries API) | A token — works on Linux/macOS |
 | `mock` | CI pipelines, unit tests, demos | Nothing — works on Linux/macOS |
 
 ```bash
 # Swap with --backend
-pbi --backend mock govern check --fail-on error    # CI on ubuntu-latest
-pbi --backend xmla model tables                    # Fabric without Desktop
-pbi --backend desktop measure list                 # local Desktop (default)
+pbi --backend file --path . govern check --fail-on error   # real artifacts, any OS
+pbi --backend rest dax query "EVALUATE TOPN(10, Sales)"     # live Fabric, any OS
+pbi --backend xmla model tables                             # Fabric without Desktop
+pbi --backend desktop measure list                          # local Desktop (default)
 ```
 
 ---
@@ -221,39 +245,57 @@ pbi skills check          # verify compatibility with installed CLI version
 
 ## CI/CD Integration
 
-Full governance + BPA + DAX tests run on `ubuntu-latest` with the mock backend — no Windows runner, no Power BI infrastructure.
+Full governance + BPA + DAX lint + tests run on `ubuntu-latest` against the **real TMDL artifacts in your repo** — no Windows runner, no Power BI infrastructure.
+
+**One step with the published GitHub Action:**
 
 ```yaml
 # .github/workflows/pbi-govern.yml
 name: Power BI Governance
-
 on: [push, pull_request]
+permissions:
+  pull-requests: write
+  security-events: write
 
 jobs:
   govern:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install pbi-enterprise-cli
-
-      - name: Governance rules
-        run: pbi --backend mock govern check --fail-on error
-
-      - name: BPA check
-        run: pbi --backend mock govern bpa check --severity error
-
-      - name: DAX unit tests
-        run: pbi --backend mock dax test --suite ./tests/measures/
-
-      - name: Upload governance report
-        if: always()
-        run: pbi --backend mock --json govern check > governance-report.json
-      - uses: actions/upload-artifact@v4
-        if: always()
+      - uses: mudassir09/pbi-enterprise-cli@v1
         with:
-          name: governance-report
-          path: governance-report.json
+          path: .
+          fail-on: error
+          comment-pr: "true"            # governance summary as a PR comment
+          sarif: pbi-governance.sarif   # violations in the code-scanning UI
 ```
+
+**Or hand-rolled, with SARIF + drift detection:**
+
+```yaml
+      - run: pip install pbi-enterprise-cli
+      - run: pbi --backend file --path . govern check --fail-on error --sarif gov.sarif
+      - run: pbi --backend file --path . dax lint --fail-on error
+      - run: pbi --backend file --path . dax format --check
+      - run: pbi --backend file --path . report lint --pbip . --fail-on error
+      - run: pbi diff main . --git --release-notes model-changes.md
+      - uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: gov.sarif }
+```
+
+**Pre-commit hooks** (`.pre-commit-config.yaml`):
+
+```yaml
+repos:
+  - repo: https://github.com/mudassir09/pbi-enterprise-cli
+    rev: v1.1.0
+    hooks:
+      - id: pbi-govern
+      - id: pbi-dax-lint
+      - id: pbi-dax-format
+```
+
+Scaffold all of this in one command: **`pbi init`**.
 
 ---
 
@@ -261,9 +303,10 @@ jobs:
 
 | Flag | Purpose |
 |---|---|
-| `--backend desktop\|xmla\|mock` | Select backend (default: `desktop`) |
+| `--backend desktop\|xmla\|mock\|file\|rest` | Select backend (default: `desktop`) |
+| `--path <folder>` | TMDL/PBIP project folder (file backend) |
 | `--dry-run` | Preview changes without applying them |
-| `--json` | Machine-readable JSON output |
+| `--json` / `--yaml` | Machine-readable output |
 | `--connection <name>` | Use a named connection from `~/.pbi-cli/connections.json` |
 | `--port 5000` | Desktop local server port |
 
@@ -300,6 +343,7 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup inst
 
 | Document | Contents |
 |---|---|
+| [docs/SOP.md](docs/SOP.md) | **Standard Operating Procedure** — the recommended end-to-end workflow using every feature |
 | [docs/auth/xmla-auth.md](docs/auth/xmla-auth.md) | XMLA auth: service principal, managed identity, device flow |
 | [docs/deployment.md](docs/deployment.md) | Snapshot format, diff algorithm, push safety, rollback |
 | [CHANGELOG.md](CHANGELOG.md) | Release history |

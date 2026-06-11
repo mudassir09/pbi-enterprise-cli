@@ -1,0 +1,30 @@
+# pre-commit hooks published by pbi-enterprise-cli
+# Usage in a consuming repo's .pre-commit-config.yaml:
+#   repos:
+#     - repo: https://github.com/mudassir09/pbi-enterprise-cli
+#       rev: v1.1.0
+#       hooks:
+#         - id: pbi-govern
+#         - id: pbi-dax-lint
+#         - id: pbi-dax-format
+
+- id: pbi-govern
+  name: Power BI governance check
+  entry: pbi --backend file --path . govern check --fail-on error
+  language: python
+  pass_filenames: false
+  files: \.(tmdl|pbir|json)$
+
+- id: pbi-dax-lint
+  name: DAX static lint
+  entry: pbi --backend file --path . dax lint --fail-on error
+  language: python
+  pass_filenames: false
+  files: \.tmdl$
+
+- id: pbi-dax-format
+  name: DAX format check
+  entry: pbi --backend file --path . dax format --check
+  language: python
+  pass_filenames: false
+  files: \.tmdl$

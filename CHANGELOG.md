@@ -8,17 +8,103 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-- `pbi fabric` command group — Microsoft Fabric REST API: `workspaces`, `capacities`,
+(no unreleased changes)
+
+---
+
+## [1.1.0] — 2026-06-12
+
+The platform release: five backends, the full Fabric REST surface, DAX tooling,
+report intelligence, a declarative test platform, tenant administration, an MCP
+server for AI agents, and a one-step CI gate. 130+ new tests; coverage 78%.
+
+### Added — Backends (CI anywhere)
+- **`file` backend** — reads TMDL/PBIP folders directly (pure Python, any OS):
+  governance, BPA, lint, docs, diff, and impact analysis against git artifacts
+  with no Desktop, no Windows, no .NET; measure writes persist back to TMDL
+- **`rest` backend** — live DAX via the Power BI `executeQueries` REST endpoint
+  (any OS): `dax query/test`, metadata via INFO functions, read-only governance
+  against published datasets from `ubuntu-latest`
+- `--path` global flag — TMDL/PBIP folder for the file backend
+
+### Added — Fabric platform
+- `pbi fabric` command group — REST API basics: `workspaces`, `capacities`,
   `datasets`, `refresh`, `lineage` (Bearer token or MSAL device flow auth)
+- `pbi fabric item` — full Item Definition API CRUD: list/get/create/update/delete
+  any Fabric item; deploy semantic models and reports from any OS, no XMLA
+- `pbi fabric workspace` — create, assign-capacity, role assignments
+- `pbi fabric git` — workspace git integration: status, commit, update
+- `pbi fabric pipeline` — deployment pipelines: list, stages, deploy stage→stage
+- `pbi fabric onelake` — ls, download, upload, shortcuts (ADLS DFS API)
+- `pbi fabric capacity` — pause/resume/scale via Azure ARM
+- `pbi fabric job` — run/status/cancel item jobs (notebooks, pipelines, refreshes)
+- `pbi fabric directlake` — partition-mode status and reframe
+
+### Added — DAX tooling
+- `pbi dax format` — offline DAX formatter (uppercase functions, long-line style),
+  `--check` mode for CI/pre-commit, `--write` to persist
+- `pbi dax lint` — static expression rules: DIVIDE, IFERROR, EARLIER, nested IF,
+  volatile functions, hardcoded years, qualified measure refs, filter anti-patterns
+- `pbi dax coverage` — which measures are covered by YAML test suites
+
+### Added — Governance & tenant administration
+- `pbi govern check --sarif/--markdown/--comment-pr` — SARIF 2.1.0 for GitHub code
+  scanning, markdown summaries, automatic PR comments
+- `pbi govern scan` — tenant-wide governance via the Scanner (admin) API
+- `pbi govern explain` — AI explanations of violations with fixes ([ai] extra)
+- `pbi tenant` command group — `usage` (activity-log adoption report), `access`
+  (workspace access review), `stale` (datasets without recent refresh),
+  `labels set/remove` (sensitivity labels, admin information-protection API)
+
+### Added — Report intelligence (PBIR)
+- `pbi report lint` — visual density, hidden visuals, alt text, overlap detection
+- `pbi report field-usage` — cross-reference model columns/measures vs visuals;
+  find unused fields safe to remove
+- `pbi report diff` — semantic visual-level diff between two report versions
+- `pbi report a11y` — accessibility audit: alt text, titles, tab order
+
+### Added — Testing platform
+- `pbi test data` — dbt-style data quality tests compiled to DAX: row counts,
+  not-null, uniqueness, accepted values, referential integrity
+- `pbi test schema` — schema contract tests (tables/columns/types/measures)
+- `pbi test rls` — RLS persona matrix (role × query × expected rows)
+- `pbi test seed` — synthetic fixture generation from the model schema
+
+### Added — DevOps
+- `pbi init` — project scaffolding: config, test suites, CI workflow, pre-commit
+- `pbi diff` — semantic TMDL model diff (paths or `--git` refs), `--release-notes`
+- `pbi env drift` — repo TMDL vs live model drift detection, `--fail-on-drift`
+- `action.yml` — composite GitHub Action: governance gate on any repo in one step
+- `.pre-commit-hooks.yaml` — pbi-govern, pbi-dax-lint, pbi-dax-format hooks
+
+### Added — AI & agents
+- `pbi mcp serve` — stdio MCP server: model/DAX/governance tools for Cursor,
+  VS Code Copilot, Claude Desktop, and any MCP client (no extra dependency)
+- `pbi ask` — natural language → DAX with optional execution ([ai] extra)
+- `pbi introspect` — machine-readable command map (JSON or llms.txt format)
+
+### Added — Power Query, ops, migration, docs
+- `pbi pquery` — list M queries, static query-folding analysis, M lint
+  (hardcoded paths, embedded credentials)
+- `pbi ops` — `refresh` (wait + webhook notify), `refresh-chain` (ordered,
+  short-circuit), `health` (failed refreshes across a workspace)
+- `pbi migrate direct-lake` — Import → Direct Lake blocker analysis
+- `pbi migrate pbix-extract` — legacy PBIX layout/metadata extraction
+- `pbi migrate dbt` — dbt manifest → table mapping + generated schema contract
+- `pbi docs erd` — Mermaid entity-relationship diagram
+- `pbi docs site` — MkDocs data-dictionary site generator (formatted DAX included)
+
+### Added — Misc
 - `pbi govern plugins` command group — governance plugin marketplace:
   `list` (installed), `search` (community registry), `install` (by name or URL)
 - `--yaml` global flag — YAML output alternative to `--json` on all commands
-- Tests: `test_commands_snapshot`, `test_commands_env`, `test_commands_fabric`,
-  `test_commands_govern_plugins`, `test_yaml_output` — 65+ new test cases
+- Tests: 130+ new test cases across 10 new test modules; coverage 78%
 
 ### Changed
-- Coverage gate raised: 67% → 75%
+- Coverage gate raised: 67% → 75% (actual: 78%)
+- `--backend` choices extended: `desktop | xmla | mock | file | rest`
+
+[1.1.0]: https://github.com/mudassir09/pbi-enterprise-cli/compare/v1.0.2...v1.1.0
 
 ---
 

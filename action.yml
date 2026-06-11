@@ -1,0 +1,83 @@
+name: "Power BI Governance Gate"
+description: >-
+  Run pbi-enterprise-cli governance, BPA, DAX lint, and DAX unit tests against
+  the TMDL/PBIP artifacts in this repository — no Windows runner required.
+author: "Mudassir"
+branding:
+  icon: "bar-chart-2"
+  color: "yellow"
+
+inputs:
+  path:
+    description: "Path to the TMDL/PBIP project folder."
+    required: false
+    default: "."
+  fail-on:
+    description: "Severity that fails the gate: info | warning | error."
+    required: false
+    default: "error"
+  bpa:
+    description: "Also run Best Practice Analyzer rules (true/false)."
+    required: false
+    default: "true"
+  dax-lint:
+    description: "Also run the static DAX linter (true/false)."
+    required: false
+    default: "true"
+  test-suite:
+    description: "Optional path to a YAML DAX test suite or directory."
+    required: false
+    default: ""
+  sarif:
+    description: "Write a SARIF report to this path (upload with codeql-action/upload-sarif)."
+    required: false
+    default: "pbi-governance.sarif"
+  comment-pr:
+    description: "Post a governance summary comment on the PR (needs pull-requests: write)."
+    required: false
+    default: "false"
+  version:
+    description: "pbi-enterprise-cli version to install (default: latest)."
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install pbi-enterprise-cli
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.version }}" ]; then
+          pip install "pbi-enterprise-cli==${{ inputs.version }}"
+        else
+          pip install pbi-enterprise-cli
+        fi
+
+    - name: Governance rules
+      shell: bash
+      run: |
+        EXTRA=""
+        if [ "${{ inputs.comment-pr }}" = "true" ]; then EXTRA="--comment-pr"; fi
+        pbi --backend file --path "${{ inputs.path }}" govern check \
+          --fail-on "${{ inputs.fail-on }}" \
+          --sarif "${{ inputs.sarif }}" $EXTRA
+
+    - name: Best Practice Analyzer
+      if: ${{ inputs.bpa == 'true' }}
+      shell: bash
+      run: |
+        pbi --backend file --path "${{ inputs.path }}" govern bpa check \
+          --severity "${{ inputs.fail-on }}"
+
+    - name: DAX lint
+      if: ${{ inputs.dax-lint == 'true' }}
+      shell: bash
+      run: |
+        pbi --backend file --path "${{ inputs.path }}" dax lint --fail-on error
+
+    - name: DAX unit tests
+      if: ${{ inputs.test-suite != '' }}
+      shell: bash
+      run: |
+        pbi --backend file --path "${{ inputs.path }}" dax test \
+          --suite "${{ inputs.test-suite }}"
