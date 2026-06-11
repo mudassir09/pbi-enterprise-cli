@@ -93,6 +93,8 @@ omit = [
     # TOM/XMLA backends require Windows .NET (pythonnet/AMO) — untestable on Linux CI
     "src/pbi_cli/backends/tom_backend.py",
     "src/pbi_cli/backends/xmla_backend.py",
+    # PBIR backend integration tests require actual PBIR files and are skipped in CI
+    "src/pbi_cli/backends/pbir_backend.py",
 ]
 
 [tool.coverage.report]
@@ -104,4 +106,5 @@ exclude_lines = [
 omit = [
     "src/pbi_cli/backends/tom_backend.py",
     "src/pbi_cli/backends/xmla_backend.py",
+    "src/pbi_cli/backends/pbir_backend.py",
 ]
