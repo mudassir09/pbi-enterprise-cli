@@ -121,13 +121,13 @@ pbi ask "top 10 customers by revenue"          # English → DAX → results (re
 | **Layout** | `pbi layout` — shelf-packing auto-layout, named templates |
 | **Themes** | `pbi theme` — generate WCAG-compliant themes from a brand colour |
 | **Filters** | `pbi filter` — relative-date, TopN, basic value filters |
-| **Governance** | `pbi govern` — built-in rules + BPA + plugins, SARIF, PR comments, tenant-wide scan, AI explain |
+| **Governance** | `pbi govern` — built-in rules + BPA + plugins, SARIF, PR comments, tenant-wide scan, AI explain, AI-readiness audit |
 | **Tenant admin** | `pbi tenant` — usage analytics, access review, stale datasets, sensitivity labels |
 | **Security (RLS)** | `pbi security` — role add/delete/test, perspectives |
 | **Testing** | `pbi test` — data quality (DAX-compiled), schema contracts, RLS matrix, synthetic seed |
 | **Partitions** | `pbi partition` — add, refresh, delete, incremental refresh |
 | **Deployment** | `pbi deploy` — snapshot, diff, push via XMLA |
-| **Fabric** | `pbi fabric` — items (full CRUD), workspaces, git sync, deployment pipelines, OneLake, capacity ops, jobs, Direct Lake |
+| **Fabric** | `pbi fabric` — items (full CRUD), workspaces, git sync, deployment pipelines, OneLake, capacity ops, jobs, Direct Lake, Fabric IQ ontologies (preview) |
 | **Snapshots** | `pbi snapshot` — create, list, restore, diff — model rollback |
 | **Environments** | `pbi env` — named connections, use, diff, promote, drift detection |
 | **Model diff** | `pbi diff` — semantic TMDL diff (paths or git refs) + release notes |

@@ -8,7 +8,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-(no unreleased changes)
+### Added — Fabric IQ & AI readiness
+- `pbi fabric ontology` — manage Fabric IQ ontology (preview) items via the
+  REST API: list, get (with `--output` definition download), create (with
+  `--definition` upload), update, delete
+- `pbi govern ai-readiness` — audit a semantic model's readiness for Copilot,
+  Q&A, and Fabric IQ ontology generation: measure/column descriptions, hidden
+  technical key columns, marked date table, auto date/time tables, Decimal
+  columns (unsupported by the Fabric IQ graph), and relationship coverage;
+  `--fail-on` for CI gating
+- `file` backend now surfaces `dataCategory` on tables (date-table detection)
 
 ---
 

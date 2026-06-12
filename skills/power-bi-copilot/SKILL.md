@@ -1,13 +1,15 @@
 ---
 name: power-bi-copilot
-version: "1.0"
+version: "1.1"
 min_cli_version: "4.0.0"
 description: >
   Use for Power BI Copilot setup, Q&A synonyms, Smart Narratives, linguistic schema,
-  AI visuals (Key Influencers, Decomposition Tree, Anomaly Detection), and dataset
-  optimisation for Copilot. Triggers on: "Copilot", "Q&A", "Smart Narratives",
-  "Key Influencers", "Decomposition Tree", "Anomaly Detection", "linguistic schema",
-  "synonyms", "natural language", "AI visual". Do NOT trigger for standard DAX.
+  AI visuals (Key Influencers, Decomposition Tree, Anomaly Detection), dataset
+  optimisation for Copilot, and Fabric IQ ontology preparation. Triggers on:
+  "Copilot", "Q&A", "Smart Narratives", "Key Influencers", "Decomposition Tree",
+  "Anomaly Detection", "linguistic schema", "synonyms", "natural language",
+  "AI visual", "ontology", "Fabric IQ", "AI-ready", "semantic layer for AI".
+  Do NOT trigger for standard DAX.
 ---
 
 # power-bi-copilot
@@ -137,6 +139,48 @@ Automatically highlights data points that deviate from the expected trend:
 - Works on line charts only.
 - Configure sensitivity (1–10) and expected seasonality.
 - Available in report view, not embedded.
+
+---
+
+## Fabric IQ Ontology (Preview)
+
+Fabric IQ generates an **ontology** — entity types, properties, relationship
+types — directly from a semantic model. It is the semantic layer AI agents
+query. The quality of the generated ontology is the quality of your model
+metadata.
+
+### Audit the model first
+
+```bash
+pbi govern ai-readiness                       # desktop backend
+pbi --backend file --path . govern ai-readiness --fail-on warning   # CI
+```
+
+Checks: measure/column descriptions, technical key columns hidden, date table
+marked, no auto date/time tables, no Decimal columns, relationship coverage.
+
+### Generation rules of thumb
+
+| Model feature | Ontology result |
+|---|---|
+| Table | Entity type |
+| Column | Static property (+ data binding in Direct Lake) |
+| Model relationship | Relationship type |
+| Primary key | Entity type key (required for relationship bindings) |
+
+Constraints (preview): data bindings need **Direct Lake** mode over managed
+lakehouse tables; `Decimal` columns return nulls (use `Double`); generation
+runs in the Fabric portal (no public API yet); not available in My workspace.
+
+### Manage ontology items from the CLI
+
+```bash
+pbi fabric ontology list --workspace <ws-id>
+pbi fabric ontology get --workspace <ws-id> --ontology <id> --output ./ontology
+pbi fabric ontology create --workspace <ws-id> --name "Enterprise Ontology"
+```
+
+Import-mode model? Analyse the migration path first: `pbi migrate direct-lake --analyze`.
 
 ---
 

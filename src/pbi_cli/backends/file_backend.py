@@ -305,6 +305,7 @@ class FileBackend(MockTomBackend):
                 "name": tname,
                 "isHidden": node.props.get("isHidden", "false") == "true",
                 "description": node.description,
+                "dataCategory": node.props.get("dataCategory", ""),
                 "sourceFile": str(tf),
                 "isCalculationGroup": calc_group is not None,
             })

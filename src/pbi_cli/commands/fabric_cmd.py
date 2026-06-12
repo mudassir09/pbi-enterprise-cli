@@ -892,3 +892,112 @@ def directlake_reframe(ctx: click.Context, workspace_id: str, dataset_id: str) -
         f"{_fab.POWERBI_API_BASE}/groups/{workspace_id}/datasets/{dataset_id}/refreshes",
         token, payload={"type": "full", "commitMode": "transactional"})
     console.print("[green]Reframe (full refresh) requested.[/green]")
+
+
+# --- Fabric IQ: ontology (preview) ---
+
+
+@fabric_cmd.group("ontology")
+def fabric_ontology() -> None:
+    """Fabric IQ ontology (preview): the semantic layer for AI agents.
+
+    \b
+    An ontology defines entity types, properties, and relationship types over
+    OneLake data. Ontologies can be generated in the Fabric portal from a
+    semantic model (Direct Lake mode required for data bindings); this CLI
+    manages the resulting ontology items via the REST API.
+
+    \b
+    Prep a semantic model for good ontology generation first:
+      pbi govern ai-readiness
+    """
+
+
+@fabric_ontology.command("list")
+@click.option("--workspace", "workspace_id", required=True, help="Workspace id.")
+@click.pass_context
+def ontology_list(ctx: click.Context, workspace_id: str) -> None:
+    """List ontology items in a workspace."""
+    token = _fab.get_token()
+    items = _fab.get_paged(f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/ontologies", token)
+    rows = [{"id": o.get("id", ""), "name": o.get("displayName", ""),
+             "description": o.get("description", "")} for o in items]
+    _out(rows, ctx, title="Ontologies (Fabric IQ, preview)")
+
+
+@fabric_ontology.command("get")
+@click.option("--workspace", "workspace_id", required=True)
+@click.option("--ontology", "ontology_id", required=True, help="Ontology item id.")
+@click.option("--output", "output_dir", default=None, type=click.Path(),
+              help="Download the ontology definition parts into this folder.")
+@click.pass_context
+def ontology_get(ctx: click.Context, workspace_id: str, ontology_id: str,
+                 output_dir: str | None) -> None:
+    """Get an ontology; with --output, download its full definition."""
+    token = _fab.get_token()
+    base = f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/ontologies/{ontology_id}"
+    ontology = _fab.get(base, token)
+    if not output_dir:
+        _out(ontology, ctx, title="Ontology")
+        return
+    result = _fab.poll_lro(_fab.post(f"{base}/getDefinition", token, payload={}), token)
+    parts = (result.get("definition") or {}).get("parts", [])
+    written = _parts_to_folder(parts, _Path(output_dir))
+    console.print(f"[green]{len(written)} definition part(s) written to {output_dir}[/green]")
+
+
+@fabric_ontology.command("create")
+@click.option("--workspace", "workspace_id", required=True)
+@click.option("--name", "display_name", required=True)
+@click.option("--definition", "definition_dir", default=None, type=click.Path(exists=True),
+              help="Folder of ontology definition parts to upload.")
+@click.option("--description", default=None)
+@click.pass_context
+def ontology_create(ctx: click.Context, workspace_id: str, display_name: str,
+                    definition_dir: str | None, description: str | None) -> None:
+    """Create an ontology item (empty, or from a definition folder)."""
+    token = _fab.get_token()
+    payload: dict = {"displayName": display_name}
+    if description:
+        payload["description"] = description
+    if definition_dir:
+        payload["definition"] = {"parts": _folder_to_parts(_Path(definition_dir))}
+    result = _fab.poll_lro(
+        _fab.post(f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/ontologies", token,
+                  payload=payload),
+        token,
+    )
+    _out(result, ctx, title="Ontology Created")
+
+
+@fabric_ontology.command("update")
+@click.option("--workspace", "workspace_id", required=True)
+@click.option("--ontology", "ontology_id", required=True)
+@click.option("--definition", "definition_dir", required=True, type=click.Path(exists=True),
+              help="Folder of ontology definition parts to upload.")
+@click.pass_context
+def ontology_update(ctx: click.Context, workspace_id: str, ontology_id: str,
+                    definition_dir: str) -> None:
+    """Replace an ontology's definition (updateDefinition LRO)."""
+    token = _fab.get_token()
+    url = (f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/ontologies/{ontology_id}"
+           "/updateDefinition?updateMetadata=true")
+    payload = {"definition": {"parts": _folder_to_parts(_Path(definition_dir))}}
+    result = _fab.poll_lro(_fab.post(url, token, payload=payload), token)
+    _out(result if isinstance(result, dict) else {"status": "Succeeded"}, ctx,
+         title="Ontology Updated")
+
+
+@fabric_ontology.command("delete")
+@click.option("--workspace", "workspace_id", required=True)
+@click.option("--ontology", "ontology_id", required=True)
+@click.option("--yes", is_flag=True, help="Skip confirmation.")
+@click.pass_context
+def ontology_delete(ctx: click.Context, workspace_id: str, ontology_id: str, yes: bool) -> None:
+    """Delete an ontology item."""
+    if not yes:
+        click.confirm(f"Delete ontology {ontology_id}?", abort=True)
+    token = _fab.get_token()
+    _fab.delete(f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/ontologies/{ontology_id}",
+                token)
+    console.print(f"[green]Deleted ontology {ontology_id}.[/green]")

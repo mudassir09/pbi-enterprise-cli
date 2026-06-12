@@ -150,6 +150,66 @@ def govern_check(
         raise SystemExit(3)
 
 
+@govern.command("ai-readiness")
+@click.option(
+    "--fail-on",
+    "fail_on",
+    default="error",
+    type=click.Choice(["info", "warning", "error"]),
+    show_default=True,
+    help="Exit with code 3 when any violation at this severity or higher is found.",
+)
+@click.pass_context
+def govern_ai_readiness(ctx: click.Context, fail_on: str) -> None:
+    """Audit the model's readiness for AI: Copilot, Q&A, and Fabric IQ ontology.
+
+    \b
+    Checks metadata that AI consumers depend on:
+      - measure and column descriptions
+      - technical key columns hidden from AI/Q&A
+      - a marked date table; no auto date/time tables
+      - no Decimal columns (Fabric IQ graph returns nulls for Decimal)
+      - every table connected by relationships (→ ontology relationship types)
+
+    \b
+    CI usage:
+      pbi --backend file --json govern ai-readiness --fail-on warning
+    """
+    from pbi_cli.governance.engine import GovernanceEngine
+
+    backend = get_backend(ctx)
+    violations = GovernanceEngine(backend).run_ai_readiness()
+    is_json = ctx.obj and ctx.obj.get("output_json")
+
+    errors = [v for v in violations if v["severity"] == "error"]
+    warnings_list = [v for v in violations if v["severity"] == "warning"]
+    infos = [v for v in violations if v["severity"] == "info"]
+
+    if is_json:
+        click.echo(json.dumps({
+            "summary": {
+                "errors": len(errors),
+                "warnings": len(warnings_list),
+                "infos": len(infos),
+                "total": len(violations),
+            },
+            "violations": violations,
+        }, indent=2))
+    elif violations:
+        console.print(
+            f"[red]{len(errors)} errors[/red], "
+            f"[yellow]{len(warnings_list)} warnings[/yellow], "
+            f"[blue]{len(infos)} info[/blue]"
+        )
+        output_json_or_table(violations, ctx, title="AI-Readiness Violations")
+    else:
+        console.print("[green]Model is AI-ready: all checks pass.[/green]")
+
+    threshold = _SEVERITY_RANK[fail_on]
+    if any(_SEVERITY_RANK.get(v["severity"], 0) >= threshold for v in violations):
+        raise SystemExit(3)
+
+
 @govern.command("fix")
 @click.option("--auto", is_flag=True, help="Auto-fix safe violations.")
 @click.pass_context

@@ -26,6 +26,17 @@ class GovernanceEngine:
         violations.extend(measure_brackets.check(self._backend))
         return violations
 
+    def run_ai_readiness(self) -> list[dict[str, Any]]:
+        """Run the AI-readiness pack (Copilot / Fabric IQ ontology preparation).
+
+        Kept separate from run_all(): these rules judge AI-consumability,
+        not classic model hygiene, and would otherwise change `govern check`
+        results for existing users.
+        """
+        from pbi_cli.governance.rules import ai_readiness
+
+        return ai_readiness.check(self._backend)
+
     def run_metadata_rules(self) -> list[dict[str, Any]]:
         from pbi_cli.governance.rules import measure_description, measure_format
 
