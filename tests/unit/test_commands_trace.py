@@ -16,8 +16,25 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def clean_trace_files(tmp_path, monkeypatch):
+    """Redirect trace files to a temp dir and clean up after each test."""
+    import pbi_cli.commands.trace as trace_mod
+    monkeypatch.setattr(trace_mod, "_TRACE_DIR", tmp_path / "trace")
+    monkeypatch.setattr(trace_mod, "_TRACE_ACTIVE_FILE", tmp_path / "trace" / "active")
+    monkeypatch.setattr(trace_mod, "_TRACE_EVENTS_FILE", tmp_path / "trace" / "events.jsonl")
+
+
 def _run(runner: CliRunner, *args: str):
     return runner.invoke(cli, ["--backend", "mock", *args])
+
+
+def _seed_events(trace_mod, events: list[dict]) -> None:
+    """Write events directly to the trace JSONL file."""
+    trace_mod._TRACE_DIR.mkdir(parents=True, exist_ok=True)
+    with trace_mod._TRACE_EVENTS_FILE.open("w", encoding="utf-8") as f:
+        for e in events:
+            f.write(json.dumps(e) + "\n")
 
 
 # ── trace start ───────────────────────────────────────────────────────────────
@@ -55,35 +72,27 @@ class TestTraceStop:
 
 class TestTraceFetch:
     def test_fetch_empty_buffer_exits_cleanly(self, runner):
-        # Without populating the buffer, fetch should print a message
-        import pbi_cli.commands.trace as trace_mod
-        trace_mod._trace_buffer = []
         result = _run(runner, "trace", "fetch")
         assert result.exit_code == 0
 
     def test_fetch_empty_buffer_prints_no_events(self, runner):
-        import pbi_cli.commands.trace as trace_mod
-        trace_mod._trace_buffer = []
         result = _run(runner, "trace", "fetch")
         assert "No trace events" in result.output
 
     def test_fetch_with_data_in_buffer(self, runner):
         import pbi_cli.commands.trace as trace_mod
-        trace_mod._trace_buffer = [
+        _seed_events(trace_mod, [
             {"event": "QueryBegin", "duration_ms": 10},
             {"event": "QueryEnd", "duration_ms": 20},
-        ]
+        ])
         result = _run(runner, "trace", "fetch")
         assert result.exit_code == 0
-        # Restore
-        trace_mod._trace_buffer = []
 
     def test_fetch_with_limit(self, runner):
         import pbi_cli.commands.trace as trace_mod
-        trace_mod._trace_buffer = [{"event": f"E{i}", "duration_ms": i} for i in range(10)]
+        _seed_events(trace_mod, [{"event": f"E{i}", "duration_ms": i} for i in range(10)])
         result = _run(runner, "trace", "fetch", "--limit", "3")
         assert result.exit_code == 0
-        trace_mod._trace_buffer = []
 
 
 # ── trace clear ───────────────────────────────────────────────────────────────
@@ -96,17 +105,16 @@ class TestTraceClear:
 
     def test_clear_empties_buffer(self, runner):
         import pbi_cli.commands.trace as trace_mod
-        trace_mod._trace_buffer = [{"event": "QueryBegin"}]
+        _seed_events(trace_mod, [{"event": "QueryBegin"}])
         result = _run(runner, "trace", "clear")
         assert result.exit_code == 0
-        assert trace_mod._trace_buffer == []
+        assert trace_mod._read_events() == []
 
     def test_clear_prints_count(self, runner):
         import pbi_cli.commands.trace as trace_mod
-        trace_mod._trace_buffer = [{"event": "X"}, {"event": "Y"}]
+        _seed_events(trace_mod, [{"event": "X"}, {"event": "Y"}])
         result = _run(runner, "trace", "clear")
         assert "Cleared" in result.output or result.exit_code == 0
-        trace_mod._trace_buffer = []
 
 
 # ── trace export ──────────────────────────────────────────────────────────────
@@ -114,8 +122,6 @@ class TestTraceClear:
 
 class TestTraceExport:
     def test_export_empty_buffer_exits_cleanly(self, runner, tmp_path):
-        import pbi_cli.commands.trace as trace_mod
-        trace_mod._trace_buffer = []
         out = str(tmp_path / "events.json")
         result = _run(runner, "trace", "export", "--output", out)
         assert result.exit_code == 0
@@ -123,7 +129,7 @@ class TestTraceExport:
 
     def test_export_with_data_creates_file(self, runner, tmp_path):
         import pbi_cli.commands.trace as trace_mod
-        trace_mod._trace_buffer = [{"event": "QueryBegin", "duration_ms": 42}]
+        _seed_events(trace_mod, [{"event": "QueryBegin", "duration_ms": 42}])
         out = str(tmp_path / "events.json")
         result = _run(runner, "trace", "export", "--output", out)
         assert result.exit_code == 0
@@ -131,7 +137,6 @@ class TestTraceExport:
         content = json.loads(Path(out).read_text())
         assert isinstance(content, list)
         assert content[0]["event"] == "QueryBegin"
-        trace_mod._trace_buffer = []
 
 
 # ── benchmark ─────────────────────────────────────────────────────────────────
