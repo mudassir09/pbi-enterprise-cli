@@ -16,8 +16,8 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, OSError):
         pass
 
-from pbi_cli import __version__
-from pbi_cli.commands import (
+from pbi_cli import __version__  # noqa: E402
+from pbi_cli.commands import (  # noqa: E402
     agent_cmd,
     calendar_cmd,
     connections,

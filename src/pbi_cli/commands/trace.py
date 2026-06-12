@@ -113,7 +113,8 @@ def trace_fetch(ctx: click.Context, limit: int) -> None:
         if not _is_trace_active():
             console.print("Run 'pbi trace start' first, execute some DAX queries, then fetch.")
         return
-    output_json_or_table(events[-limit:], ctx, title=f"Trace Events (last {min(limit, len(events))})")
+    count = min(limit, len(events))
+    output_json_or_table(events[-limit:], ctx, title=f"Trace Events (last {count})")
 
 
 @trace.command("export")
