@@ -11,7 +11,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-console = Console()
+console = Console(legacy_windows=False)
 
 _FABRIC_API_BASE = "https://api.fabric.microsoft.com/v1"
 _POWERBI_API_BASE = "https://api.powerbi.com/v1.0/myorg"

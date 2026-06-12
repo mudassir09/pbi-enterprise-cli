@@ -13,11 +13,54 @@ from rich.table import Table
 
 from pbi_cli.commands._shared import get_backend, output_json_or_table
 
-console = Console()
+console = Console(legacy_windows=False)
 
-# In-memory trace buffer (per process)
-_trace_buffer: list[dict[str, Any]] = []
-_trace_active: bool = False
+_TRACE_DIR = Path.home() / ".pbi-cli" / "trace"
+_TRACE_ACTIVE_FILE = _TRACE_DIR / "active"
+_TRACE_EVENTS_FILE = _TRACE_DIR / "events.jsonl"
+
+
+def _is_trace_active() -> bool:
+    return _TRACE_ACTIVE_FILE.exists()
+
+
+def _append_event(event: dict[str, Any]) -> None:
+    _TRACE_DIR.mkdir(parents=True, exist_ok=True)
+    with _TRACE_EVENTS_FILE.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(event, default=str) + "\n")
+
+
+def _read_events() -> list[dict[str, Any]]:
+    if not _TRACE_EVENTS_FILE.exists():
+        return []
+    events = []
+    for line in _TRACE_EVENTS_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line:
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+    return events
+
+
+def _clear_events() -> None:
+    if _TRACE_EVENTS_FILE.exists():
+        _TRACE_EVENTS_FILE.unlink()
+
+
+def record_trace_event(event_class: str, text: str, duration_ms: float | None = None) -> None:
+    """Record a DAX query event to the trace file if a session is active."""
+    if not _is_trace_active():
+        return
+    entry: dict[str, Any] = {
+        "event_class": event_class,
+        "text": text,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    if duration_ms is not None:
+        entry["duration_ms"] = round(duration_ms, 2)
+    _append_event(entry)
 
 
 @click.group()
@@ -42,9 +85,9 @@ def trace_start(ctx: click.Context, events: str) -> None:
       pbi trace fetch
       pbi trace stop
     """
-    global _trace_active, _trace_buffer
-    _trace_buffer = []
-    _trace_active = True
+    _TRACE_DIR.mkdir(parents=True, exist_ok=True)
+    _TRACE_ACTIVE_FILE.write_text(events, encoding="utf-8")
+    _clear_events()
     console.print(f"[green]Trace started.[/green] Capturing: {events}")
     console.print("[dim]Run DAX queries, then use 'pbi trace fetch' to view events.[/dim]")
 
@@ -52,9 +95,10 @@ def trace_start(ctx: click.Context, events: str) -> None:
 @trace.command("stop")
 def trace_stop() -> None:
     """Stop the active trace session."""
-    global _trace_active
-    _trace_active = False
-    console.print(f"[yellow]Trace stopped.[/yellow] {len(_trace_buffer)} events captured.")
+    count = len(_read_events())
+    if _TRACE_ACTIVE_FILE.exists():
+        _TRACE_ACTIVE_FILE.unlink()
+    console.print(f"[yellow]Trace stopped.[/yellow] {count} events captured.")
     console.print("Use 'pbi trace fetch' to view or 'pbi trace export' to save.")
 
 
@@ -63,31 +107,32 @@ def trace_stop() -> None:
 @click.pass_context
 def trace_fetch(ctx: click.Context, limit: int) -> None:
     """Display captured trace events (most recent first)."""
-    if not _trace_buffer:
+    events = _read_events()
+    if not events:
         console.print("[yellow]No trace events captured.[/yellow]")
-        console.print("Run 'pbi trace start' first, execute some DAX queries, then fetch.")
+        if not _is_trace_active():
+            console.print("Run 'pbi trace start' first, execute some DAX queries, then fetch.")
         return
-    events = _trace_buffer[-limit:]
-    output_json_or_table(events, ctx, title=f"Trace Events (last {len(events)})")
+    output_json_or_table(events[-limit:], ctx, title=f"Trace Events (last {min(limit, len(events))})")
 
 
 @trace.command("export")
 @click.option("--output", required=True, type=click.Path(), help="Output JSON file path.")
 def trace_export(output: str) -> None:
     """Export captured trace events to a JSON file."""
-    if not _trace_buffer:
+    events = _read_events()
+    if not events:
         console.print("[yellow]No trace events to export.[/yellow]")
         return
-    Path(output).write_text(json.dumps(_trace_buffer, indent=2, default=str), encoding="utf-8")
-    console.print(f"[green]Exported {len(_trace_buffer)} events to:[/green] {output}")
+    Path(output).write_text(json.dumps(events, indent=2, default=str), encoding="utf-8")
+    console.print(f"[green]Exported {len(events)} events to:[/green] {output}")
 
 
 @trace.command("clear")
 def trace_clear() -> None:
     """Clear the trace buffer without stopping the session."""
-    global _trace_buffer
-    count = len(_trace_buffer)
-    _trace_buffer = []
+    count = len(_read_events())
+    _clear_events()
     console.print(f"[green]Cleared {count} events from trace buffer.[/green]")
 
 

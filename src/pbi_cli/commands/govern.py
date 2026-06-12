@@ -12,7 +12,7 @@ from pbi_cli._audit import write_audit_entry
 from pbi_cli.commands._shared import dry_run_echo, get_backend, output_json_or_table
 from pbi_cli.governance.bpa import COMMUNITY_BPA_URL
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 @click.group()

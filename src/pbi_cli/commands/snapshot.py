@@ -12,7 +12,7 @@ from rich.table import Table
 
 from pbi_cli.commands._shared import dry_run_echo, get_backend, output_json_or_table
 
-console = Console()
+console = Console(legacy_windows=False)
 
 _DEFAULT_SNAPSHOT_DIR = Path(".pbi") / "snapshots"
 

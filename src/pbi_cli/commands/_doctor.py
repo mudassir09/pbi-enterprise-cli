@@ -8,7 +8,7 @@ import sys
 from rich.console import Console
 from rich.table import Table
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def run_doctor(output_json: bool) -> None:

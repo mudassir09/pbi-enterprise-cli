@@ -15,7 +15,7 @@ from rich.console import Console
 from pbi_cli import fabric_api
 from pbi_cli.commands._shared import output_json_or_table
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 @click.group("tenant")

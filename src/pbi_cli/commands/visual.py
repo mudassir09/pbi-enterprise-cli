@@ -10,7 +10,7 @@ from rich.console import Console
 from pbi_cli.commands._shared import dry_run_echo, output_json_or_table
 from pbi_cli.intelligence.layout_engine import VISUAL_SIZES
 
-console = Console()
+console = Console(legacy_windows=False)
 # Visual types the CLI accepts → internal Power BI visual type
 VISUAL_TYPE_MAP: dict[str, str] = {
     # ── Core ──────────────────────────────────────────────────────────────

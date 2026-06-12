@@ -5,7 +5,7 @@ from __future__ import annotations
 import click
 from rich.console import Console
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 @click.group()

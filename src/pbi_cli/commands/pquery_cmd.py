@@ -10,7 +10,7 @@ from rich.console import Console
 
 from pbi_cli.commands._shared import get_backend, output_json_or_table
 
-console = Console()
+console = Console(legacy_windows=False)
 
 # M functions/steps that break query folding against relational sources
 _FOLDING_BREAKERS = [

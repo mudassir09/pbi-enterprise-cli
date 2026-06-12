@@ -1,9 +1,20 @@
 """Main CLI entry point for pbi-cli."""
 
+import sys
 from pathlib import Path
 
 import click
+from dotenv import load_dotenv
 from rich.console import Console
+
+load_dotenv()
+
+# Ensure stdout/stderr can render Unicode on Windows (cp1252 terminals crash on →, etc.)
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    except (AttributeError, OSError):
+        pass
 
 from pbi_cli import __version__
 from pbi_cli.commands import (
@@ -42,7 +53,7 @@ from pbi_cli.commands import (
     watch,
 )
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def _apply_dry_run(ctx: click.Context, param: click.Parameter, value: bool) -> bool:

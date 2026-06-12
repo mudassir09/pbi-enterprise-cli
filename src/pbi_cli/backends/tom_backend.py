@@ -10,7 +10,7 @@ from typing import Any
 
 from rich.console import Console
 
-console = Console(stderr=True)
+console = Console(stderr=True, legacy_windows=False)
 
 _DLL_DIR = Path(__file__).parent.parent / "dlls"
 

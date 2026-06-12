@@ -11,7 +11,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def _parse_frontmatter(md_path: Path) -> dict[str, str]:

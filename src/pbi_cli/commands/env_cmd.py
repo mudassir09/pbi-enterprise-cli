@@ -9,7 +9,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-console = Console()
+console = Console(legacy_windows=False)
 
 _CONNECTIONS_FILE = Path.home() / ".pbi-cli" / "connections.json"
 _CONFIG_FILE = Path("pbi.config.toml")

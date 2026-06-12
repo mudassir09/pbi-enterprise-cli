@@ -10,7 +10,7 @@ from rich.console import Console
 
 from pbi_cli.commands._shared import get_backend, output_json_or_table
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 @click.group()
@@ -23,8 +23,16 @@ def dax() -> None:
 @click.pass_context
 def dax_query(ctx: click.Context, expression: str) -> None:
     """Execute a DAX query and return results."""
+    import time as _time
+
+    from pbi_cli.commands.trace import record_trace_event
+
     backend = get_backend(ctx)
+    record_trace_event("QueryBegin", expression)
+    t0 = _time.perf_counter()
     results = backend.dax_query(expression)
+    duration_ms = (_time.perf_counter() - t0) * 1000
+    record_trace_event("QueryEnd", expression, duration_ms=duration_ms)
     output_json_or_table(results, ctx, title="DAX Results")
 
 

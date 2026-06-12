@@ -17,7 +17,7 @@ from pbi_cli.commands._shared import (
     snapshot_before_write,
 )
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 @click.group()

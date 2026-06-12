@@ -9,7 +9,7 @@ from typing import Any
 import click
 from rich.console import Console
 
-console = Console()
+console = Console(legacy_windows=False)
 
 _HISTORY_FILE = Path.home() / ".pbi-cli" / "repl_history"
 _COMMANDS = [
