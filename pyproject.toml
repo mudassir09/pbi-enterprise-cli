@@ -70,6 +70,18 @@ pbi = "pbi_cli.cli:cli"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# Non-Python data that must ship in the wheel. Without this the wheel contains
+# only .py files, and the xmla/desktop backends (DLLs), `pbi skills install`
+# (skills), and `pbi server` (static UI) all break on a pip install.
+# NOTE: the AMO/ADOMD DLLs are git-ignored (proprietary) but must be present in
+# the build tree when the wheel is built so they get bundled.
+pbi_cli = [
+    "dlls/*.dll",
+    "skills/**/*.md",
+    "server/static/*",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

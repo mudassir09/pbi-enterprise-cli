@@ -172,8 +172,13 @@ class TestFileBackend:
     def test_relationships(self, tmdl_project):
         b = FileBackend(path=tmdl_project)
         rels = b.relationship_list()
-        assert {"from": "Sales[DateKey]", "to": "Calendar[DateKey]",
-                "cardinality": "ManyToOne", "isActive": True} in rels
+        date_rel = next(
+            r for r in rels
+            if r["from"] == "Sales[DateKey]" and r["to"] == "Calendar[DateKey]"
+        )
+        assert date_rel["cardinality"] == "ManyToOne"
+        assert date_rel["isActive"] is True
+        assert date_rel["crossFilteringBehavior"] == "OneDirection"
         inactive = next(r for r in rels if not r["isActive"])
         assert inactive["to"] == "Product Catalog[ProductKey]"
 

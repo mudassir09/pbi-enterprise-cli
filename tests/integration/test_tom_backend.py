@@ -73,9 +73,9 @@ class TestTableList:
             assert "name" in t
             assert isinstance(t["name"], str)
 
-    def test_financials_table_present(self, backend):
+    def test_table_names_are_unique(self, backend):
         names = [t["name"] for t in backend.table_list()]
-        assert "financials" in names
+        assert len(names) == len(set(names))
 
 
 # ── Columns ───────────────────────────────────────────────────────────────────
@@ -93,14 +93,27 @@ class TestColumnList:
             assert "table" in c
             assert "dataType" in c
 
-    def test_filter_by_table(self, backend):
-        cols = backend.column_list(table="financials")
-        assert len(cols) >= 1
-        assert all(c["table"] == "financials" for c in cols)
+    def _table_with_columns(self, backend) -> str | None:
+        """Model-agnostic: first table that exposes at least one visible column."""
+        for t in backend.table_list():
+            if backend.column_list(table=t["name"]):
+                return t["name"]
+        return None
 
-    def test_known_column_present(self, backend):
-        names = [c["name"] for c in backend.column_list(table="financials")]
-        assert "Sales" in names or len(names) > 0
+    def test_filter_by_table(self, backend):
+        target = self._table_with_columns(backend)
+        if target is None:
+            pytest.skip("No table with visible columns in the open model")
+        cols = backend.column_list(table=target)
+        assert len(cols) >= 1
+        assert all(c["table"] == target for c in cols)
+
+    def test_filtered_columns_have_names(self, backend):
+        target = self._table_with_columns(backend)
+        if target is None:
+            pytest.skip("No table with visible columns in the open model")
+        names = [c["name"] for c in backend.column_list(table=target)]
+        assert all(isinstance(n, str) and n for n in names)
 
 
 # ── Relationships ─────────────────────────────────────────────────────────────
@@ -132,9 +145,9 @@ class TestMeasureList:
             assert "table" in m
             assert "expression" in m
 
-    def test_known_measures_present(self, backend):
+    def test_measure_names_are_nonempty(self, backend):
         names = [m["name"] for m in backend.measure_list()]
-        assert any("Sales" in n or "Revenue" in n or "Profit" in n for n in names)
+        assert all(isinstance(n, str) and n for n in names)
 
     def test_filter_by_table(self, backend):
         tables = backend.table_list()

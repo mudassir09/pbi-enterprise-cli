@@ -46,7 +46,7 @@ infrastructure gaps.
 ## 4. Implementation Plan
 
 ### Phase 1 — Skills (S1–S6)
-Create `skills/<name>/SKILL.md` for each missing skill following the established frontmatter
+Create `src/pbi_cli/skills/<name>/SKILL.md` for each missing skill following the established frontmatter
 format (`name`, `version`, `min_cli_version`, `description`).
 
 ### Phase 2 — Infrastructure

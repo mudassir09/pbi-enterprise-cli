@@ -20,7 +20,7 @@ pbi ask "top 10 customers by revenue"        # English → DAX → results
 
 - **Real artifacts on any OS** — the `file` backend reads TMDL/PBIP folders straight from your repo (pure Python, no .NET): governance, BPA, lint, docs, and semantic diff on `ubuntu-latest`
 - **Live DAX on any OS** — the `rest` backend runs DAX against published datasets via the `executeQueries` API; `xmla` gives full read/write on Windows
-- **Python-native BPA runner** — the only Python implementation of Best Practice Analyzer; same ruleset as Tabular Editor
+- **Python-native BPA runner** — runs the Best Practice Analyzer `BPARules.json` format with no .NET; safe AST evaluation with an honest evaluated/skipped tally per run
 - **Full Fabric lifecycle** — item CRUD (Item Definition API), workspaces, git sync, deployment pipelines, OneLake, capacity ops, jobs, Direct Lake diagnostics
 - **Quality platform** — DAX lint/format, report lint + unused-field analysis, dbt-style data tests, schema contracts, RLS matrices, drift detection — all CI-gateable with SARIF output
 - **AI-agent native** — `pbi mcp serve` exposes everything to Cursor/Copilot/Claude Desktop; 10 bundled Claude Code skills install with `pbi connect`

@@ -5,14 +5,19 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from pbi_cli.backends.mock_backend import DEFAULT_FIXTURE, MockTomBackend
 from pbi_cli.governance.bpa import (
     BpaEvaluator,
     BpaRule,
-    _translate_expression,
     load_rules_from_file,
+)
+from pbi_cli.governance.bpa_expr import (
+    BpaContext,
+    BpaUnsupported,
+    evaluate_expression,
 )
 
 # ---------------------------------------------------------------------------
@@ -109,40 +114,87 @@ class TestLoadRulesFromFile:
 
 
 # ---------------------------------------------------------------------------
-# Test: expression translator
+# Test: expression evaluator (AST, no eval())
 # ---------------------------------------------------------------------------
 
 
-class TestTranslateExpression:
+class TestExpressionEvaluator:
+    def _col(self, **props: object) -> BpaContext:
+        return BpaContext(props)
+
     def test_equality(self) -> None:
-        assert _translate_expression('DataType = "Double"') == 'DataType == "Double"'
+        assert evaluate_expression('DataType = "Double"', self._col(DataType="Double"))
+        assert not evaluate_expression('DataType = "Double"', self._col(DataType="Int64"))
+
+    def test_double_equals(self) -> None:
+        assert evaluate_expression('DataType == "Double"', self._col(DataType="Double"))
 
     def test_inequality(self) -> None:
-        assert _translate_expression('DataType <> "Double"') == 'DataType != "Double"'
+        assert evaluate_expression('DataType <> "Double"', self._col(DataType="Int64"))
+        assert evaluate_expression('DataType != "Double"', self._col(DataType="Int64"))
+        assert not evaluate_expression('DataType <> "Double"', self._col(DataType="Double"))
 
     def test_and_operator(self) -> None:
-        expr = _translate_expression('DataType = "Double" && IsHidden = "True"')
-        assert " and " in expr
+        ctx = self._col(DataType="Double", IsHidden=False)
+        assert evaluate_expression('DataType = "Double" && not IsHidden', ctx)
+        assert not evaluate_expression('DataType = "Double" && IsHidden', ctx)
 
     def test_or_operator(self) -> None:
-        expr = _translate_expression('DataType = "Double" || IsHidden = "True"')
-        assert " or " in expr
+        ctx = self._col(DataType="Int64", IsHidden=True)
+        assert evaluate_expression('DataType = "Double" || IsHidden', ctx)
 
     def test_starts_with(self) -> None:
-        result = _translate_expression('[Name].StartsWith("_")')
-        assert "Name.startswith" in result
+        assert evaluate_expression('[Name].StartsWith("_")', self._col(Name="_hidden"))
+        assert not evaluate_expression('[Name].StartsWith("_")', self._col(Name="Visible"))
 
     def test_contains(self) -> None:
-        result = _translate_expression('[Name].Contains("Revenue")')
-        assert '"Revenue" in Name' in result
+        assert evaluate_expression('[Name].Contains("Revenue")', self._col(Name="Total Revenue"))
+
+    def test_regex_is_match(self) -> None:
+        assert evaluate_expression('RegEx.IsMatch(Name, "^[a-z]")', self._col(Name="lower"))
+        assert not evaluate_expression('RegEx.IsMatch(Name, "^[a-z]")', self._col(Name="Upper"))
+
+    def test_string_length(self) -> None:
+        assert evaluate_expression("[Name].Length > 3", self._col(Name="abcd"))
+        assert not evaluate_expression("[Name].Length > 3", self._col(Name="ab"))
 
     def test_bracketed_bool(self) -> None:
-        result = _translate_expression("[IsHidden]")
-        assert "bool(IsHidden)" in result
+        assert evaluate_expression("[IsHidden]", self._col(IsHidden=True))
+        assert not evaluate_expression("[IsHidden]", self._col(IsHidden=False))
+
+    def test_bool_vs_string_literal(self) -> None:
+        assert evaluate_expression('IsHidden = "True"', self._col(IsHidden=True))
+        assert not evaluate_expression('IsHidden = "True"', self._col(IsHidden=False))
 
     def test_not_expression(self) -> None:
-        result = _translate_expression('not DataType = "Double"')
-        assert "not" in result and "==" in result
+        assert evaluate_expression('not DataType = "Double"', self._col(DataType="Int64"))
+        assert not evaluate_expression('not DataType = "Double"', self._col(DataType="Double"))
+
+    def test_collection_any(self) -> None:
+        table = BpaContext(
+            {"Name": "Sales"},
+            {"Columns": [self._col(DataType="Double"), self._col(DataType="Int64")]},
+        )
+        assert evaluate_expression('Columns.Any(DataType == "Double")', table)
+        assert not evaluate_expression('Columns.Any(DataType == "String")', table)
+
+    def test_collection_all_and_count(self) -> None:
+        table = BpaContext(
+            {"Name": "Sales"},
+            {"Columns": [self._col(IsHidden=True), self._col(IsHidden=True)]},
+        )
+        assert evaluate_expression("Columns.All(IsHidden)", table)
+        assert evaluate_expression("Columns.Count > 1", table)
+        assert evaluate_expression("Columns.Count() == 2", table)
+
+    def test_unknown_property_raises_unsupported(self) -> None:
+        # IsKey is not modelled — must skip honestly, not default to false
+        with pytest.raises(BpaUnsupported):
+            evaluate_expression("[IsKey]", self._col(Name="C"))
+
+    def test_unparseable_raises_unsupported(self) -> None:
+        with pytest.raises(BpaUnsupported):
+            evaluate_expression("DataType ===", self._col(DataType="Double"))
 
 
 # ---------------------------------------------------------------------------
@@ -296,8 +348,8 @@ class TestBpaEvaluatorTables:
 
 class TestUnsupportedExpressions:
     def test_unsupported_scope_counted_as_skipped(self) -> None:
-        """Rules with unsupported scopes should be skipped, not crash."""
-        rule = _make_rule(scope="Partition", expression='Name = "test"')
+        """Rules scoped only to object types we don't model should be skipped."""
+        rule = _make_rule(scope="KPI", expression='Name = "test"')
         b = MockTomBackend()
         b.connect()
         evaluator = BpaEvaluator()
@@ -305,18 +357,49 @@ class TestUnsupportedExpressions:
         assert violations == []
         assert skipped == 1
 
-    def test_unsupported_linq_expression_counted_as_skipped(self) -> None:
-        """LINQ-style method calls should be counted as skipped."""
+    def test_linq_any_now_evaluated(self) -> None:
+        """LINQ-style collection methods are now evaluated, not skipped."""
         rule = _make_rule(
             scope="Table",
             expression="Columns.Any(DataType == 'Double')",
         )
-        b = MockTomBackend()
-        b.connect()
+        b = _backend_with(
+            tables=[{"name": "Sales", "isHidden": False}],
+            columns=[{"table": "Sales", "name": "Price", "dataType": "Double"}],
+        )
+        evaluator = BpaEvaluator()
+        violations, skipped = evaluator.evaluate([rule], b)
+        assert skipped == 0
+        assert len(violations) == 1
+        assert violations[0]["object"] == "Sales"
+
+    def test_unmodelled_property_counted_as_skipped(self) -> None:
+        """A rule referencing a property we don't model is skipped, not guessed."""
+        rule = _make_rule(scope="Column", expression="[KeepUniqueRows]")
+        b = _backend_with(
+            columns=[{"table": "Sales", "name": "Price", "dataType": "Double"}]
+        )
         evaluator = BpaEvaluator()
         violations, skipped = evaluator.evaluate([rule], b)
         assert violations == []
         assert skipped == 1
+
+    def test_compound_tom_scope_is_evaluated(self) -> None:
+        """The community ruleset uses compound TOM scopes like
+        'DataColumn, CalculatedColumn, CalculatedTableColumn' — these must map to
+        the Column family and actually run, not be skipped."""
+        rule = _make_rule(
+            scope="DataColumn, CalculatedColumn, CalculatedTableColumn",
+            expression='DataType = "Double"',
+        )
+        b = _backend_with(
+            columns=[{"table": "Sales", "name": "Price", "dataType": "Double"}]
+        )
+        evaluator = BpaEvaluator()
+        violations, skipped = evaluator.evaluate([rule], b)
+        assert skipped == 0
+        assert len(violations) == 1
+        assert violations[0]["object"] == "Sales[Price]"
 
     def test_mixed_rules_counts_correctly(self) -> None:
         """Skipped count reflects only unsupported rules, not all rules."""
@@ -327,7 +410,7 @@ class TestUnsupportedExpressions:
         )
         bad_rule = _make_rule(
             rule_id="BAD",
-            scope="Partition",  # unsupported
+            scope="KPI",  # unsupported — object type we don't model
             expression='Name = "x"',
         )
         b = _backend_with(
@@ -478,3 +561,190 @@ class TestBpaCheckCli:
         assert result.exit_code == 0, result.output
         parsed = json.loads(result.output)
         assert parsed == []
+
+
+# ---------------------------------------------------------------------------
+# Test: UsedInRelationships graph + predicate closures (current/it)
+# ---------------------------------------------------------------------------
+
+
+class TestRelationshipGraphAndClosures:
+    """A star schema: Sales[ProductFK] -(many)-> Products[ProductPK];
+    Products[CatFK] -(many)-> Category[CatPK]; Orphan has no relationships.
+    Products is therefore a snowflake hop (both a from- and a to-table)."""
+
+    def _model(self) -> MockTomBackend:
+        return _backend_with(
+            tables=[
+                {"name": "Sales", "isHidden": False},
+                {"name": "Products", "isHidden": False},
+                {"name": "Category", "isHidden": False},
+                {"name": "Orphan", "isHidden": False},
+            ],
+            columns=[
+                {"table": "Sales", "name": "ProductFK", "dataType": "Int64", "isHidden": False},
+                {"table": "Products", "name": "ProductPK", "dataType": "Int64", "isHidden": False},
+                {"table": "Products", "name": "CatFK", "dataType": "Int64", "isHidden": False},
+                {"table": "Category", "name": "CatPK", "dataType": "Int64", "isHidden": False},
+                {"table": "Orphan", "name": "X", "dataType": "Int64", "isHidden": False},
+            ],
+            relationships=[
+                {"from": "Sales[ProductFK]", "to": "Products[ProductPK]",
+                 "cardinality": "ManyToOne"},
+                {"from": "Products[CatFK]", "to": "Category[CatPK]",
+                 "cardinality": "ManyToOne"},
+            ],
+        )
+
+    def test_tables_without_relationships(self) -> None:
+        """UsedInRelationships.Count() == 0 flags only the orphan table."""
+        rule = _make_rule(scope="Table", expression="UsedInRelationships.Count() == 0")
+        v, skipped = BpaEvaluator().evaluate([rule], self._model())
+        assert skipped == 0
+        assert {x["object"] for x in v} == {"Orphan"}
+
+    def test_foreign_key_detection_uses_current_closure(self) -> None:
+        """Flag visible many-side FK columns — uses FromColumn.Name, current, cardinality."""
+        rule = _make_rule(
+            scope="Column",
+            expression=(
+                "UsedInRelationships.Any(FromColumn.Name == current.Name "
+                'and FromCardinality == "Many") and IsHidden == false'
+            ),
+        )
+        v, skipped = BpaEvaluator().evaluate([rule], self._model())
+        assert skipped == 0
+        flagged = {x["object"] for x in v}
+        assert flagged == {"Sales[ProductFK]", "Products[CatFK]"}
+
+    def test_snowflake_hop_detection(self) -> None:
+        """A table that is both a from-table and a to-table is a snowflake hop."""
+        rule = _make_rule(
+            scope="Table",
+            expression=(
+                "UsedInRelationships.Any(current.Name == FromTable.Name) "
+                "and UsedInRelationships.Any(current.Name == ToTable.Name)"
+            ),
+        )
+        v, skipped = BpaEvaluator().evaluate([rule], self._model())
+        assert skipped == 0
+        assert {x["object"] for x in v} == {"Products"}
+
+    def test_relationship_columns_should_be_integer(self) -> None:
+        """UsedInRelationships.Any() + enum constant DataType.Int64."""
+        model = _backend_with(
+            tables=[{"name": "Sales", "isHidden": False}, {"name": "Dim", "isHidden": False}],
+            columns=[
+                {"table": "Sales", "name": "DimKey", "dataType": "String", "isHidden": False},
+                {"table": "Dim", "name": "DimKey", "dataType": "Int64", "isHidden": False},
+            ],
+            relationships=[
+                {"from": "Sales[DimKey]", "to": "Dim[DimKey]", "cardinality": "ManyToOne"}
+            ],
+        )
+        rule = _make_rule(
+            scope="Column",
+            expression="UsedInRelationships.Any() and DataType != DataType.Int64",
+        )
+        v, skipped = BpaEvaluator().evaluate([rule], model)
+        assert skipped == 0
+        assert {x["object"] for x in v} == {"Sales[DimKey]"}
+
+    def test_model_allcolumns_with_current(self) -> None:
+        """Model back-reference + current closure: duplicate column names across tables."""
+        model = _backend_with(
+            tables=[{"name": "A", "isHidden": False}, {"name": "B", "isHidden": False}],
+            columns=[
+                {"table": "A", "name": "Dup", "dataType": "Int64", "isHidden": False},
+                {"table": "B", "name": "Dup", "dataType": "Int64", "isHidden": False},
+                {"table": "A", "name": "Unique", "dataType": "Int64", "isHidden": False},
+            ],
+        )
+        rule = _make_rule(
+            scope="Column",
+            expression=(
+                "Model.AllColumns.Any(Name == current.Name "
+                "and Table.Name != current.Table.Name)"
+            ),
+        )
+        v, skipped = BpaEvaluator().evaluate([rule], model)
+        assert skipped == 0
+        assert {x["object"] for x in v} == {"A[Dup]", "B[Dup]"}
+
+
+# ---------------------------------------------------------------------------
+# Test: type-aware scoping + DAX dependency graph
+# ---------------------------------------------------------------------------
+
+
+class TestTypeAwareScopingAndDependencies:
+    def test_calculatedcolumn_scope_excludes_data_columns(self) -> None:
+        """A rule scoped only to CalculatedColumn must not flag data columns."""
+        b = _backend_with(
+            tables=[{"name": "T", "isHidden": False}],
+            columns=[
+                {"table": "T", "name": "DataCol", "dataType": "Int64"},
+                {"table": "T", "name": "CalcCol", "dataType": "Int64",
+                 "columnType": "Calculated", "expression": "1+1"},
+            ],
+        )
+        # string.IsNullOrWhitespace(Expression) flags expression-less objects;
+        # scoped to CalculatedColumn it must only consider the calc column.
+        rule = _make_rule(scope="CalculatedColumn",
+                          expression="string.IsNullOrWhitespace(Expression)")
+        v, skipped = BpaEvaluator().evaluate([rule], b)
+        assert skipped == 0
+        # CalcCol has an expression -> not flagged; DataCol is out of scope
+        assert v == []
+
+    def test_datacolumn_scope_excludes_calculated_columns(self) -> None:
+        b = _backend_with(
+            tables=[{"name": "T", "isHidden": False}],
+            columns=[
+                {"table": "T", "name": "DataCol", "dataType": "Int64",
+                 "sourceColumn": "DataCol"},
+                {"table": "T", "name": "CalcCol", "dataType": "Int64",
+                 "columnType": "Calculated", "expression": "1+1"},
+            ],
+        )
+        # DATA_COLUMNS_MUST_HAVE_A_SOURCE_COLUMN — only data columns are in scope.
+        rule = _make_rule(scope="DataColumn",
+                          expression="string.IsNullOrWhitespace(SourceColumn)")
+        v, skipped = BpaEvaluator().evaluate([rule], b)
+        assert skipped == 0
+        assert v == []  # DataCol has a source column; CalcCol is out of scope
+
+    def test_dependson_unqualified_column_reference(self) -> None:
+        """DAX_COLUMNS_FULLY_QUALIFIED: flag measures referencing a column unqualified."""
+        b = _backend_with(
+            tables=[{"name": "Sales", "isHidden": False}],
+            columns=[{"table": "Sales", "name": "Amount", "dataType": "Int64"}],
+            measures=[
+                {"table": "Sales", "name": "Good", "expression": "SUM(Sales[Amount])"},
+                {"table": "Sales", "name": "Bad", "expression": "SUM([Amount])"},
+            ],
+        )
+        rule = _make_rule(
+            scope="Measure",
+            expression='DependsOn.Any(Key.ObjectType = "Column" and Value.Any(not FullyQualified))',
+        )
+        v, skipped = BpaEvaluator().evaluate([rule], b)
+        assert skipped == 0
+        assert {x["object"] for x in v} == {"Sales[Bad]"}
+
+    def test_calculation_group_scope(self) -> None:
+        """Object-type scope wired from backend.calc_group_list()."""
+        class B(MockTomBackend):
+            def calc_group_list(self):
+                return [
+                    {"table": "CG Empty", "items": []},
+                    {"table": "CG Full", "items": [{"name": "YTD", "expression": "X"}]},
+                ]
+
+        b = B()
+        b.connect()
+        rule = _make_rule(scope="CalculationGroup",
+                          expression="CalculationItems.Count == 0")
+        v, skipped = BpaEvaluator().evaluate([rule], b)
+        assert skipped == 0
+        assert {x["object"] for x in v} == {"CG Empty"}
