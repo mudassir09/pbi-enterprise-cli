@@ -189,6 +189,17 @@ def resolve_definition_dir(path: str | Path | None) -> Path:
     )
 
 
+def _is_calculated_table(node: TmdlNode) -> bool:
+    """A table is calculated if any partition is a calculated/DAX partition."""
+    for child in node.children:
+        if child.keyword != "partition":
+            continue
+        for ln in child.expr_lines:
+            if ln.strip() in ("calculated", "calculationGroup"):
+                return True
+    return False
+
+
 def _rel_endpoint(value: str) -> tuple[str, str]:
     """Split `Table.Column` / `'Tab le'.Column` into (table, column)."""
     value = value.strip()
@@ -261,10 +272,20 @@ class FileBackend(MockTomBackend):
                         continue
                     ft, fc = _rel_endpoint(node.props.get("fromColumn", ""))
                     tt, tc = _rel_endpoint(node.props.get("toColumn", ""))
+                    # TMDL omits the default cardinalities (many on the from side,
+                    # one on the to side); make the derived marker explicit.
+                    from_card = node.props.get("fromCardinality", "many")
+                    to_card = node.props.get("toCardinality", "one")
+                    cardinality = (
+                        f"{from_card.capitalize()}To{to_card.capitalize()}"
+                    )
                     state["relationships"].append({
                         "from": f"{ft}[{fc}]",
                         "to": f"{tt}[{tc}]",
-                        "cardinality": node.props.get("fromCardinality", "ManyToOne"),
+                        "cardinality": cardinality,
+                        "crossFilteringBehavior": node.props.get(
+                            "crossFilteringBehavior", "OneDirection"
+                        ),
                         "isActive": node.props.get("isActive", "true") != "false",
                     })
 
@@ -308,6 +329,8 @@ class FileBackend(MockTomBackend):
                 "dataCategory": node.props.get("dataCategory", ""),
                 "sourceFile": str(tf),
                 "isCalculationGroup": calc_group is not None,
+                "objectTypeName": "Calculated Table" if _is_calculated_table(node)
+                else "Table",
             })
             for child in node.children:
                 if child.keyword == "measure":
@@ -321,6 +344,7 @@ class FileBackend(MockTomBackend):
                         "isHidden": child.props.get("isHidden", "false") == "true",
                     })
                 elif child.keyword == "column":
+                    is_calc = bool(child.expression.strip())
                     state["columns"].append({
                         "table": tname,
                         "name": child.name,
@@ -331,6 +355,12 @@ class FileBackend(MockTomBackend):
                         "formatString": child.props.get("formatString", ""),
                         "summarizeBy": child.props.get("summarizeBy", ""),
                         "description": child.description,
+                        "dataCategory": child.props.get("dataCategory", ""),
+                        "isKey": child.props.get("isKey", "false") == "true",
+                        "sortByColumn": child.props.get("sortByColumn", ""),
+                        "isAvailableInMDX": child.props.get("isAvailableInMDX", "true")
+                        != "false",
+                        "columnType": "Calculated" if is_calc else "Data",
                     })
                 elif child.keyword == "partition":
                     lines = [ln for ln in child.expr_lines if ln.strip()]
@@ -349,6 +379,10 @@ class FileBackend(MockTomBackend):
                             (c.expression for c in child.children if c.keyword == "expression"),
                             "",
                         )
+                    # TMDL partition kind -> TOM SourceType casing
+                    _src_type = {"m": "M", "query": "Query", "calculated": "Calculated",
+                                 "entity": "Entity", "calculationGroup": "CalculationGroup",
+                                 "policyRange": "PolicyRange"}.get(kind, kind)
                     state["partitions"].append({
                         "table": tname,
                         "name": child.name,
@@ -356,6 +390,8 @@ class FileBackend(MockTomBackend):
                         "mode": child.props.get("mode", "import"),
                         "state": "Ready",
                         "source": source,
+                        "sourceType": _src_type,
+                        "query": source,
                     })
                 elif child.keyword == "hierarchy":
                     state["hierarchies"].append({

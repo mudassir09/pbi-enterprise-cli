@@ -27,6 +27,28 @@ def _load_amo() -> None:
     clr.AddReference("Microsoft.AnalysisServices.AdomdClient")
 
 
+def _table_object_type_name(t: Any) -> str:
+    """Mirror Tabular Editor's ObjectTypeName for a table.
+
+    'Calculated Table' if it has a calculated partition; 'Table (DirectQuery)' if
+    any partition is DirectQuery; otherwise 'Table'.
+    """
+    try:
+        partitions = list(t.Partitions)
+    except Exception:
+        return "Table"
+    for p in partitions:
+        src_type = ""
+        if p.Source is not None and hasattr(p.Source, "SourceType"):
+            src_type = p.Source.SourceType.ToString()
+        if src_type == "Calculated":
+            return "Calculated Table"
+    for p in partitions:
+        if p.Mode.ToString() == "DirectQuery":
+            return "Table (DirectQuery)"
+    return "Table"
+
+
 def find_pbi_port() -> int | None:
     """Auto-discover the local Analysis Services port used by Power BI Desktop."""
     try:
@@ -117,25 +139,44 @@ class TomBackend:
             "server": str(self._server.Name),
         }
 
-    def table_list(self) -> list[dict[str, Any]]:
+    def table_list(self, include_hidden: bool = False) -> list[dict[str, Any]]:
         self._require_connection()
-        return [
-            {"name": t.Name, "isHidden": t.IsHidden, "description": t.Description or ""}
-            for t in self._model.Tables
-            if not t.IsHidden
-        ]
+        out = []
+        for t in self._model.Tables:
+            if t.IsHidden and not include_hidden:
+                continue
+            out.append(
+                {
+                    "name": t.Name,
+                    "isHidden": t.IsHidden,
+                    "description": t.Description or "",
+                    "dataCategory": getattr(t, "DataCategory", None) or "",
+                    "objectTypeName": _table_object_type_name(t),
+                }
+            )
+        return out
 
-    def column_list(self, table: str | None = None) -> list[dict[str, Any]]:
+    def column_list(
+        self, table: str | None = None, include_hidden: bool = False
+    ) -> list[dict[str, Any]]:
         self._require_connection()
         results = []
         for t in self._model.Tables:
-            if t.IsHidden:
+            if t.IsHidden and not include_hidden:
                 continue
             if table and t.Name != table:
                 continue
             for col in t.Columns:
-                if col.IsHidden or col.Type.ToString() == "RowNumber":
+                col_type = col.Type.ToString()
+                if col_type == "RowNumber":
                     continue
+                if col.IsHidden and not include_hidden:
+                    continue
+                sort_by = getattr(col, "SortByColumn", None)
+                source_col = col.SourceColumn if col_type == "Data" else ""
+                summarize_by = (
+                    col.SummarizeBy.ToString() if hasattr(col, "SummarizeBy") else ""
+                )
                 results.append(
                     {
                         "table": t.Name,
@@ -143,6 +184,15 @@ class TomBackend:
                         "dataType": col.DataType.ToString(),
                         "isHidden": col.IsHidden,
                         "description": col.Description or "",
+                        "dataCategory": getattr(col, "DataCategory", None) or "",
+                        "isKey": bool(getattr(col, "IsKey", False)),
+                        "isAvailableInMDX": bool(getattr(col, "IsAvailableInMDX", True)),
+                        "sortByColumn": sort_by.Name if sort_by else "",
+                        "columnType": col_type,
+                        "summarizeBy": summarize_by,
+                        "sourceColumn": source_col or "",
+                        "hasAlternateOf": getattr(col, "AlternateOf", None) is not None,
+                        "expression": str(getattr(col, "Expression", "") or ""),
                     }
                 )
         return results
@@ -458,11 +508,39 @@ class TomBackend:
                 {"table": tp.Table.Name, "filterExpression": tp.FilterExpression or ""}
                 for tp in role.TablePermissions
             ]
+            try:
+                member_count = len(list(role.Members))
+            except Exception:
+                member_count = 0
             results.append(
                 {
                     "name": role.Name,
                     "modelPermission": role.ModelPermission.ToString(),
                     "tablePermissions": table_perms,
+                    "memberCount": member_count,
+                }
+            )
+        return results
+
+    def perspective_list(self) -> list[dict[str, Any]]:
+        self._require_connection()
+        results = []
+        for p in self._model.Perspectives:
+            try:
+                obj_count = len(list(p.PerspectiveTables))
+            except Exception:
+                obj_count = 0
+            results.append({"name": p.Name, "objectCount": obj_count})
+        return results
+
+    def datasource_list(self) -> list[dict[str, Any]]:
+        self._require_connection()
+        results = []
+        for ds in self._model.DataSources:
+            results.append(
+                {
+                    "name": ds.Name,
+                    "type": ds.Type.ToString() if hasattr(ds, "Type") else "",
                 }
             )
         return results
@@ -539,9 +617,15 @@ class TomBackend:
                 continue
             for p in t.Partitions:
                 source_expr = ""
+                source_type = ""
+                ds_type = ""
                 src = p.Source
                 if src is not None:
                     source_expr = getattr(src, "Expression", "") or getattr(src, "Query", "") or ""
+                    source_type = src.SourceType.ToString() if hasattr(src, "SourceType") else ""
+                    ds = getattr(src, "DataSource", None)
+                    if ds is not None:
+                        ds_type = ds.Type.ToString() if hasattr(ds, "Type") else ""
                 results.append(
                     {
                         "table": t.Name,
@@ -549,6 +633,9 @@ class TomBackend:
                         "mode": p.Mode.ToString(),
                         "state": p.State.ToString(),
                         "source": source_expr,
+                        "sourceType": source_type,
+                        "query": source_expr,
+                        "dataSourceType": ds_type,
                     }
                 )
         return results

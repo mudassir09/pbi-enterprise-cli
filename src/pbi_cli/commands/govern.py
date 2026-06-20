@@ -253,6 +253,13 @@ def govern_bpa(ctx: click.Context) -> None:
     help="Only show violations at this severity level.",
 )
 @click.option("--category", default=None, help="Filter violations by category name.")
+@click.option(
+    "--vertipaq",
+    is_flag=True,
+    help="Collect VertiPaq runtime statistics (row counts, cardinality, RI "
+    "violations) from the live model so rules that use GetAnnotation(...) "
+    "evaluate. Requires a live backend (desktop/xmla) and scans the data.",
+)
 @click.pass_context
 def bpa_check(
     ctx: click.Context,
@@ -260,6 +267,7 @@ def bpa_check(
     rules_url: str | None,
     severity: str | None,
     category: str | None,
+    vertipaq: bool,
 ) -> None:
     """Run BPA rules against the current model.
 
@@ -268,6 +276,10 @@ def bpa_check(
       1. --file PATH   — local BPARules.json
       2. --url  URL    — custom remote URL
       3. (default)     — Microsoft community BPA rules fetched live
+
+    Use --vertipaq on a live (desktop/xmla) backend to also evaluate rules that
+    depend on runtime statistics (large-table, split date/time, RI violations,
+    high-cardinality columns, long-length strings).
     """
     from pbi_cli.governance.bpa import BpaEvaluator, load_rules_from_file, load_rules_from_url
 
@@ -292,9 +304,30 @@ def bpa_check(
     if not is_json:
         console.print(f"[cyan]Loaded {len(rules)} rules from:[/cyan] {source_label}")
 
+    vertipaq_stats = None
+    if vertipaq:
+        from pbi_cli.governance.vertipaq import collect as collect_vertipaq
+
+        try:
+            if not is_json:
+                console.print("[cyan]Collecting VertiPaq statistics from the live model…[/cyan]")
+            vertipaq_stats = collect_vertipaq(backend)
+            if not is_json:
+                console.print(
+                    f"[cyan]Collected {vertipaq_stats.annotation_count()} statistics.[/cyan]"
+                )
+        except TypeError as exc:
+            console.print(f"[red]--vertipaq requires a live backend:[/red] {exc}")
+            raise SystemExit(1)
+        except Exception as exc:
+            console.print(
+                f"[yellow]VertiPaq collection failed, continuing without it:[/yellow] {exc}"
+            )
+
     evaluator = BpaEvaluator()
     violations, skipped = evaluator.evaluate(
-        rules, backend, severity_filter=severity, category_filter=category
+        rules, backend, severity_filter=severity, category_filter=category,
+        vertipaq=vertipaq_stats,
     )
 
     if not is_json:
@@ -305,7 +338,8 @@ def bpa_check(
             f"[red]{len(errors)} errors[/red], "
             f"[yellow]{len(warnings_list)} warnings[/yellow], "
             f"[blue]{len(infos)} info[/blue]  "
-            f"([dim]{skipped} rules skipped — unsupported expressions[/dim])"
+            f"([dim]{len(rules) - skipped}/{len(rules)} rules evaluated, "
+            f"{skipped} skipped[/dim])"
         )
 
     if violations:
@@ -318,8 +352,9 @@ def bpa_check(
 
     if not is_json:
         console.print(
-            f"\n[dim]{len(violations)} violations found, {skipped} rules skipped "
-            f"(unsupported expressions)[/dim]"
+            f"\n[dim]{len(violations)} violations found · "
+            f"{len(rules) - skipped}/{len(rules)} rules evaluated, {skipped} skipped "
+            f"(unmodelled scope or property)[/dim]"
         )
 
     # Exit 1 if any errors found
