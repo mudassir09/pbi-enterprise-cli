@@ -130,7 +130,7 @@ pbi watch          # re-runs governance + DAX tests on every file save
 Run the full pyramid locally before a PR; CI runs the same commands.
 
 ```bash
-# 1. Governance — naming, metadata, model quality (+ BPA, same rules as Tabular Editor)
+# 1. Governance — naming, metadata, model quality (+ BPA, Tabular Editor rule format)
 pbi --backend file --path . govern check --fail-on error
 pbi --backend file --path . govern bpa check --severity error
 pbi --backend file --path . govern fix --auto          # apply safe auto-fixes

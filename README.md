@@ -21,7 +21,7 @@
 
 - **Real artifacts on any OS** — the `file` backend reads TMDL/PBIP folders straight from your repo (pure Python, no .NET): governance, BPA, lint, docs, and semantic diff run against *real* models on `ubuntu-latest`
 - **Live DAX on any OS** — the `rest` backend runs DAX against any published dataset via the `executeQueries` API; the `xmla` backend gives full read/write on Windows
-- **Python-native BPA runner** — the only Python implementation of Best Practice Analyzer; same ruleset as Tabular Editor, zero extra tooling
+- **Python-native BPA runner** — runs the Best Practice Analyzer `BPARules.json` format with no .NET tooling; safe AST evaluation (no `eval()`) with an honest evaluated/skipped tally per run
 - **Full Fabric lifecycle** — items (CRUD via the Item Definition API), workspaces, git sync, deployment pipelines, OneLake, capacity pause/resume/scale, jobs, Direct Lake diagnostics
 - **Quality platform** — DAX lint/format, report lint + field-usage analysis, dbt-style data tests, schema contracts, RLS matrices, drift detection — all CI-gateable with exit codes and SARIF
 - **AI-agent native** — `pbi mcp serve` exposes every capability to Cursor/Copilot/Claude Desktop; `pbi ask` turns English into executed DAX; 10 Claude Code skills install in one step
@@ -169,12 +169,14 @@ pbi --backend desktop measure list                          # local Desktop (def
 
 ---
 
-## The Only Python-Native BPA Runner
+## Python-Native BPA Runner
 
-`pbi-enterprise-cli` is the only Python-native implementation of the [Best Practice Analyzer](https://docs.tabulareditor.com/BPA/Best-Practice-Analyzer.html) — run the same rule engine used by Tabular Editor without installing .NET 6 or Tabular Editor itself.
+`pbi-enterprise-cli` includes a Python-native runner for the [Best Practice Analyzer](https://docs.tabulareditor.com/BPA/Best-Practice-Analyzer.html) rule format — load the same `BPARules.json` files Tabular Editor uses, with no .NET 6 and no Tabular Editor install.
+
+Rule expressions are parsed into an AST and evaluated safely (no `eval()`). Rules whose expression — or a property it references — is outside the model surface we expose are reported as **skipped**, not silently mis-evaluated. Every run prints an `evaluated / skipped` tally so you always know how much of a ruleset actually ran. Coverage of the Microsoft community ruleset improves with the richer `file`/`xmla` backends over `mock`.
 
 ```bash
-# Microsoft community BPA rules (fetched live — same ruleset as Tabular Editor)
+# Microsoft community BPA rules (fetched live)
 pbi govern bpa check
 
 # Filter to errors only — safe CI gate
@@ -183,9 +185,21 @@ pbi govern bpa check --severity error
 # Local corporate rule file
 pbi govern bpa check --file ./governance/CorpBPARules.json
 
+# Also evaluate runtime-statistics rules (large tables, RI violations,
+# high-cardinality columns) — collects VertiPaq stats from the live model
+pbi --backend desktop govern bpa check --vertipaq
+
 # JSON output for downstream tooling
 pbi --json govern bpa check --severity error
 ```
+
+> **Full ruleset coverage.** Against a live `desktop`/`xmla` model with
+> `--vertipaq`, the runner evaluates **all** of the Microsoft community ruleset —
+> including the DAX-dependency, object-metadata, and runtime-statistic rules.
+> Rules that read runtime statistics via `GetAnnotation(...)` (row counts,
+> cardinality, RI violations) need `--vertipaq` because those numbers exist only
+> once the data is loaded into VertiPaq; without it (or on the static `file`
+> backend) they skip honestly rather than guessing.
 
 **GitHub Actions governance gate — works on `ubuntu-latest`, no Windows runner needed:**
 

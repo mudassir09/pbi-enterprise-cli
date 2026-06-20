@@ -8,6 +8,101 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — VertiPaq statistics for runtime BPA rules
+- `pbi govern bpa check --vertipaq` collects runtime statistics from a **live**
+  model (desktop/xmla) and feeds them to the evaluator so the BPA rules that read
+  `GetAnnotation(...)` evaluate instead of skipping:
+  - `Vertipaq_RowCount` (table) — large-table-should-be-partitioned
+  - `DateTimeWithHourMinSec` (column) — split date and time
+  - `LongLengthRowCount` (column) — long-length high-cardinality columns
+  - `Vertipaq_Cardinality` (column) — bidirectional-vs-high-cardinality
+  - `Vertipaq_RIViolationInvalidRows` (relationship) — referential-integrity
+- New `governance/vertipaq.py` collector: one batched DAX query per table
+  (row count + per-column cardinality/scan stats), plus a best-effort RI check
+  per relationship; results are returned as annotations keyed by object.
+- Evaluator gained `GetAnnotation(...)`, `Convert.ToInt64/ToInt32/ToDouble/
+  ToString`, the `char(n)` function, and bare-function-call parsing. Without
+  `--vertipaq` (or on a static `file` backend) these rules skip honestly —
+  `GetAnnotation` raises rather than guessing.
+- Evaluator also gained `string.IsNullOrEmpty`/`IsNullOrWhiteSpace`, collection
+  indexing (`Partitions[0]`), enabling the description/format-string/source-column
+  and single-partition-name rules.
+- Net effect: on a live model the community-ruleset coverage reaches **71 of
+  71** (from 5 originally), with no false positives.
+
+### Added — Full BPA community-ruleset coverage
+- **Model metadata**: the desktop/xmla and file backends now surface `IsKey`,
+  `SortByColumn`, `IsAvailableInMDX`, `DataCategory`, column `Type`, `SourceColumn`,
+  `SummarizeBy`, table `ObjectTypeName`, and partition `SourceType`/`Query`/
+  `DataSource`. BPA now also sees hidden objects (rules reason about `IsHidden`).
+- **Type-aware scoping**: `DataColumn` / `CalculatedColumn` / `CalculatedTableColumn`
+  and `Table` / `CalculatedTable` are distinct scopes, so a rule scoped to one
+  sub-type no longer fires on the others (eliminated a class of false positives).
+- **DAX dependency graph**: a static reference extractor powers `DependsOn`,
+  `ReferencedBy`, and `DaxObjectName` — qualified/unqualified column and measure
+  reference rules now evaluate.
+- **New object-type scopes**: `CalculationGroup`/`CalculationItem`, `ModelRole`
+  (members), `Perspective`, `TablePermission`/RowLevelSecurity, and `DataSource`.
+- **Evaluator additions**: predicate closures (`current` at top level, `outerit`),
+  object identity (`it <> outerit`), collection indexing, `AllMeasures`/`AllColumns`
+  filters, `char.*`/`Math.*`/`string.*` statics, `ToCharArray`, `Substring`,
+  enum constants, and C#-style `""` quote escapes.
+- Integration tests (`tests/integration/test_tom_backend.py`) are now
+  model-agnostic — they assert structure rather than a hard-coded "Financial
+  Sample" schema, so they pass against any model open in Desktop.
+- Note: the desktop/xmla `column_list` excludes hidden columns, so VertiPaq
+  column stats are collected only for visible columns; table row counts and RI
+  are unaffected.
+
+### Fixed — Packaging (wheel shipped no data files)
+- **The wheel previously contained only `.py` files** — no AMO/ADOMD DLLs, no
+  skills, no server static UI. On a clean `pip install` this broke the
+  `xmla`/`desktop` backends (missing DLLs), `pbi skills install` / `pbi connect`
+  (no skills to copy), and `pbi server` (no UI). Added
+  `[tool.setuptools.package-data]` declaring `dlls/*.dll`, `skills/**/*.md`, and
+  `server/static/*`
+- Skills now live inside the package (`src/pbi_cli/skills/`) so they ship in the
+  wheel; `_skills_source_dir()` resolves the packaged copy with a repo-root
+  fallback for source checkouts
+- Added packaging regression tests (`tests/unit/test_packaging.py`)
+
+### Fixed — BPA runner (most rules were silently skipped; unsafe eval)
+- **Compound TOM scopes are now honoured.** The Microsoft community ruleset
+  scopes rules to type lists like `"DataColumn, CalculatedColumn,
+  CalculatedTableColumn"`, which never matched the old exact-name check — so
+  ~93% of the community rules were silently skipped. Scope tokens now map to the
+  evaluated object families (≈4× more community rules run)
+- **Expressions are parsed into an AST and evaluated safely** — the old
+  implementation regex-translated rule text and ran `eval()` on it. New module
+  `governance/bpa_expr.py`; no `eval`/`exec`
+- **LINQ-style collection methods now evaluate** (`Columns.Any(...)`, `.All`,
+  `.Where`, `.Count`), plus `RegEx.IsMatch` and string methods — these were
+  rejected outright before
+- **.NET regex inline flags** (`(?i)` mid-pattern) are relocated to Python
+  compile flags instead of erroring, and string-literal backslash sequences
+  (`\s`, `\d`, `\t`) are preserved verbatim instead of being mangled by escape
+  decoding — both previously corrupted or skipped regex-based rules
+- **Enum constants** (`DataType.Int64`, `CrossFilteringBehavior.BothDirections`)
+  and `Substring`/`ToString` are now supported
+- **Relationship graph + predicate closures.** Columns and tables expose
+  `UsedInRelationships`; relationships are navigable (`FromColumn.Name`,
+  `ToTable.Name`, `FromCardinality`, `CrossFilteringBehavior`, …); predicates
+  resolve the `current`/`it`/`outerit` iteration variables; and every object
+  carries a `Model` back-reference (`Model.AllColumns`, `Model.AllMeasures`).
+  This lights up the relationship-hygiene rules — foreign-key hiding, integer
+  key types, tables-without-relationships, snowflake detection, duplicate
+  columns. The `file` backend now also captures `toCardinality` and
+  `crossFilteringBehavior`. Net effect on the Microsoft community ruleset
+  (sparse `mock` backend): **5 → 36 of 71** rules evaluated vs the original
+  implementation. The remainder need runtime VertiPaq statistics, a DAX
+  dependency graph, or object types a static reader does not model — and are
+  honestly reported as skipped
+- **Honest skips** — a rule referencing a property we don't model is reported as
+  skipped (with the evaluated/skipped tally) rather than defaulted to empty and
+  mis-evaluated. Added `Model` and `Partition` rule scopes
+- Docs no longer claim "same ruleset as Tabular Editor" — clarified to the BPA
+  *rule format* with a transparent coverage tally
+
 ### Added — Fabric IQ & AI readiness
 - `pbi fabric ontology` — manage Fabric IQ ontology (preview) items via the
   REST API: list, get (with `--output` definition download), create (with
