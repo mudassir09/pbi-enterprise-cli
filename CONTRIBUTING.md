@@ -39,7 +39,7 @@ def test_measure_add_cli():
 
 ## Skill Authoring Guide
 
-Skills live in `skills/<skill-name>/SKILL.md`. Required frontmatter:
+Skills live in `src/pbi_cli/skills/<skill-name>/SKILL.md` (inside the package so they ship in the wheel). Required frontmatter:
 
 ```yaml
 ---

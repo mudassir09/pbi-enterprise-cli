@@ -113,7 +113,15 @@ _BUNDLED_SKILLS: list[dict[str, Any]] = [
 
 
 def _skills_source_dir() -> Path:
-    """Return the bundled skills directory (ships with pbi-cli)."""
+    """Return the bundled skills directory (ships with pbi-cli).
+
+    The skills live inside the package (``pbi_cli/skills``) so they are present
+    in the installed wheel. A repo-root fallback keeps source checkouts working
+    if the package copy is ever absent.
+    """
+    packaged = Path(__file__).parent.parent / "skills"
+    if packaged.is_dir():
+        return packaged
     return Path(__file__).parent.parent.parent.parent / "skills"
 
 
