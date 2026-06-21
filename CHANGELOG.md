@@ -8,6 +8,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — `fabric` backend: edit a live semantic model from any OS
+- New `--backend fabric` writes measures to a **published** Fabric semantic model
+  without Windows or XMLA. It downloads the model's TMDL definition (getDefinition),
+  edits it with the pure-Python TMDL writer, and pushes it back (updateDefinition LRO):
+  - `pbi --backend fabric --workspace <ws> --dataset <ds> measure add/update/delete ...`
+  - Ids also read from `PBI_FABRIC_WORKSPACE` / `PBI_FABRIC_DATASET`.
+- Closes the write gap the `rest` backend left (rest is read-only). Structural edits
+  (tables, relationships, partitions) still use the desktop/xmla backends.
+- New `backends/fabric_backend.py` (subclasses `FileBackend`, so all read/edit logic
+  is reused) and faithful `fabric_api.encode_parts`/`decode_parts` round-trip helpers
+  that preserve `.platform` (the older command helper dropped dotfiles).
+- New global `--workspace` / `--dataset` flags.
+
 ### Added — `pbi lakehouse`: first-class Lakehouse table operations
 - `pbi lakehouse list` — list lakehouses in a workspace.
 - `pbi lakehouse tables` — list Delta tables (handles the `data`-keyed, paged response).

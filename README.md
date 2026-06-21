@@ -152,7 +152,7 @@ pbi ask "top 10 customers by revenue"          # English → DAX → results (re
 
 Honesty about coverage, so you can judge fit:
 
-- **Deep today (the moat):** the semantic-model layer — modelling, DAX authoring/testing/lint, governance + BPA, RLS, report (PBIR) authoring & analysis, TMDL diff/snapshot, docs/lineage, and CI gating. This is production-grade and best-in-class.
+- **Deep today (the moat):** the semantic-model layer — modelling, DAX authoring/testing/lint, governance + BPA, RLS, report (PBIR) authoring & analysis, TMDL diff/snapshot, docs/lineage, and CI gating. This is production-grade and best-in-class. Live measure edits now work **from any OS** via the `fabric` backend (no Windows/XMLA).
 - **Solid:** Fabric platform *lifecycle* — item CRUD (any type), workspaces, git sync, deployment pipelines, OneLake files, capacity ops, jobs; **T-SQL against Warehouse/Lakehouse SQL endpoints** (`pbi sql query`); **Lakehouse table ops** (`pbi lakehouse` — list/tables/load/maintenance); **notebook runs** (`pbi notebook` — parameterised run, status, `.ipynb` export/import).
 - **Emerging (item-level only, ergonomics in progress):** data-pipeline (Data Factory) run monitoring and Dataflows Gen2 mashups — reachable via `pbi fabric item`/`pbi fabric job`, dedicated commands still being built.
 - **Not yet:** Eventstream / Eventhouse / KQL / Real-Time Intelligence and Spark environments.
@@ -161,10 +161,10 @@ If your work is **Power BI semantic models, governance, and analytics**, this is
 
 ---
 
-## Five-Backend Architecture
+## Six-Backend Architecture
 
 <div align="center">
-  <img src="docs/assets/architecture.svg" alt="Three-backend architecture" width="100%"/>
+  <img src="docs/assets/architecture.svg" alt="Backend architecture" width="100%"/>
 </div>
 
 | Backend | When to use | Requires |
@@ -173,15 +173,23 @@ If your work is **Power BI semantic models, governance, and analytics**, this is
 | `xmla` | Power BI Premium or Microsoft Fabric — no Desktop | Windows + MSAL (`[xmla]` extra) |
 | `file` | TMDL/PBIP folders straight from the repo — governance, lint, docs, diff | Nothing — works on Linux/macOS |
 | `rest` | Live DAX against any published dataset (executeQueries API) | A token — works on Linux/macOS |
+| `fabric` | **Edit measures on a live model from any OS** — TMDL round-trip via the Item Definition API (no Windows, no XMLA) | A token — works on Linux/macOS |
 | `mock` | CI pipelines, unit tests, demos | Nothing — works on Linux/macOS |
 
 ```bash
 # Swap with --backend
-pbi --backend file --path . govern check --fail-on error   # real artifacts, any OS
-pbi --backend rest dax query "EVALUATE TOPN(10, Sales)"     # live Fabric, any OS
-pbi --backend xmla model tables                             # Fabric without Desktop
-pbi --backend desktop measure list                          # local Desktop (default)
+pbi --backend file --path . govern check --fail-on error          # real artifacts, any OS
+pbi --backend rest dax query "EVALUATE TOPN(10, Sales)"            # live DAX, any OS
+pbi --backend fabric --workspace <ws> --dataset <ds> \
+    measure add Sales "Margin %" "DIVIDE([Profit],[Revenue])"     # live WRITE, any OS
+pbi --backend xmla model tables                                   # Fabric without Desktop
+pbi --backend desktop measure list                                # local Desktop (default)
 ```
+
+> **The `fabric` backend** downloads the model's TMDL definition, applies the edit
+> with the pure-Python TMDL writer, and pushes it back via `updateDefinition` — so
+> `measure add/update/delete` against a *published* model no longer needs Windows.
+> Structural edits (tables, relationships, partitions) still use `desktop`/`xmla`.
 
 ---
 
@@ -333,8 +341,9 @@ Scaffold all of this in one command: **`pbi init`**.
 
 | Flag | Purpose |
 |---|---|
-| `--backend desktop\|xmla\|mock\|file\|rest` | Select backend (default: `desktop`) |
+| `--backend desktop\|xmla\|mock\|file\|rest\|fabric` | Select backend (default: `desktop`) |
 | `--path <folder>` | TMDL/PBIP project folder (file backend) |
+| `--workspace <id>` / `--dataset <id>` | Fabric workspace + semantic-model id (fabric backend) |
 | `--dry-run` | Preview changes without applying them |
 | `--json` / `--yaml` | Machine-readable output |
 | `--connection <name>` | Use a named connection from `~/.pbi-cli/connections.json` |

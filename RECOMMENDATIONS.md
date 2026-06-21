@@ -13,7 +13,7 @@
 >   - ⛔ **Not started:** Eventstream / Eventhouse / KQL / Real-Time Intelligence, Spark environments.
 >
 >   *Caveat: a ✅ elsewhere in this doc historically meant "an item of that type can be CRUD'd", which is not the same as a usable engineering command.*
-> - ✅ **§2 Cross-platform** — `file` backend (TMDL/PBIP) + `rest` backend (executeQueries); pure-Python XMLA client remains future work
+> - ✅ **§2 Cross-platform** — `file` backend (TMDL/PBIP) + `rest` backend (executeQueries) + `fabric` backend (live **measure writes** any-OS via the Item Definition API, added 2026-06-21); a full pure-Python XMLA read/write client remains future work
 > - ✅ **§3 Performance** — Direct Lake diagnostics (`fabric directlake`); VertiPaq/benchmark harness still ride on existing `pbi trace`/`benchmark`
 > - ✅ **§4 DAX tooling** — `dax format`, `dax lint`, `dax coverage` (impact analysis already existed as `model impact`)
 > - ✅ **§5 Power Query** — `pbi pquery list/get/folding-check/lint`
