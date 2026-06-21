@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 from pbi_cli.backends.mock_backend import MockTomBackend
 
@@ -503,6 +503,70 @@ class FileBackend(MockTomBackend):
             start, end = span
             del lines[start:end]
             tf.write_text("".join(lines), encoding="utf-8")
+
+    # --- Structural writes are not persisted (fail loud, never silently no-op) ---
+    #
+    # Only measure edits are written back to TMDL. Table / column / relationship /
+    # hierarchy / calc-group / role / partition writes would otherwise mutate just
+    # the in-memory state — which dies at process exit — while the command reports
+    # success. That silent data loss is worse than an error, so these raise.
+    # (When real TMDL persistence lands, these get replaced one method at a time.)
+
+    def _unpersisted(self, op: str) -> NoReturn:
+        raise NotImplementedError(
+            f"The file backend cannot persist {op} — only measure edits are written "
+            "back to TMDL. Use --backend desktop or xmla for live structural edits, "
+            "or `pbi project new` to scaffold a model from scratch."
+        )
+
+    def table_add(self, name: str, **kwargs: Any) -> dict[str, Any]:
+        self._unpersisted("table creation")
+
+    def table_delete(self, name: str) -> None:
+        self._unpersisted("table deletion")
+
+    def column_add(self, table: str, name: str, data_type: str, **kwargs: Any) -> dict[str, Any]:
+        self._unpersisted("column creation")
+
+    def column_delete(self, table: str, name: str) -> None:
+        self._unpersisted("column deletion")
+
+    def relationship_add(
+        self, from_table: str, from_column: str, to_table: str, to_column: str, **kwargs: Any
+    ) -> dict[str, Any]:
+        self._unpersisted("relationship creation")
+
+    def hierarchy_add(self, table: str, name: str, levels: list[dict[str, Any]]) -> dict[str, Any]:
+        self._unpersisted("hierarchy creation")
+
+    def hierarchy_delete(self, table: str, name: str) -> None:
+        self._unpersisted("hierarchy deletion")
+
+    def calc_group_add(self, name: str, precedence: int = 0) -> dict[str, Any]:
+        self._unpersisted("calculation-group creation")
+
+    def calc_item_add(
+        self, group_table: str, name: str, expression: str, ordinal: int = 0
+    ) -> dict[str, Any]:
+        self._unpersisted("calculation-item creation")
+
+    def calc_item_delete(self, group_table: str, name: str) -> None:
+        self._unpersisted("calculation-item deletion")
+
+    def role_add(self, name: str, table: str, filter_expression: str) -> dict[str, Any]:
+        self._unpersisted("role creation")
+
+    def role_delete(self, name: str) -> None:
+        self._unpersisted("role deletion")
+
+    def partition_add(self, table: str, name: str, query: str) -> dict[str, Any]:
+        self._unpersisted("partition creation")
+
+    def partition_delete(self, table: str, name: str) -> None:
+        self._unpersisted("partition deletion")
+
+    def partition_refresh(self, table: str, name: str) -> dict[str, Any]:
+        self._unpersisted("partition refresh")
 
     # --- Not supported without a live engine ---
 

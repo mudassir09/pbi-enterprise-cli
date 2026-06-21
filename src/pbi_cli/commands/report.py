@@ -387,27 +387,61 @@ def report_bookmark_list(ctx: click.Context, pbip: str) -> None:
 @click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
 @click.option("--name", required=True, help="Display name for the bookmark.")
 @click.option("--page", default=None, help="Page to associate with the bookmark.")
+@click.option(
+    "--hidden-visual",
+    "hidden_visuals",
+    multiple=True,
+    help="Visual name to record as hidden in this bookmark (repeatable). "
+    "Builds show/hide storytelling bookmarks.",
+)
+@click.option(
+    "--no-capture",
+    is_flag=True,
+    default=False,
+    help="Write an empty bookmark skeleton instead of capturing the page's visuals.",
+)
 @click.pass_context
-def report_bookmark_add(ctx: click.Context, pbip: str, name: str, page: str | None) -> None:
+def report_bookmark_add(
+    ctx: click.Context,
+    pbip: str,
+    name: str,
+    page: str | None,
+    hidden_visuals: tuple[str, ...],
+    no_capture: bool,
+) -> None:
     """Add a named bookmark to a .pbip report.
 
-    The bookmark captures the current report state when reloaded in Power BI Desktop.
+    By default the bookmark captures the visuals on the target page, so it
+    survives reopening in Desktop. Use --hidden-visual to record specific
+    visuals as hidden (for show/hide bookmarks).
 
     \b
-    Example:
+    Examples:
       pbi report bookmark-add --pbip MyReport --name "Q4 View" --page "Sales"
+      pbi report bookmark-add --pbip MyReport --name "Detail hidden" --page "Sales" \\
+        --hidden-visual detail_table_abc --hidden-visual notes_xyz
     """
     if dry_run_echo(ctx, f"add bookmark '{name}'" + (f" on page '{page}'" if page else "")):
         return
     from pbi_cli.backends.pbir_backend import PbirBackend
 
     b = PbirBackend(pbip)
-    result = b.bookmark_add(name, page=page)
+    result = b.bookmark_add(
+        name,
+        page=page,
+        hidden_visuals=list(hidden_visuals) or None,
+        capture=not no_capture,
+    )
     console.print(f"[green]Bookmark added:[/green] '{name}'  (id: {result['name']})")
     if page:
         console.print(f"  Linked to page: {page}")
+    captured = result.get("options", {}).get("targetVisualNames", [])
+    if not no_capture and captured:
+        console.print(f"  Captured {len(captured)} visual(s)" + (
+            f", {len(hidden_visuals)} hidden" if hidden_visuals else ""
+        ))
     console.print(
-        "[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to capture visual state."
+        "[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to refine the captured state."
     )
 
 
@@ -652,3 +686,109 @@ def report_a11y(ctx: click.Context, pbip: str, fail_on: str) -> None:
     worst = max((rank.get(v["severity"], 0) for v in findings), default=0)
     if worst >= rank[fail_on]:
         raise SystemExit(3)
+
+
+# ── Report-level measures ────────────────────────────────────────────────────────
+
+
+@report.command("measure-add")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--table", required=True, help="Target table (entity) in the semantic model.")
+@click.option("--name", required=True, help="Measure name.")
+@click.option("--expression", required=True, help="DAX expression.")
+@click.option("--format-string", default=None, help="Optional format string, e.g. '0.0%'.")
+@click.option(
+    "--data-type",
+    default="Double",
+    show_default=True,
+    type=click.Choice(["Double", "Integer", "Text", "Boolean", "DateTime", "Decimal"]),
+    help="Measure data type (required by the schema).",
+)
+@click.pass_context
+def report_measure_add(
+    ctx: click.Context,
+    pbip: str,
+    table: str,
+    name: str,
+    expression: str,
+    format_string: str | None,
+    data_type: str,
+) -> None:
+    """Add a report-level measure (stored in reportExtensions.json).
+
+    \b
+    Example:
+      pbi report measure-add --pbip MyReport --table financials \
+        --name "Margin %" --expression "DIVIDE(SUM(financials[Profit]),SUM(financials[Sales]))" \
+        --format-string "0.0%"
+    """
+    if dry_run_echo(ctx, f"add report-level measure '{name}' on table '{table}'"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        b.report_measure_add(
+            table, name, expression, format_string=format_string, data_type=data_type
+        )
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    console.print(f"[green]Report-level measure added:[/green] {table}[{name}]")
+    console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see it.")
+
+
+@report.command("measure-list")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.pass_context
+def report_measure_list(ctx: click.Context, pbip: str) -> None:
+    """List report-level measures defined in reportExtensions.json."""
+    from pbi_cli.backends.pbir_backend import PbirBackend
+    from pbi_cli.commands._shared import output_json_or_table
+
+    b = PbirBackend(pbip)
+    measures = b.report_measure_list()
+    if not measures:
+        console.print("[yellow]No report-level measures.[/yellow]")
+        return
+    output_json_or_table(measures, ctx, title="Report-level Measures")
+
+
+# ── Bookmark groups ──────────────────────────────────────────────────────────────
+
+
+@report.command("bookmark-group-add")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--name", required=True, help="Display name for the group.")
+@click.option(
+    "--member",
+    "members",
+    multiple=True,
+    required=True,
+    help="Display name of a bookmark to include (repeatable).",
+)
+@click.pass_context
+def report_bookmark_group_add(
+    ctx: click.Context, pbip: str, name: str, members: tuple[str, ...]
+) -> None:
+    """Group existing bookmarks under a named bookmark group.
+
+    \b
+    Example:
+      pbi report bookmark-group-add --pbip MyReport --name "Story" \
+        --member "Intro" --member "Detail"
+    """
+    if dry_run_echo(ctx, f"create bookmark group '{name}' with {len(members)} member(s)"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        result = b.bookmark_group_add(name, list(members))
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    console.print(
+        f"[green]Bookmark group created:[/green] '{name}' "
+        f"({len(result['members'])} member(s))"
+    )

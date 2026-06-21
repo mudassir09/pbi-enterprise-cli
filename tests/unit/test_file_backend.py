@@ -223,6 +223,32 @@ class TestFileBackend:
         with pytest.raises(NotImplementedError):
             b.dax_query("EVALUATE Sales")
 
+    def test_structural_writes_fail_loud(self, tmdl_project):
+        # These are not persisted to TMDL, so they must raise rather than mutate
+        # in-memory state and report a success that never reaches disk.
+        b = FileBackend(path=tmdl_project)
+        with pytest.raises(NotImplementedError):
+            b.table_add("NewTable")
+        with pytest.raises(NotImplementedError):
+            b.table_delete("Sales")
+        with pytest.raises(NotImplementedError):
+            b.column_add("Sales", "Margin", "decimal")
+        with pytest.raises(NotImplementedError):
+            b.relationship_add("Sales", "DateKey", "Calendar", "DateKey")
+        with pytest.raises(NotImplementedError):
+            b.partition_add("Sales", "p2", "let Source = 1 in Source")
+        with pytest.raises(NotImplementedError):
+            b.role_add("Auditor", "Sales", "Sales[Region] = \"East\"")
+
+    def test_failed_table_add_leaves_disk_untouched(self, tmdl_project):
+        b = FileBackend(path=tmdl_project)
+        d = tmdl_project / "Demo.SemanticModel" / "definition"
+        before = (d / "model.tmdl").read_text(encoding="utf-8")
+        with pytest.raises(NotImplementedError):
+            b.table_add("Ghost")
+        assert (d / "model.tmdl").read_text(encoding="utf-8") == before
+        assert not (d / "tables" / "Ghost.tmdl").exists()
+
     def test_dax_validate_static(self, tmdl_project):
         b = FileBackend(path=tmdl_project)
         assert b.dax_validate("SUM(Sales[Revenue])")["valid"]
@@ -252,3 +278,46 @@ class TestFileBackendCli:
             cli, ["--backend", "file", "--path", str(tmp_path), "model", "tables"]
         )
         assert result.exit_code != 0
+
+    def test_source_scaffold_fails_loud_on_file_backend(self, tmdl_project):
+        # `source scaffold` materialises tables via backend.table_add — on the file
+        # backend that cannot persist, so it must fail loud, not report success
+        # while writing nothing to disk.
+        profile = tmdl_project / "profile.json"
+        profile.write_text(
+            json.dumps(
+                [
+                    {
+                        "tableName": "FactOrders",
+                        "rowCount": 1000,
+                        "columns": [
+                            {"name": "OrderKey", "dataType": "int64"},
+                            {"name": "Amount", "dataType": "decimal"},
+                        ],
+                    },
+                    {
+                        "tableName": "DimDate",
+                        "rowCount": 365,
+                        "columns": [{"name": "DateKey", "dataType": "int64"}],
+                    },
+                ]
+            ),
+            encoding="utf-8",
+        )
+        d = tmdl_project / "Demo.SemanticModel" / "definition"
+        model_before = (d / "model.tmdl").read_text(encoding="utf-8")
+        tables_before = {p.name for p in (d / "tables").glob("*.tmdl")}
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["--backend", "file", "--path", str(tmdl_project),
+             "source", "scaffold", "--profile", str(profile)],
+        )
+
+        assert result.exit_code != 0
+        assert isinstance(result.exception, NotImplementedError)
+        assert "Scaffolded" not in result.output
+        # Nothing was written: model.tmdl and the tables folder are untouched.
+        assert (d / "model.tmdl").read_text(encoding="utf-8") == model_before
+        assert {p.name for p in (d / "tables").glob("*.tmdl")} == tables_before

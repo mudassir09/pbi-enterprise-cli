@@ -40,6 +40,7 @@ from pbi_cli.commands import (  # noqa: E402
     ops_cmd,
     partition,
     pquery_cmd,
+    project_cmd,
     repl,
     report,
     security,
@@ -161,6 +162,7 @@ cli.add_command(measure.measure)
 cli.add_command(model.model)
 cli.add_command(dax.dax)
 cli.add_command(report.report)
+cli.add_command(project_cmd.project)
 cli.add_command(visual.visual)
 cli.add_command(layout.layout)
 cli.add_command(theme.theme)

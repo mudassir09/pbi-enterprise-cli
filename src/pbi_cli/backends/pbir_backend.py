@@ -266,10 +266,14 @@ class PbirBackend:
                 continue
             data = json.loads(vj.read_text(encoding="utf-8"))
             pos = data.get("position", {})
+            # Group containers have a `visualGroup` block instead of `visual`.
+            vtype = data.get("visual", {}).get("visualType", "")
+            if not vtype and "visualGroup" in data:
+                vtype = "group"
             results.append(
                 {
                     "name": data.get("name", vdir.name),
-                    "visualType": data.get("visual", {}).get("visualType", ""),
+                    "visualType": vtype,
                     "x": pos.get("x", 0),
                     "y": pos.get("y", 0),
                     "width": pos.get("width", 0),
@@ -488,25 +492,52 @@ class PbirBackend:
         result += [v for k, v in by_id.items() if k not in ordered_ids]
         return result
 
-    def bookmark_add(self, display_name: str, page: str | None = None) -> dict[str, Any]:
+    def bookmark_add(
+        self,
+        display_name: str,
+        page: str | None = None,
+        hidden_visuals: list[str] | None = None,
+        capture: bool = True,
+    ) -> dict[str, Any]:
         """Add a named bookmark as a flat {id}.bookmark.json file.
 
-        Desktop format: schema 2.1.0, explorationState version "1.3",
-        options.targetVisualNames: [].
+        Desktop format: schema 2.1.0, explorationState version "1.3".
+
+        When ``capture`` is True (default), the bookmark records the actual
+        visuals on the target page into ``explorationState.sections`` so the
+        bookmark is not stripped when reopened in Desktop. Any visual name in
+        ``hidden_visuals`` is recorded with ``display.mode = "hidden"`` —
+        the standard way to build show/hide (storytelling) bookmarks.
         """
         self._require_load()
         bm_id = uuid.uuid4().hex[:20]  # Desktop uses 20-char hex ids
+        hidden = set(hidden_visuals or [])
 
-        # Resolve active page GUID
+        # Resolve active page GUID + its display name for capture
         active_section = ""
+        active_display = page
+        pages = self.page_list()
         if page:
-            page_info = next((p for p in self.page_list() if p["displayName"] == page), None)
+            page_info = next((p for p in pages if p["displayName"] == page), None)
             if page_info:
                 active_section = page_info["name"]
-        else:
-            pages = self.page_list()
-            if pages:
-                active_section = pages[0]["name"]
+        elif pages:
+            active_section = pages[0]["name"]
+            active_display = pages[0]["displayName"]
+
+        sections: dict[str, Any] = {}
+        target_visuals: list[str] = []
+        if capture and active_section and active_display:
+            visual_containers: dict[str, Any] = {}
+            for v in self.visual_list(active_display):
+                vname = v["name"]
+                single_visual: dict[str, Any] = {"visualType": v["visualType"]}
+                if vname in hidden:
+                    single_visual["display"] = {"mode": "hidden"}
+                visual_containers[vname] = {"singleVisual": single_visual}
+                target_visuals.append(vname)
+            if visual_containers:
+                sections[active_section] = {"visualContainers": visual_containers}
 
         bm: dict[str, Any] = {
             "$schema": (
@@ -515,11 +546,11 @@ class PbirBackend:
             ),
             "displayName": display_name,
             "name": bm_id,
-            "options": {"targetVisualNames": []},
+            "options": {"targetVisualNames": target_visuals},
             "explorationState": {
                 "version": "1.3",
                 "activeSection": active_section,
-                "sections": {},
+                "sections": sections,
             },
         }
 
@@ -533,7 +564,13 @@ class PbirBackend:
         meta["items"] = items
         self._ga_write_bookmarks_json(meta)
 
-        return {"name": bm_id, "displayName": display_name, "page": active_section}
+        return {
+            "name": bm_id,
+            "displayName": display_name,
+            "page": active_section,
+            "options": {"targetVisualNames": target_visuals},
+            "hiddenCount": len(hidden & set(target_visuals)),
+        }
 
     def bookmark_delete(self, display_name: str) -> bool:
         """Delete a bookmark by display name. Returns True if found and deleted."""
@@ -796,6 +833,704 @@ class PbirBackend:
             }
         )
         vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
+    # ── Visual update / patch ──────────────────────────────────────────────────
+
+    def visual_update(
+        self,
+        page: str,
+        visual_name: str,
+        *,
+        x: int | None = None,
+        y: int | None = None,
+        z: int | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        tab_order: int | None = None,
+        title: str | None = None,
+    ) -> bool:
+        """Patch an existing visual's position and/or title in place.
+
+        Only the supplied arguments are changed; everything else (query
+        bindings, formatting) is preserved. Returns True if the visual was
+        found and updated. To rebind fields, delete + re-add the visual.
+        """
+        self._require_load()
+        if self._format == "pbir_ga":
+            return self._ga_visual_update(
+                page, visual_name, x, y, z, width, height, tab_order, title
+            )
+        return self._old_visual_update(
+            page, visual_name, x, y, z, width, height, tab_order, title
+        )
+
+    @staticmethod
+    def _title_object(title: str) -> list[dict[str, Any]]:
+        return [
+            {
+                "properties": {
+                    "show": {"expr": {"Literal": {"Value": "true"}}},
+                    "text": {"expr": {"Literal": {"Value": f"'{title}'"}}},
+                }
+            }
+        ]
+
+    def _ga_visual_update(
+        self,
+        page: str,
+        visual_name: str,
+        x: int | None,
+        y: int | None,
+        z: int | None,
+        width: int | None,
+        height: int | None,
+        tab_order: int | None,
+        title: str | None,
+    ) -> bool:
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return False
+        vj, data = found
+        pos = data.setdefault("position", {})
+        for key, value in (
+            ("x", x),
+            ("y", y),
+            ("z", z),
+            ("width", width),
+            ("height", height),
+            ("tabOrder", tab_order),
+        ):
+            if value is not None:
+                pos[key] = value
+        if title is not None:
+            vco = data.setdefault("visual", {}).setdefault("visualContainerObjects", {})
+            vco["title"] = self._title_object(title)
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
+    def _old_visual_update(
+        self,
+        page: str,
+        visual_name: str,
+        x: int | None,
+        y: int | None,
+        z: int | None,
+        width: int | None,
+        height: int | None,
+        tab_order: int | None,
+        title: str | None,
+    ) -> bool:
+        section = self._old_find_section(page)
+        if not section:
+            return False
+        for vc in section.get("visualContainers", []):
+            try:
+                cfg = json.loads(vc.get("config", "{}"))
+            except Exception:
+                continue
+            if cfg.get("name") != visual_name:
+                continue
+            updates = {
+                "x": x,
+                "y": y,
+                "z": z,
+                "width": width,
+                "height": height,
+                "tabOrder": tab_order,
+            }
+            for key, value in updates.items():
+                if value is None:
+                    continue
+                vc[key] = value
+                for layout in cfg.get("layouts", []):
+                    layout.setdefault("position", {})[key] = value
+            if title is not None:
+                sv = cfg.setdefault("singleVisual", {})
+                sv.setdefault("objects", {})["title"] = self._title_object(title)
+            vc["config"] = json.dumps(cfg, separators=(",", ":"))
+            self._save_old()
+            return True
+        return False
+
+    # ── Conditional formatting: rule-based (range) + font color ─────────────────
+    # Rule-based colouring uses a Conditional/Cases expression. Cases evaluate
+    # top-to-bottom and the first matching case wins, so order your rules from
+    # most specific (highest threshold) to least.
+
+    COMPARISON_KIND = {">": 1, ">=": 2, "<": 3, "<=": 4, "=": 0, "==": 0}
+
+    @staticmethod
+    def _num_literal(value: float | int) -> str:
+        """Power BI numeric literal — double suffix 'D' (e.g. 50000 -> '50000D')."""
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+        return f"{value}D"
+
+    @classmethod
+    def _comparison(cls, left: dict[str, Any], op: str, threshold: float) -> dict[str, Any]:
+        if op not in cls.COMPARISON_KIND:
+            raise ValueError(f"unknown operator '{op}'; use one of {sorted(cls.COMPARISON_KIND)}")
+        return {
+            "Comparison": {
+                "ComparisonKind": cls.COMPARISON_KIND[op],
+                "Left": left,
+                "Right": {"Literal": {"Value": cls._num_literal(threshold)}},
+            }
+        }
+
+    @classmethod
+    def _rule_conditions(
+        cls, rules: list[tuple], left: dict[str, Any]
+    ) -> list[tuple[dict[str, Any], str]]:
+        """Turn (op, threshold, color) / ('between', low, high, color) rules into
+        (Condition, color) pairs. 'between' becomes an And of >= low and < high."""
+        out: list[tuple[dict[str, Any], str]] = []
+        for rule in rules:
+            if rule and rule[0] == "between":
+                _, low, high, color = rule
+                cond = {
+                    "And": {
+                        "Left": cls._comparison(left, ">=", low),
+                        "Right": cls._comparison(left, "<", high),
+                    }
+                }
+            else:
+                op, threshold, color = rule
+                cond = cls._comparison(left, op, threshold)
+            out.append((cond, color))
+        return out
+
+    @staticmethod
+    def _upsert_values_entry(
+        values_obj: list[dict[str, Any]],
+        selector: dict[str, Any],
+        query_ref: str,
+        properties: dict[str, Any],
+    ) -> None:
+        """Merge `properties` into the values entry for `query_ref`, or append one.
+
+        Desktop keeps a single entry per selector with multiple property keys,
+        so applying backColor then fontColor to the same field yields one entry.
+        """
+        for entry in values_obj:
+            if entry.get("selector", {}).get("metadata") == query_ref:
+                entry.setdefault("properties", {}).update(properties)
+                entry["selector"] = selector
+                return
+        values_obj.append({"selector": selector, "properties": properties})
+
+    def visual_format_rules(
+        self,
+        page: str,
+        visual_name: str,
+        table: str,
+        measure: str,
+        rules: list[tuple[str, float, str]],
+        target: str = "backColor",
+    ) -> bool:
+        """Apply rule-based (conditional) colour formatting to a table/matrix field.
+
+        rules: list of (operator, threshold, hex_color). operator is one of
+        ``> >= < <= =``. Cases are evaluated in the given order; first match wins.
+        target: ``backColor`` (cell fill) or ``fontColor`` (text colour).
+
+        Returns True if the visual was found and updated.
+        """
+        if target not in ("backColor", "fontColor"):
+            raise ValueError("target must be 'backColor' or 'fontColor'")
+        if not rules:
+            raise ValueError("at least one rule is required")
+
+        self._require_load()
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return False
+        vj, data = found
+
+        proj = self._find_projection(data, table, measure)
+        query_ref = proj[0] if proj else f"Sum({table}[{measure}])"
+        field_expr = (
+            proj[1]
+            if proj
+            else {
+                "Aggregation": {
+                    "Expression": {
+                        "Column": {
+                            "Expression": {"SourceRef": {"Entity": table}},
+                            "Property": measure,
+                        }
+                    },
+                    "Function": 0,
+                }
+            }
+        )
+
+        cases: list[dict[str, Any]] = [
+            {"Condition": cond, "Value": {"Literal": {"Value": f"'{color}'"}}}
+            for cond, color in self._rule_conditions(rules, field_expr)
+        ]
+
+        conditional_expr = {"Conditional": {"Cases": cases}}
+        selector: dict[str, Any] = {
+            "data": [{"dataViewWildcard": {"matchingOption": 1}}],
+            "metadata": query_ref,
+        }
+        properties = {target: {"solid": {"color": {"expr": conditional_expr}}}}
+
+        objects = data.setdefault("visual", {}).setdefault("objects", {})
+        values_obj = objects.setdefault("values", [])
+        self._upsert_values_entry(values_obj, selector, query_ref, properties)
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
+    # ── Icon-set conditional formatting ────────────────────────────────────────
+    # Format reverse-engineered from Power BI Desktop output. Icons live under
+    # objects.values[].properties.icon as a Conditional/Cases over the field.
+    # Default (rules=None) reproduces Desktop's 3-band percent-of-range icon set;
+    # custom rules use absolute thresholds (first match wins).
+
+    @staticmethod
+    def _icon_select_ref(query_ref: str) -> dict[str, Any]:
+        return {"SelectRef": {"ExpressionName": query_ref}}
+
+    @staticmethod
+    def _icon_range_percent(query_ref: str, percent: float) -> dict[str, Any]:
+        """RangePercent node: percent of the field's min..max across all rows."""
+        def _scoped_minmax(func: int) -> dict[str, Any]:
+            # func 3 = Min, 4 = Max
+            return {
+                "ScopedEval": {
+                    "Expression": {
+                        "Aggregation": {
+                            "Expression": {
+                                "ScopedEval": {
+                                    "Expression": {
+                                        "SelectRef": {"ExpressionName": query_ref}
+                                    },
+                                    "Scope": [{"AllRolesRef": {}}],
+                                }
+                            },
+                            "Function": func,
+                        }
+                    },
+                    "Scope": [],
+                }
+            }
+
+        return {
+            "RangePercent": {
+                "Min": _scoped_minmax(3),
+                "Max": _scoped_minmax(4),
+                "Percent": percent,
+            }
+        }
+
+    def visual_format_icons(
+        self,
+        page: str,
+        visual_name: str,
+        table: str,
+        measure: str,
+        rules: list[tuple[str, float, str]] | None = None,
+        layout: str = "Before",
+    ) -> bool:
+        """Apply icon-set conditional formatting to a table/matrix field.
+
+        rules=None  → Desktop's default 3-band percent icon set
+                      (>=67% CircleHigh, 33-67% SignMedium, <33% SignLow).
+        rules       → list of (operator, threshold, icon_name); absolute
+                      thresholds, first match wins. icon_name is a Power BI icon
+                      id, e.g. 'CircleHigh', 'CircleMedium', 'CircleLow',
+                      'SignMedium', 'SignLow', 'ArrowUp', 'ArrowDown'.
+        layout: 'Before' | 'After' | 'IconOnly' — icon position vs the value.
+
+        Returns True if the visual was found and updated.
+        """
+        self._require_load()
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return False
+        vj, data = found
+
+        proj = self._find_projection(data, table, measure)
+        query_ref = proj[0] if proj else f"Sum({table}[{measure}])"
+        ref = self._icon_select_ref(query_ref)
+
+        if rules:
+            cases = [
+                {"Condition": cond, "Value": {"Literal": {"Value": f"'{icon}'"}}}
+                for cond, icon in self._rule_conditions(rules, ref)
+            ]
+        else:
+            cases = [
+                {
+                    "Condition": {"Comparison": {
+                        "ComparisonKind": 2, "Left": ref,
+                        "Right": self._icon_range_percent(query_ref, 0.67),
+                    }},
+                    "Value": {"Literal": {"Value": "'CircleHigh'"}},
+                },
+                {
+                    "Condition": {"And": {
+                        "Left": {"Comparison": {
+                            "ComparisonKind": 2, "Left": ref,
+                            "Right": self._icon_range_percent(query_ref, 0.33),
+                        }},
+                        "Right": {"Comparison": {
+                            "ComparisonKind": 3, "Left": ref,
+                            "Right": self._icon_range_percent(query_ref, 0.67),
+                        }},
+                    }},
+                    "Value": {"Literal": {"Value": "'SignMedium'"}},
+                },
+                {
+                    "Condition": {"Comparison": {
+                        "ComparisonKind": 3, "Left": ref,
+                        "Right": self._icon_range_percent(query_ref, 0.33),
+                    }},
+                    "Value": {"Literal": {"Value": "'SignLow'"}},
+                },
+            ]
+
+        icon_obj = {
+            "kind": "Icon",
+            "layout": {"expr": {"Literal": {"Value": f"'{layout}'"}}},
+            "verticalAlignment": {"expr": {"Literal": {"Value": "'Top'"}}},
+            "value": {"expr": {"Conditional": {"Cases": cases}}},
+        }
+        selector: dict[str, Any] = {
+            "data": [{"dataViewWildcard": {"matchingOption": 1}}],
+            "metadata": query_ref,
+        }
+        objects = data.setdefault("visual", {}).setdefault("objects", {})
+        values_obj = objects.setdefault("values", [])
+        self._upsert_values_entry(values_obj, selector, query_ref, {"icon": icon_obj})
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
+    # ── Visual field rebinding ─────────────────────────────────────────────────
+
+    def visual_set_field(
+        self,
+        page: str,
+        visual_name: str,
+        role: str,
+        table: str,
+        field: str,
+        *,
+        is_measure: bool = False,
+        agg: int | None = 0,
+        replace: bool = True,
+    ) -> bool:
+        """Bind a field to a visual role slot, rewriting its query projection.
+
+        role: visual role name (Category, Y, Values, Rows, Columns, ...).
+        replace=True swaps the role's existing projections for this one field;
+        replace=False appends it. PBIR GA only. Returns True if found+updated.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Field rebinding requires PBIR GA format (definition/ folder).")
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return False
+        vj, data = found
+
+        from pbi_cli.intelligence.visual_builder import FieldDef
+
+        fd = FieldDef(entity=table, property=field, is_measure=is_measure, agg=agg)
+        projection = fd.to_projection()
+
+        query = data.setdefault("visual", {}).setdefault("query", {})
+        query_state = query.setdefault("queryState", {})
+        role_data = query_state.setdefault(role, {})
+        projections = role_data.setdefault("projections", [])
+        if replace:
+            projections.clear()
+            projections.append(projection)
+        else:
+            projections.append(projection)
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
+    # ── Report-level measures (reportExtensions.json) ──────────────────────────
+
+    def _report_extension_path(self) -> Path:
+        assert self._report_dir
+        return self._report_dir / "definition" / "reportExtensions.json"
+
+    def report_measure_add(
+        self,
+        table: str,
+        name: str,
+        expression: str,
+        format_string: str | None = None,
+        data_type: str = "Double",
+    ) -> dict[str, Any]:
+        """Add (or replace) a report-level measure in reportExtensions.json.
+
+        Report-level measures live only in the report and target a table (entity)
+        in the connected semantic model. Per the reportExtension schema, each
+        measure requires name, expression and dataType (Text|Integer|Double|...).
+        Intended for live-connection reports; with a byPath (full-edit) model,
+        add measures to the model instead. PBIR GA only.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Report-level measures require PBIR GA format.")
+        path = self._report_extension_path()
+        if path.exists():
+            ext = json.loads(path.read_text(encoding="utf-8"))
+        else:
+            ext = {
+                "$schema": (
+                    "https://developer.microsoft.com/json-schemas/fabric/item/"
+                    "report/definition/reportExtension/1.0.0/schema.json"
+                ),
+                "name": "extension",
+                "entities": [],
+            }
+
+        # dataType is required by the reportExtension schema.
+        measure: dict[str, Any] = {
+            "name": name,
+            "dataType": data_type,
+            "expression": expression,
+        }
+        if format_string:
+            measure["formatString"] = format_string
+
+        entities: list[dict[str, Any]] = ext.setdefault("entities", [])
+        entity = next((e for e in entities if e.get("name") == table), None)
+        if entity is None:
+            entity = {"name": table, "measures": []}
+            entities.append(entity)
+        measures: list[dict[str, Any]] = entity.setdefault("measures", [])
+        measures[:] = [m for m in measures if m.get("name") != name]
+        measures.append(measure)
+
+        path.write_text(json.dumps(ext, indent=2), encoding="utf-8")
+        return {"table": table, "name": name}
+
+    def report_measure_list(self) -> list[dict[str, Any]]:
+        """List report-level measures defined in reportExtensions.json."""
+        self._require_load()
+        path = self._report_extension_path()
+        if not path.exists():
+            return []
+        ext = json.loads(path.read_text(encoding="utf-8"))
+        out: list[dict[str, Any]] = []
+        for entity in ext.get("entities", []):
+            for m in entity.get("measures", []):
+                out.append(
+                    {
+                        "table": entity.get("name", ""),
+                        "name": m.get("name", ""),
+                        "expression": m.get("expression", ""),
+                    }
+                )
+        return out
+
+    # ── Bookmark groups ────────────────────────────────────────────────────────
+
+    def bookmark_group_add(
+        self, display_name: str, member_display_names: list[str]
+    ) -> dict[str, Any]:
+        """Create a bookmark group containing the named bookmarks (PBIR GA).
+
+        Groups are recorded in bookmarks.json: a group item carries a nested
+        `children` list referencing member bookmark ids.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Bookmark groups require PBIR GA format.")
+
+        existing = {b["displayName"]: b["name"] for b in self.bookmark_list()}
+        member_ids = [existing[n] for n in member_display_names if n in existing]
+
+        meta = self._ga_read_bookmarks_json()
+        items: list[dict[str, Any]] = meta.get("items", [])
+        # Remove members from the top level — they move under the group.
+        member_set = set(member_ids)
+        items = [it for it in items if it.get("name") not in member_set]
+
+        group_id = uuid.uuid4().hex[:20]
+        items.append(
+            {
+                "name": group_id,
+                "displayName": display_name,
+                "children": [{"name": mid} for mid in member_ids],
+            }
+        )
+        meta["items"] = items
+        self._ga_write_bookmarks_json(meta)
+        return {"name": group_id, "displayName": display_name, "members": member_ids}
+
+    # ── Visual interactions (page level) ───────────────────────────────────────
+
+    INTERACTION_TYPES = ("Default", "DataFilter", "HighlightFilter", "NoFilter")
+
+    def set_visual_interaction(
+        self, page: str, source: str, target: str, interaction_type: str
+    ) -> None:
+        """Set how a source visual filters a target visual on a page.
+
+        interaction_type: Default | DataFilter | HighlightFilter | NoFilter.
+        Replaces any existing rule for the same source/target pair.
+        PBIR GA only.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Visual interactions require PBIR GA format (definition/ folder).")
+        if interaction_type not in self.INTERACTION_TYPES:
+            raise ValueError(f"type must be one of {self.INTERACTION_TYPES}")
+
+        page_dir = self._ga_find_page_dir(page)
+        if not page_dir:
+            raise ValueError(f"Page '{page}' not found.")
+        pj = page_dir / "page.json"
+        data = json.loads(pj.read_text(encoding="utf-8"))
+        interactions: list[dict[str, Any]] = data.setdefault("visualInteractions", [])
+        interactions[:] = [
+            i for i in interactions if not (i.get("source") == source and i.get("target") == target)
+        ]
+        interactions.append({"source": source, "target": target, "type": interaction_type})
+        pj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    # ── Slicer sync ────────────────────────────────────────────────────────────
+
+    def set_slicer_sync(
+        self,
+        page: str,
+        visual_name: str,
+        group_name: str,
+        field_changes: bool = True,
+        filter_changes: bool = True,
+    ) -> bool:
+        """Place a slicer visual into a named sync group.
+
+        Slicers sharing the same group_name stay synchronised. PBIR GA only.
+        Returns True if the visual was found and updated.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Slicer sync requires PBIR GA format (definition/ folder).")
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return False
+        vj, data = found
+        data.setdefault("visual", {})["syncGroup"] = {
+            "groupName": group_name,
+            "fieldChanges": field_changes,
+            "filterChanges": filter_changes,
+        }
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
+    # ── Visual container groups ────────────────────────────────────────────────
+    # Verified against Desktop: a group is its own visual.json (no `visual` key)
+    # carrying `visualGroup: {displayName, groupMode}` and a bounding-box position;
+    # each member visual.json gets a top-level `parentGroupName` = the group id.
+
+    def visual_group_add(
+        self,
+        page: str,
+        member_names: list[str],
+        display_name: str | None = None,
+        group_mode: str = "ScaleMode",
+    ) -> dict[str, Any]:
+        """Group existing visuals on a page. Returns the group info.
+
+        Computes the group's bounding box from its members. PBIR GA only.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Visual groups require PBIR GA format (definition/ folder).")
+        from pbi_cli.intelligence.visual_builder import VISUAL_CONTAINER_SCHEMA
+
+        vd = self._ga_visuals_dir(page)
+        if vd is None:
+            raise ValueError(f"Page '{page}' not found.")
+
+        members: list[tuple[Path, dict[str, Any]]] = []
+        for name in member_names:
+            found = self._ga_find_visual_json(page, name)
+            if found:
+                members.append(found)
+        if len(members) < 2:
+            raise ValueError("A group needs at least two existing member visuals.")
+
+        # Bounding box across members
+        xs = [m[1].get("position", {}).get("x", 0) for m in members]
+        ys = [m[1].get("position", {}).get("y", 0) for m in members]
+        x2 = [m[1].get("position", {}).get("x", 0) + m[1].get("position", {}).get("width", 0)
+              for m in members]
+        y2 = [m[1].get("position", {}).get("y", 0) + m[1].get("position", {}).get("height", 0)
+              for m in members]
+        gx, gy = min(xs), min(ys)
+        gw, gh = max(x2) - gx, max(y2) - gy
+
+        group_id = uuid.uuid4().hex[:20]
+        group_display = display_name or "Group"
+        group_dir = vd / group_id
+        group_dir.mkdir(exist_ok=True)
+        group_json: dict[str, Any] = {
+            "$schema": VISUAL_CONTAINER_SCHEMA,
+            "name": group_id,
+            "position": {"x": gx, "y": gy, "z": 1, "height": gh, "width": gw, "tabOrder": 1},
+            "visualGroup": {"displayName": group_display, "groupMode": group_mode},
+        }
+        (group_dir / "visual.json").write_text(
+            json.dumps(group_json, indent=2), encoding="utf-8"
+        )
+
+        # Tag each member with parentGroupName (top-level key)
+        for vj, data in members:
+            data["parentGroupName"] = group_id
+            vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        return {"name": group_id, "displayName": group_display,
+                "members": [m[1].get("name") for m in members]}
+
+    # ── Mobile layout ──────────────────────────────────────────────────────────
+    # Each visual's mobile position is a sibling mobile.json (visualContainerMobileState).
+
+    MOBILE_STATE_SCHEMA = (
+        "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/"
+        "visualContainerMobileState/2.5.0/schema.json"
+    )
+
+    def visual_set_mobile(
+        self,
+        page: str,
+        visual_name: str,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        z: int = 1,
+        tab_order: int = 0,
+    ) -> bool:
+        """Set a visual's position on the mobile (phone) layout canvas.
+
+        Writes a mobile.json beside the visual's visual.json. The mobile canvas
+        is 320 units wide. PBIR GA only. Returns True if the visual was found.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Mobile layout requires PBIR GA format (definition/ folder).")
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return False
+        vj, _ = found
+        mobile = {
+            "$schema": self.MOBILE_STATE_SCHEMA,
+            "position": {
+                "x": x, "y": y, "z": z, "height": height, "width": width, "tabOrder": tab_order
+            },
+        }
+        (vj.parent / "mobile.json").write_text(json.dumps(mobile, indent=2), encoding="utf-8")
         return True
 
     # ── Helpers ────────────────────────────────────────────────────────────────
