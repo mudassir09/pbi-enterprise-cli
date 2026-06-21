@@ -8,6 +8,79 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed — file backend: structural writes fail loud; shared `ref table` helper
+- `FileBackend` no longer silently no-ops structural writes it can't persist. Only
+  measure edits are written back to TMDL; `table_add`/`table_delete`, `column_add`/
+  `column_delete`, `relationship_add`, `hierarchy_*`, `calc_group_add`, `calc_item_*`,
+  `role_*`, and `partition_*` now raise `NotImplementedError` pointing at the
+  desktop/xmla backends or `pbi project new`. Previously they mutated only in-memory
+  state (lost at process exit) while the command reported success — e.g.
+  `--backend file source scaffold` printed "Scaffolded N tables" and wrote nothing.
+  The `fabric` backend inherits this until structural push-back is implemented.
+- New `tmdl_util` with idempotent `ensure_ref_table` / `remove_ref_table` /
+  `ensure_ref_culture` / `quote_tmdl_name`. TMDL does not auto-discover table files:
+  `model.tmdl` must carry a `ref table <name>` line per table or Desktop loads it
+  silently missing. `project_scaffold` now uses these helpers (output unchanged), and
+  any future table writer should keep the references in sync through them.
+
+### Added — PBIR report layer (batch 3): visual groups + mobile layout
+- `pbi visual group` — group existing visuals so they move/resize/format together
+  (`--member` repeatable, `--name` for the group label). Writes a group-container
+  `visual.json` with `visualGroup` + a computed bounding box, and tags each member
+  with `parentGroupName`. Format reverse-engineered from and verified live in
+  Desktop (clicking a member selects the whole group).
+- `pbi visual mobile` — place a visual on the phone layout canvas (320 wide),
+  writing a sibling `mobile.json` (`visualContainerMobileState`). Format captured
+  from Desktop's auto-create; verified to open and render in the mobile view.
+- `pbi visual list` now labels group containers as `group`.
+
+### Added — PBIR report layer (batch 2): icons, field rebinding, project scaffold, report measures, elements, bookmark groups
+- `pbi visual format --type icons` — icon-set conditional formatting. With no
+  `--rule`, reproduces Desktop's default 3-band percent icon set (CircleHigh /
+  SignMedium / SignLow over the field's min..max via RangePercent); with `--rule`,
+  absolute-threshold icons (first match wins). Format reverse-engineered from and
+  verified byte-for-byte against Power BI Desktop output, and confirmed rendering
+  live in Desktop.
+- `pbi visual format --type rules` now supports **between-bounds** rules:
+  `--rule "between:LOW:HIGH:#HEX"` (compiled to an `And` of two comparisons).
+- `pbi visual set-field` — rebind which field a visual role uses (rewrites the
+  query projection); `--append` to add rather than replace. The mass-edit verb.
+- `pbi project new` — scaffold a **complete, openable PBIP from scratch**: an
+  offline import semantic model (entered data via M `#table`, no data source) plus
+  a starter report. Emits the `ref table` / `ref cultureInfo` lines Desktop
+  requires. Verified to open and render in Desktop.
+- `pbi visual add-element` — add non-data elements: `textbox` (with text),
+  `button` (action button), `page-nav`, `bookmark-nav`. Shapes verified against
+  Desktop output; textbox/page-nav confirmed rendering live.
+- `pbi report measure-add` / `measure-list` — report-level measures in
+  `reportExtensions.json`. Each measure carries the schema-required `dataType`
+  (`--data-type`, default Double). Intended for live-connection reports; with a
+  byPath full-edit model, add measures to the model instead.
+- `pbi report bookmark-group-add` — group existing bookmarks under a named group
+  in `bookmarks.json`.
+
+### Added — PBIR report layer: visual update, rule/font conditional formatting, bookmark capture, interactions & slicer sync
+- `pbi visual update` — patch an existing visual's position (`--x/--y/--z/--width/--height/--tab-order`)
+  and `--title` in place, preserving query bindings and formatting. Closes the missing
+  CRUD verb (previously only add/delete existed). Works on PBIR GA and legacy report.json.
+- `pbi visual format --type rules` — rule-based (range) conditional formatting via a
+  `Conditional/Cases` expression, with `--rule OP:THRESHOLD:#HEX` (repeatable, first match
+  wins) and `--target fill|text` to colour the cell (`backColor`) or text (`fontColor`).
+  backColor + fontColor merge into a single Desktop-style `values` entry per field.
+- `pbi report bookmark-add` now **captures the page's visuals** into
+  `explorationState.sections` by default (previously wrote an empty skeleton that Desktop
+  stripped). `--hidden-visual <name>` (repeatable) records visuals with `display.mode=hidden`
+  for show/hide storytelling bookmarks; `--no-capture` keeps the old skeleton behaviour.
+- `pbi visual interaction` — set page-level cross-filtering between two visuals
+  (`--type Default|DataFilter|HighlightFilter|NoFilter`), written to `page.json`
+  `visualInteractions`.
+- `pbi visual sync-slicer` — add a slicer to a named `syncGroup` (`--group`, with
+  `--no-field-changes` / `--no-filter-changes`) so slicers stay synchronised across pages.
+- All shapes verified against Microsoft's published PBIR JSON schemas
+  (github.com/microsoft/json-schemas, page/bookmark 2.1.0). Icon-set conditional
+  formatting was intentionally deferred pending a Desktop-generated sample to verify its
+  byte format (a wrong shape is a blocking error that prevents the report from opening).
+
 ### Added — `fabric` backend: edit a live semantic model from any OS
 - New `--backend fabric` writes measures to a **published** Fabric semantic model
   without Windows or XMLA. It downloads the model's TMDL definition (getDefinition),

@@ -269,6 +269,57 @@ def build_ribbon_chart(
     }
 
 
+# ── Non-data elements: textbox, buttons, navigators ─────────────────────────────
+# These have no query bindings. Shapes verified against Power BI Desktop output:
+# a blank button serialises as visualType "actionButton" with objects.icon.shapeType;
+# page/bookmark navigators serialise as just their visualType.
+
+
+def build_textbox(text: str = "") -> dict[str, Any]:
+    """A textbox. Rich text lives in objects.general[].paragraphs[].textRuns."""
+    body: dict[str, Any] = {"visualType": "textbox", "objects": {}, "visualContainerObjects": {}}
+    if text:
+        body["objects"]["general"] = [
+            {"properties": {"paragraphs": [{"textRuns": [{"value": text}]}]}}
+        ]
+    return body
+
+
+def build_action_button(shape: str = "blank", text: str | None = None) -> dict[str, Any]:
+    """An action button. shape: 'blank' | 'back' | 'reset' | 'bookmark' | ...
+
+    Matches Desktop: objects.icon[].properties.shapeType with selector id 'default'.
+    """
+    body: dict[str, Any] = {
+        "visualType": "actionButton",
+        "objects": {
+            "icon": [
+                {
+                    "properties": {"shapeType": {"expr": {"Literal": {"Value": f"'{shape}'"}}}},
+                    "selector": {"id": "default"},
+                }
+            ]
+        },
+        "visualContainerObjects": {},
+    }
+    if text:
+        body["objects"]["text"] = [
+            {
+                "properties": {"text": {"expr": {"Literal": {"Value": f"'{text}'"}}}},
+                "selector": {"id": "default"},
+            }
+        ]
+    return body
+
+
+def build_page_navigator() -> dict[str, Any]:
+    return {"visualType": "pageNavigator", "objects": {}, "visualContainerObjects": {}}
+
+
+def build_bookmark_navigator() -> dict[str, Any]:
+    return {"visualType": "bookmarkNavigator", "objects": {}, "visualContainerObjects": {}}
+
+
 # ── VisualSpec and serialisation ───────────────────────────────────────────────
 
 
