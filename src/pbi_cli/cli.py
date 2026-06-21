@@ -89,11 +89,24 @@ def _apply_dry_run(ctx: click.Context, param: click.Parameter, value: bool) -> b
 )
 @click.option(
     "--backend",
-    type=click.Choice(["desktop", "xmla", "mock", "file", "rest"]),
+    type=click.Choice(["desktop", "xmla", "mock", "file", "rest", "fabric"]),
     default="desktop",
     show_default=True,
     help="Backend: desktop (TOM), xmla (Premium/Fabric), mock (CI fixtures), "
-    "file (TMDL/PBIP folder — any OS), rest (executeQueries API — any OS).",
+    "file (TMDL/PBIP folder — any OS), rest (executeQueries API — any OS), "
+    "fabric (live model writes via Item Definition API — any OS).",
+)
+@click.option(
+    "--workspace",
+    "workspace_id",
+    default=None,
+    help="Fabric workspace id (fabric backend; or PBI_FABRIC_WORKSPACE).",
+)
+@click.option(
+    "--dataset",
+    "dataset_id",
+    default=None,
+    help="Fabric semantic-model id (fabric backend; or PBI_FABRIC_DATASET).",
 )
 @click.option(
     "--port",
@@ -116,6 +129,8 @@ def cli(  # noqa: PLR0913
     backend: str,
     port: int | None,
     model_path: str | None,
+    workspace_id: str | None,
+    dataset_id: str | None,
 ) -> None:
     """pbi — Power BI one-stop-shop CLI for AI-driven development.
 
@@ -131,6 +146,10 @@ def cli(  # noqa: PLR0913
         ctx.obj["port"] = port
     if model_path:
         ctx.obj["path"] = model_path
+    if workspace_id:
+        ctx.obj["workspace"] = workspace_id
+    if dataset_id:
+        ctx.obj["dataset"] = dataset_id
 
 
 # Register command groups

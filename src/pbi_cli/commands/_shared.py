@@ -43,6 +43,29 @@ def get_backend(ctx: click.Context) -> Any:
             except ConnectionError as exc:
                 console.print(f"[red]{exc}[/red]")
                 raise click.Abort()
+        elif backend_name == "fabric":
+            import os
+
+            from pbi_cli.backends.fabric_backend import FabricDefinitionBackend
+            from pbi_cli.fabric_api import FabricApiError
+
+            ws = obj.get("workspace") or os.environ.get("PBI_FABRIC_WORKSPACE")
+            ds = obj.get("dataset") or os.environ.get("PBI_FABRIC_DATASET")
+            if not (ws and ds):
+                console.print(
+                    "[red]The fabric backend needs a workspace and a semantic-model id.[/red]"
+                )
+                console.print(
+                    "Pass [bold]--workspace <id> --dataset <id>[/bold] "
+                    "(or set PBI_FABRIC_WORKSPACE / PBI_FABRIC_DATASET)."
+                )
+                raise click.Abort()
+            try:
+                b = FabricDefinitionBackend(ws, ds)
+                b.connect()
+            except (ConnectionError, FabricApiError, ValueError) as exc:
+                console.print(f"[red]{exc}[/red]")
+                raise click.Abort()
         elif backend_name == "xmla":
             b = XmlaBackend()
         else:

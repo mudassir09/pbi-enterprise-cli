@@ -161,6 +161,43 @@ def get_paged(url: str, token: str, value_key: str = "value") -> list[dict[str, 
     return items
 
 
+def encode_parts(folder: Any) -> list[dict[str, Any]]:
+    """Encode every file under *folder* as InlineBase64 item-definition parts.
+
+    Unlike the older command-level helper this keeps dotfiles (notably the
+    required ``.platform``) so a getDefinition → edit → updateDefinition round
+    trip stays faithful.
+    """
+    import base64
+    from pathlib import Path
+
+    folder = Path(folder)
+    parts: list[dict[str, Any]] = []
+    for f in sorted(folder.rglob("*")):
+        if f.is_file():
+            parts.append({
+                "path": f.relative_to(folder).as_posix(),
+                "payload": base64.b64encode(f.read_bytes()).decode(),
+                "payloadType": "InlineBase64",
+            })
+    return parts
+
+
+def decode_parts(parts: list[dict[str, Any]], folder: Any) -> list[str]:
+    """Write item-definition parts under *folder*, recreating the path tree."""
+    import base64
+    from pathlib import Path
+
+    folder = Path(folder)
+    written: list[str] = []
+    for part in parts:
+        target = folder / part["path"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(base64.b64decode(part["payload"]))
+        written.append(part["path"])
+    return written
+
+
 # Terminal states for a Fabric job instance.
 _JOB_TERMINAL = {"Completed", "Succeeded", "Failed", "Cancelled", "Deduped"}
 
