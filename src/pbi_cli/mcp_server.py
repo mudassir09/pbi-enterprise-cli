@@ -112,7 +112,9 @@ class McpServer:
             from pbi_cli.cli import cli as root
 
             argv = self._cli_prefix + [str(a) for a in (args.get("args") or [])]
-            result = CliRunner(mix_stderr=True).invoke(root, argv)
+            # NB: no mix_stderr kwarg — removed in Click 8.2. These commands write
+            # to stdout (rich Console), which result.output captures on all versions.
+            result = CliRunner().invoke(root, argv)
             return {"exit_code": result.exit_code, "output": result.output}
         if name == "model_info":
             return b.model_info()
