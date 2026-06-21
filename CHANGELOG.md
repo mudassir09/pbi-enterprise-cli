@@ -8,6 +8,48 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — `pbi lakehouse`: first-class Lakehouse table operations
+- `pbi lakehouse list` — list lakehouses in a workspace.
+- `pbi lakehouse tables` — list Delta tables (handles the `data`-keyed, paged response).
+- `pbi lakehouse load` — load a OneLake file/folder into a Delta table (loadTable LRO),
+  with `--format Csv|Parquet`, `--mode Overwrite|Append`, folder/recursive loads, `--wait`.
+- `pbi lakehouse maintenance` — run table maintenance via the job scheduler:
+  OPTIMIZE + V-Order (`--z-order col,col`) and/or VACUUM (`--vacuum-retention`), `--wait`.
+
+### Added — `pbi notebook`: run notebooks + round-trip .ipynb
+- `pbi notebook run` — run a notebook on demand with typed `--param name=value`
+  (int/float/bool/string inferred), optional `--wait` for final status.
+- `pbi notebook status` — get a run's status by job-instance id.
+- `pbi notebook export` / `import` — export a notebook to a local `.ipynb`, or create
+  a notebook in a workspace from an `.ipynb` file (validated as JSON first).
+- New `fabric_api.run_item_job()` helper extracts the job-instance id from the LRO
+  `Location` header and optionally polls to a terminal state — shared by lakehouse
+  maintenance and notebook runs (and an improvement over the bare-202 `fabric job run`).
+
+### Added — `pbi sql query`: T-SQL against Fabric Warehouse / Lakehouse SQL endpoints
+- The data-engineering counterpart to `pbi dax query`. Run T-SQL against a Fabric
+  Warehouse or Lakehouse SQL analytics endpoint, the first first-class DE primitive:
+  - `pbi sql query --workspace <ws> --item <wh> "SELECT TOP 10 * FROM dbo.Sales"`
+    discovers the server FQDN from the Fabric item via REST.
+  - `pbi sql query --server <fqdn> --database <db> --file report.sql` connects directly.
+  - `--json`/`--yaml` output, `--dry-run`, and AAD-token auth via the existing
+    `fabric_api` ladder (env token / service principal / device flow).
+- New `sql_endpoint.py` (endpoint discovery is pure REST and unit-tested; the TDS
+  query runs over pyodbc). New `[sql]` extra (`pyodbc`); requires a Microsoft ODBC
+  driver, with an actionable error if either is missing.
+
+### Added — MCP server full-CLI parity
+- `pbi mcp serve` now exposes two tools that cover the **entire** CLI, not just the
+  10 curated tools: `list_commands` (machine-readable map of every command) and
+  `run_cli` (invoke any `pbi` command and get exit code + output). The server's
+  `--backend`/`--path` are propagated to passthrough invocations. Agents can now
+  deploy, test, govern-fix, run Fabric ops, and run T-SQL through MCP.
+
+### Added — `fabric_api` contract tests
+- Recorded-response tests for the shared REST client (paging, LRO polling, error
+  mapping, auth resolution) — the plumbing every `pbi fabric`/`tenant`/`ops`
+  command depends on, previously live-only and untested.
+
 ### Added — VertiPaq statistics for runtime BPA rules
 - `pbi govern bpa check --vertipaq` collects runtime statistics from a **live**
   model (desktop/xmla) and feeds them to the evaluator so the BPA rules that read

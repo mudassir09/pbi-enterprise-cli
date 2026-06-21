@@ -159,3 +159,58 @@ def get_paged(url: str, token: str, value_key: str = "value") -> list[dict[str, 
         items.extend(page.get(value_key, []))
         next_url = page.get("continuationUri")
     return items
+
+
+# Terminal states for a Fabric job instance.
+_JOB_TERMINAL = {"Completed", "Succeeded", "Failed", "Cancelled", "Deduped"}
+
+
+def run_item_job(
+    workspace_id: str,
+    item_id: str,
+    job_type: str,
+    token: str,
+    execution_data: dict | None = None,
+    wait: bool = False,
+    timeout: int = 600,
+) -> dict[str, Any]:
+    """Start an on-demand item job; optionally poll the instance to completion.
+
+    Returns the job-instance dict. The job-creation call answers 202 with a
+    ``Location`` header pointing at the instance; we surface its id (and poll it
+    when ``wait`` is set) so callers get a real status rather than a bare 202.
+    """
+    import time
+
+    url = (
+        f"{FABRIC_API_BASE}/workspaces/{workspace_id}/items/{item_id}"
+        f"/jobs/instances?jobType={job_type}"
+    )
+    payload = {"executionData": execution_data} if execution_data else {}
+    resp = post(url, token, payload=payload)
+
+    # A 202 wrapper carries the instance URL in its Location header; anything else
+    # is a synchronous result we just hand back.
+    location = None
+    if isinstance(resp, dict):
+        if resp.get("status") == 202:
+            location = (resp.get("headers") or {}).get("Location")
+        else:
+            return resp
+    if not location:
+        return {"status": "Accepted"}
+    job_id = location.rstrip("/").rsplit("/", 1)[-1]
+
+    if not wait:
+        return {"jobInstanceId": job_id, "status": "NotStarted", "location": location}
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        instance = get(location, token)
+        if instance.get("status") in _JOB_TERMINAL:
+            if instance.get("status") in ("Failed", "Cancelled"):
+                reason = (instance.get("failureReason") or {}).get("message", "")
+                raise FabricApiError(0, f"Job {instance.get('status')}: {reason}"[:300])
+            return instance
+        time.sleep(3)
+    raise FabricApiError(0, f"Job {job_id} did not complete within {timeout}s.")
