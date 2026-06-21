@@ -31,10 +31,12 @@ from pbi_cli.commands import (  # noqa: E402
     fabric_cmd,
     filter_cmd,
     govern,
+    lakehouse_cmd,
     layout,
     measure,
     migrate_cmd,
     model,
+    notebook_cmd,
     ops_cmd,
     partition,
     pquery_cmd,
@@ -45,6 +47,7 @@ from pbi_cli.commands import (  # noqa: E402
     skills_cmd,
     snapshot,
     source,
+    sql_cmd,
     tenant_cmd,
     test_cmd,
     theme,
@@ -132,6 +135,9 @@ def cli(  # noqa: PLR0913
 
 # Register command groups
 cli.add_command(source.source)
+cli.add_command(sql_cmd.sql_cmd)
+cli.add_command(lakehouse_cmd.lakehouse_cmd)
+cli.add_command(notebook_cmd.notebook_cmd)
 cli.add_command(measure.measure)
 cli.add_command(model.model)
 cli.add_command(dax.dax)

@@ -51,6 +51,28 @@ class TestMcpProtocol:
         resp = server.handle(_rpc("tools/call", {"name": "nope", "arguments": {}}))
         assert resp["result"]["isError"] is True
 
+    def test_tools_list_includes_parity_tools(self, server):
+        resp = server.handle(_rpc("tools/list"))
+        names = {t["name"] for t in resp["result"]["tools"]}
+        assert {"list_commands", "run_cli"} <= names
+
+    def test_list_commands_maps_full_cli(self, server):
+        resp = server.handle(_rpc("tools/call", {"name": "list_commands", "arguments": {}}))
+        commands = {e["command"] for e in json.loads(resp["result"]["content"][0]["text"])}
+        assert "pbi govern check" in commands
+        assert "pbi sql query" in commands
+        assert "pbi fabric item create" in commands
+
+    def test_run_cli_passthrough_executes(self):
+        backend = MockTomBackend()
+        backend.connect()
+        srv = McpServer(backend, cli_prefix=["--backend", "mock"])
+        resp = srv.handle(_rpc("tools/call", {
+            "name": "run_cli", "arguments": {"args": ["--json", "model", "tables"]}}))
+        payload = json.loads(resp["result"]["content"][0]["text"])
+        assert payload["exit_code"] == 0
+        assert "Sales" in payload["output"]
+
     def test_unknown_method_error(self, server):
         resp = server.handle(_rpc("bogus/method"))
         assert resp["error"]["code"] == -32601

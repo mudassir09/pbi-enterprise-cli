@@ -5,7 +5,14 @@
 
 > **Implementation status (2026-06-11):** the recommendations below have been implemented.
 >
-> - ✅ **§1 Fabric depth** — `pbi fabric item/workspace/git/pipeline/onelake/capacity/job/directlake` (dataflows run through the job scheduler)
+> - 🟡 **§1 Fabric depth** — generic `pbi fabric item/workspace/git/pipeline/onelake/capacity/job/directlake` ship. First-class data-engineering commands now landing (2026-06-20):
+>   - ✅ **`pbi sql query`** — T-SQL against a Warehouse / Lakehouse SQL endpoint (the first real DE primitive).
+>   - ✅ **`pbi lakehouse`** — list / tables / load-to-table / maintenance (OPTIMIZE/V-Order/VACUUM).
+>   - ✅ **`pbi notebook`** — parameterised run + `--wait`, status, `.ipynb` export/import.
+>   - ⏳ **Still item-level only:** data-pipeline (Data Factory) run monitoring, Dataflow Gen2 mashups.
+>   - ⛔ **Not started:** Eventstream / Eventhouse / KQL / Real-Time Intelligence, Spark environments.
+>
+>   *Caveat: a ✅ elsewhere in this doc historically meant "an item of that type can be CRUD'd", which is not the same as a usable engineering command.*
 > - ✅ **§2 Cross-platform** — `file` backend (TMDL/PBIP) + `rest` backend (executeQueries); pure-Python XMLA client remains future work
 > - ✅ **§3 Performance** — Direct Lake diagnostics (`fabric directlake`); VertiPaq/benchmark harness still ride on existing `pbi trace`/`benchmark`
 > - ✅ **§4 DAX tooling** — `dax format`, `dax lint`, `dax coverage` (impact analysis already existed as `model impact`)

@@ -33,7 +33,12 @@ def mcp_serve(ctx: click.Context) -> None:
     from pbi_cli.mcp_server import McpServer
 
     backend = get_backend(ctx)
-    McpServer(backend).serve_forever()
+    # Propagate the active global flags so run_cli passthrough uses the same backend.
+    obj = ctx.obj or {}
+    cli_prefix: list[str] = ["--backend", obj.get("backend", "desktop")]
+    if obj.get("path"):
+        cli_prefix += ["--path", str(obj["path"])]
+    McpServer(backend, cli_prefix=cli_prefix).serve_forever()
 
 
 @mcp_cmd.command("tools")

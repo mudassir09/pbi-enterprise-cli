@@ -52,19 +52,68 @@ TOOLS: list[dict[str, Any]] = [
            "expression": {"type": "string"},
            "format_string": {"type": "string"}},
           ["table", "name", "expression"]),
+    # --- Full-CLI parity: discover and invoke every pbi command, not just the
+    #     curated tools above (deploy, test, fabric, sql, tenant, ops, govern fix...).
+    _tool("list_commands",
+          "List every pbi CLI command with its help and parameters — the complete "
+          "capability map. Use this to discover commands, then call run_cli to run them."),
+    _tool("run_cli",
+          "Run ANY pbi CLI command and return its exit code and output. Pass argv as a "
+          "list, e.g. ['govern','check','--fail-on','error'] or ['sql','query','--server',"
+          "'x','SELECT 1']. This exposes the full CLI surface beyond the curated tools. "
+          "Add '--json' for machine-readable output. The server's --backend/--path are "
+          "applied automatically.",
+          {"args": {"type": "array", "items": {"type": "string"},
+                    "description": "Command-line arguments, excluding the 'pbi' program name."}},
+          ["args"]),
 ]
+
+
+def _walk_commands(cmd: Any, path: list[str]) -> list[dict[str, Any]]:
+    """Flatten the Click command tree into a machine-readable list (for list_commands)."""
+    import click
+
+    entries: list[dict[str, Any]] = [{
+        "command": " ".join(path),
+        "help": (getattr(cmd, "help", None) or getattr(cmd, "short_help", None)
+                 or "").strip().split("\n")[0],
+        "params": [
+            {"name": p.name, "opts": list(getattr(p, "opts", [])),
+             "required": bool(getattr(p, "required", False))}
+            for p in getattr(cmd, "params", []) if p.name != "help"
+        ],
+    }]
+    if isinstance(cmd, click.Group):
+        for name, sub in sorted(cmd.commands.items()):
+            entries.extend(_walk_commands(sub, [*path, name]))
+    return entries
 
 
 class McpServer:
     """Stdio JSON-RPC loop dispatching MCP requests to a pbi backend."""
 
-    def __init__(self, backend: Any) -> None:
+    def __init__(self, backend: Any, cli_prefix: list[str] | None = None) -> None:
         self._backend = backend
+        # Global flags (e.g. ["--backend", "file", "--path", "/repo"]) prepended to
+        # every run_cli invocation so passthrough commands use the same backend.
+        self._cli_prefix = list(cli_prefix or [])
 
     # --- Tool implementations ---
 
     def call_tool(self, name: str, args: dict[str, Any]) -> Any:
         b = self._backend
+        if name == "list_commands":
+            from pbi_cli.cli import cli as root
+
+            return _walk_commands(root, ["pbi"])
+        if name == "run_cli":
+            from click.testing import CliRunner
+
+            from pbi_cli.cli import cli as root
+
+            argv = self._cli_prefix + [str(a) for a in (args.get("args") or [])]
+            result = CliRunner(mix_stderr=True).invoke(root, argv)
+            return {"exit_code": result.exit_code, "output": result.output}
         if name == "model_info":
             return b.model_info()
         if name == "list_tables":

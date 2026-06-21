@@ -114,6 +114,9 @@ pbi ask "top 10 customers by revenue"          # English → DAX → results (re
 | **DAX testing** | `pbi dax` — query, validate, YAML unit-test suites, coverage |
 | **DAX tooling** | `pbi dax format` (offline formatter) + `pbi dax lint` (static rules) |
 | **Report analysis** | `pbi report lint / field-usage / diff / a11y` — PBIR intelligence |
+| **T-SQL** | `pbi sql query` — run T-SQL against a Fabric Warehouse / Lakehouse SQL endpoint |
+| **Lakehouse** | `pbi lakehouse` — list, tables, load-to-table, maintenance (OPTIMIZE/V-Order/VACUUM) |
+| **Notebooks** | `pbi notebook` — run with typed parameters (`--wait`), status, export/import `.ipynb` |
 | **Source profiling** | `pbi source` — SQL, Excel, CSV, REST → star-schema scaffold |
 | **Calendar** | `pbi calendar` — generate date tables, fiscal year, mark-as-date-table |
 | **Report authoring** | `pbi report` — pages, bookmarks, drillthrough (PBIR GA format) |
@@ -136,12 +139,25 @@ pbi ask "top 10 customers by revenue"          # English → DAX → results (re
 | **Operations** | `pbi ops` — refresh orchestration, chains, health checks, webhooks |
 | **Migration** | `pbi migrate` — Direct Lake readiness, PBIX extraction, dbt interop |
 | **Docs** | `pbi docs` — data dictionary, lineage, Mermaid ERD, MkDocs site |
-| **AI & agents** | `pbi ask` (NL→DAX), `pbi mcp serve` (MCP server), `pbi introspect` |
+| **AI & agents** | `pbi ask` (NL→DAX), `pbi mcp serve` (MCP server — full-CLI parity via `run_cli`), `pbi introspect` |
 | **Scaffolding** | `pbi init` — tests + CI workflow + pre-commit + config in one step |
 | **Diagnostics** | `pbi doctor` — check pythonnet, optional deps, platform |
 | **Watch mode** | `pbi watch` — re-run governance + DAX tests on file change |
 | **REST API** | `pbi server` — authenticated FastAPI server for pipeline integration |
 | **Skills** | `pbi skills` — install, list, check 10 Claude Code Power BI skills |
+
+---
+
+## Scope: what's deep vs. emerging
+
+Honesty about coverage, so you can judge fit:
+
+- **Deep today (the moat):** the semantic-model layer — modelling, DAX authoring/testing/lint, governance + BPA, RLS, report (PBIR) authoring & analysis, TMDL diff/snapshot, docs/lineage, and CI gating. This is production-grade and best-in-class.
+- **Solid:** Fabric platform *lifecycle* — item CRUD (any type), workspaces, git sync, deployment pipelines, OneLake files, capacity ops, jobs; **T-SQL against Warehouse/Lakehouse SQL endpoints** (`pbi sql query`); **Lakehouse table ops** (`pbi lakehouse` — list/tables/load/maintenance); **notebook runs** (`pbi notebook` — parameterised run, status, `.ipynb` export/import).
+- **Emerging (item-level only, ergonomics in progress):** data-pipeline (Data Factory) run monitoring and Dataflows Gen2 mashups — reachable via `pbi fabric item`/`pbi fabric job`, dedicated commands still being built.
+- **Not yet:** Eventstream / Eventhouse / KQL / Real-Time Intelligence and Spark environments.
+
+If your work is **Power BI semantic models, governance, and analytics**, this is a one-stop shop today. If it's **Fabric Spark/lakehouse data engineering**, it's a capable lifecycle manager that's deepening — see [RECOMMENDATIONS.md](RECOMMENDATIONS.md) for the roadmap.
 
 ---
 
