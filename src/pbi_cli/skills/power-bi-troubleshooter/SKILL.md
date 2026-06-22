@@ -98,7 +98,7 @@ pbi govern check
 | `No running Power BI Desktop found` | Desktop not open | Open your .pbip file in Desktop |
 | `Port 0 in netstat` | Model still loading | Wait 10s, run `pbi connect` again |
 | `Access denied to MSMDSRV` | User mismatch | Run terminal as same user as Desktop |
-| `$schema property did not match` | Wrong schema URL | Use `visualContainer/2.7.0/schema.json` |
+| `$schema property did not match` | Wrong schema URL | Use `visualContainer/2.9.0/schema.json` |
 | `Additional property ... not allowed` | Old visual format | Use `query.queryState` structure |
 | `Column not found` | Field name typo | Run `pbi model columns` to check exact name |
 | `XMLA endpoint not enabled` | Free/Pro workspace | Upgrade to Premium or Fabric |
@@ -136,7 +136,7 @@ cat "financials.Report/definition/pages/{pageGUID}/visuals/{visualGUID}/visual.j
 ```
 
 Check against the PBIR GA spec:
-- `$schema`: must be `visualContainer/2.7.0/schema.json`
+- `$schema`: must be `visualContainer/2.9.0/schema.json`
 - `visual.visualType`: must be a valid type string
 - `visual.query.queryState`: must use role keys (Values, Category, Y, etc.)
 - No direct `projections` or `prototypeQuery` at `visual` level

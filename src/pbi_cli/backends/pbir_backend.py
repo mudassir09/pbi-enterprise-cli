@@ -14,6 +14,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from pbi_cli.backends import pbir_schemas as _schemas
+
 
 def _slug(name: str) -> str:
     """Sanitise a display name for use as a directory name."""
@@ -151,10 +153,7 @@ class PbirBackend:
     def _ga_write_pages_json(self, data: dict[str, Any]) -> None:
         pj = self._ga_pages_dir() / "pages.json"
         if "$schema" not in data:
-            data["$schema"] = (
-                "https://developer.microsoft.com/json-schemas/fabric/item/"
-                "report/definition/pagesMetadata/1.0.0/schema.json"
-            )
+            data["$schema"] = _schemas.definition_schema("pagesMetadata")
         pj.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
     def _ga_page_list(self) -> list[dict[str, Any]]:
@@ -192,10 +191,7 @@ class PbirBackend:
         (page_dir / "visuals").mkdir(exist_ok=True)
 
         page_json: dict[str, Any] = {
-            "$schema": (
-                "https://developer.microsoft.com/json-schemas/fabric/item/"
-                "report/definition/page/2.1.0/schema.json"
-            ),
+            "$schema": _schemas.definition_schema("page"),
             "name": page_id,
             "displayName": display_name,
             "displayOption": "FitToPage",
@@ -316,18 +312,11 @@ class PbirBackend:
     def _write_ga_report_json(self) -> None:
         assert self._report_dir
         report_json = {
-            "$schema": (
-                "https://developer.microsoft.com/json-schemas/fabric/item/"
-                "report/definition/report/3.2.0/schema.json"
-            ),
+            "$schema": _schemas.definition_schema("report"),
             "themeCollection": {
                 "baseTheme": {
                     "name": "Fluent2-CY26SU04",
-                    "reportVersionAtImport": {
-                        "visual": "2.8.0",
-                        "report": "3.2.0",
-                        "page": "2.3.1",
-                    },
+                    "reportVersionAtImport": dict(_schemas.REPORT_VERSION_AT_IMPORT),
                     "type": "SharedResources",
                 }
             },
@@ -461,10 +450,7 @@ class PbirBackend:
 
     def _ga_write_bookmarks_json(self, data: dict[str, Any]) -> None:
         bj = self._ga_bookmarks_dir() / "bookmarks.json"
-        data["$schema"] = (
-            "https://developer.microsoft.com/json-schemas/fabric/item/"
-            "report/definition/bookmarksMetadata/1.0.0/schema.json"
-        )
+        data["$schema"] = _schemas.definition_schema("bookmarksMetadata")
         bj.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
     def bookmark_list(self) -> list[dict[str, Any]]:
@@ -540,10 +526,7 @@ class PbirBackend:
                 sections[active_section] = {"visualContainers": visual_containers}
 
         bm: dict[str, Any] = {
-            "$schema": (
-                "https://developer.microsoft.com/json-schemas/fabric/item/"
-                "report/definition/bookmark/2.1.0/schema.json"
-            ),
+            "$schema": _schemas.definition_schema("bookmark"),
             "displayName": display_name,
             "name": bm_id,
             "options": {"targetVisualNames": target_visuals},
@@ -1254,6 +1237,141 @@ class PbirBackend:
         vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return True
 
+    def visual_rebind(
+        self,
+        page: str,
+        visual_name: str,
+        bindings: dict[str, list[Any]],
+        *,
+        clear_unlisted: bool = False,
+    ) -> bool:
+        """Atomically rebind several role slots of a visual in one write.
+
+        ``bindings`` maps a role name (Category, Y, Values, Rows, Columns, ...) to
+        a list of ``FieldDef``. Each listed role is fully replaced with its given
+        fields. With ``clear_unlisted=True`` every role *not* in ``bindings`` is
+        removed too, so the visual ends up bound to exactly ``bindings`` — the
+        in-place equivalent of delete + re-add, but preserving position, title and
+        formatting. PBIR GA only. Returns True if the visual was found+updated.
+
+        The visual file is only written if every field is valid, so a bad binding
+        never leaves the visual half-rewritten.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Field rebinding requires PBIR GA format (definition/ folder).")
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return False
+        vj, data = found
+
+        # Build all projections first; any failure aborts before writing.
+        new_state: dict[str, list[dict[str, Any]]] = {}
+        for role, fields in bindings.items():
+            if not role:
+                raise ValueError("role names must be non-empty")
+            new_state[role] = [f.to_projection() for f in fields]
+
+        query = data.setdefault("visual", {}).setdefault("query", {})
+        query_state = query.setdefault("queryState", {})
+        if clear_unlisted:
+            query_state.clear()
+        for role, projections in new_state.items():
+            query_state[role] = {"projections": projections}
+
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
+    # ── Generic visual formatting (formatting object definitions) ──────────────
+    # Beyond the bespoke conditional-formatting writers above, this writes any
+    # formatting-object property Desktop supports. Structure (per the
+    # formattingObjectDefinitions schema): visual.objects[<object>] is a list of
+    # { selector?, properties } entries; each property value is an expression such
+    # as a Literal, or a solid colour wrapper for colour properties.
+
+    @staticmethod
+    def _format_value_expr(value: Any, value_type: str) -> dict[str, Any]:
+        """Build the expression for a formatting property value.
+
+        value_type: 'text' | 'number' | 'bool' | 'color' | 'auto'. 'auto' infers
+        from the Python type (bool/int/float/str; '#RRGGBB' strings → color).
+        """
+        vt = value_type
+        if vt == "auto":
+            if isinstance(value, bool):
+                vt = "bool"
+            elif isinstance(value, (int, float)):
+                vt = "number"
+            elif isinstance(value, str) and re.fullmatch(r"#[0-9A-Fa-f]{6,8}", value):
+                vt = "color"
+            else:
+                vt = "text"
+
+        if vt == "bool":
+            literal = {"expr": {"Literal": {"Value": "true" if value else "false"}}}
+        elif vt == "number":
+            num = int(value) if isinstance(value, float) and value.is_integer() else value
+            literal = {"expr": {"Literal": {"Value": f"{num}D"}}}
+        elif vt == "color":
+            return {"solid": {"color": {"expr": {"Literal": {"Value": f"'{value}'"}}}}}
+        else:  # text
+            literal = {"expr": {"Literal": {"Value": f"'{value}'"}}}
+        return literal
+
+    def visual_set_format(
+        self,
+        page: str,
+        visual_name: str,
+        object_name: str,
+        property_name: str,
+        value: Any,
+        *,
+        value_type: str = "auto",
+        selector: dict[str, Any] | None = None,
+        container_level: bool = False,
+    ) -> bool:
+        """Set an arbitrary formatting-object property on a visual.
+
+        Examples of (object_name, property_name): ('title','text'),
+        ('title','show'), ('background','color'), ('legend','position'),
+        ('dataLabels','show'), ('categoryAxis','titleText').
+
+        ``container_level=True`` targets ``visualContainerObjects`` (chrome shared
+        by all visual types: title, background, border, visualHeader) instead of
+        the type-specific ``objects``. Entries are merged by ``selector`` so
+        repeated calls accumulate into one entry. PBIR GA only. Returns True if
+        the visual was found and updated.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Generic formatting requires PBIR GA format (definition/ folder).")
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return False
+        vj, data = found
+
+        visual = data.setdefault("visual", {})
+        bucket_key = "visualContainerObjects" if container_level else "objects"
+        bucket = visual.setdefault(bucket_key, {})
+        entries: list[dict[str, Any]] = bucket.setdefault(object_name, [])
+
+        prop_expr = self._format_value_expr(value, value_type)
+
+        # Merge into an entry with a matching selector (None == whole-visual).
+        target = next(
+            (e for e in entries if e.get("selector") == selector),
+            None,
+        )
+        if target is None:
+            target = {"properties": {}}
+            if selector is not None:
+                target["selector"] = selector
+            entries.append(target)
+        target.setdefault("properties", {})[property_name] = prop_expr
+
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
     # ── Report-level measures (reportExtensions.json) ──────────────────────────
 
     def _report_extension_path(self) -> Path:
@@ -1284,10 +1402,7 @@ class PbirBackend:
             ext = json.loads(path.read_text(encoding="utf-8"))
         else:
             ext = {
-                "$schema": (
-                    "https://developer.microsoft.com/json-schemas/fabric/item/"
-                    "report/definition/reportExtension/1.0.0/schema.json"
-                ),
+                "$schema": _schemas.definition_schema("reportExtension"),
                 "name": "extension",
                 "entities": [],
             }
@@ -1496,10 +1611,7 @@ class PbirBackend:
     # ── Mobile layout ──────────────────────────────────────────────────────────
     # Each visual's mobile position is a sibling mobile.json (visualContainerMobileState).
 
-    MOBILE_STATE_SCHEMA = (
-        "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/"
-        "visualContainerMobileState/2.5.0/schema.json"
-    )
+    MOBILE_STATE_SCHEMA = _schemas.definition_schema("visualContainerMobileState")
 
     def visual_set_mobile(
         self,

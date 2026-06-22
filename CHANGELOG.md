@@ -8,6 +8,37 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — PBIR hardening: schema registry, correct filters, generic formatting, atomic rebind
+- **Schema-version registry** (`pbi_cli.backends.pbir_schemas`) — single source of
+  truth for every PBIR `$schema` URL, populated from the latest *published* versions
+  in [microsoft/json-schemas](https://github.com/microsoft/json-schemas/tree/main/fabric/item/report).
+  `pbir_backend`, `visual_builder` and `project_scaffold` now resolve schema URLs
+  through it, so a Microsoft version bump is a one-line change. Bumped to the current
+  published versions (visualContainer `2.7.0`→`2.9.0`, report `3.2.0`→`3.3.0`,
+  pagesMetadata `1.0.0`→`1.1.0`) and fixed `visualContainerMobileState` which pointed
+  at a non-existent `2.5.0` (now the published `2.4.0`). New
+  `scripts/check_pbir_schemas.py` flags drift against the live repo.
+- **Filters rewritten to the real schema.** `pbi filter` now writes a valid
+  `filterConfig` with proper `FilterContainer` + `FilterDefinition`
+  (`Version`/`From`/`Where`) bodies. The previous flat
+  `{operator, timeUnitsCount, values}` shape matched no published schema and was a
+  blocking error in Desktop. Generated `FilterContainer`s are validated in CI
+  against Microsoft's vendored filterConfiguration `1.3.0` schema. Note: an
+  *embedded* `filterConfig` must NOT carry a `$schema` key (Desktop blocks it,
+  even though the standalone schema marks it required) — verified live in Desktop. New `--exclude` on `add-value`, new `add-advanced`
+  (one/two numeric comparisons joined by And/Or), `--locked`/`--hidden` flags.
+  **Breaking:** `pbi filter add-topn` removed — a page-level TopN with an order-by
+  measure has no representation in the `FilterDefinition` schema (which allows only
+  `Version`/`From`/`Where`); TopN belongs at the visual level (future work).
+- `pbi visual set-format` — **generic formatting writer** for any formatting-object
+  property (data labels, legend position, background colour, axis titles, …), not
+  just conditional formatting. Targets `objects` or, with `--container`,
+  `visualContainerObjects`; merges repeated calls into one entry.
+- `pbi visual rebind` — **atomic multi-role rebind.** Rewrites several role slots in
+  one write (and optionally clears unlisted roles), preserving position, title and
+  formatting — the safe in-place equivalent of delete + re-add. Builds all
+  projections before writing so a bad binding never half-rewrites a visual.
+
 ### Changed — file backend: structural writes fail loud; shared `ref table` helper
 - `FileBackend` no longer silently no-ops structural writes it can't persist. Only
   measure edits are written back to TMDL; `table_add`/`table_delete`, `column_add`/

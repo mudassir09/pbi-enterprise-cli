@@ -160,4 +160,4 @@ Minimum valid `page.json`:
 | `No *.Report folder found` | Save as .pbip first (File → Save as → Power BI project) |
 | Page not appearing after scaffold | Click Reload in Desktop; or close/reopen .pbip |
 | Visuals appear but show errors | Check field names match your model — use `pbi model columns` |
-| Schema validation error on reload | Check visual.json `$schema` matches `visualContainer/2.7.0/schema.json` |
+| Schema validation error on reload | Check visual.json `$schema` matches `visualContainer/2.9.0/schema.json` |

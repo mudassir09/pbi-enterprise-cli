@@ -60,7 +60,7 @@ The `visual.json` for a custom visual uses `visualType` set to the visual's GUID
 
 ```json
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.7.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
   "name": "a1b2c3d4e5f6",
   "position": { "x": 16, "y": 16, "z": 0, "width": 600, "height": 400, "tabOrder": 0 },
   "visual": {
