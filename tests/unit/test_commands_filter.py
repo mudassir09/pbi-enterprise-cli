@@ -218,7 +218,9 @@ class TestFilterScope:
         pbip = _make_fake_pbip(tmp_path)
         # report-level filters need definition/report.json to exist.
         rj = self._report_json_path(tmp_path)
-        rj.write_text(json.dumps({"$schema": schemas.definition_schema("report")}), encoding="utf-8")
+        rj.write_text(
+            json.dumps({"$schema": schemas.definition_schema("report")}), encoding="utf-8"
+        )
         result = _run(runner, "filter", "add-value",
                       "--pbip", pbip, "--scope", "report",
                       "--table", "Sales", "--column", "Region", "--values", "UK")
@@ -240,12 +242,16 @@ class TestFilterScope:
     def test_visual_scope_writes_visual_json(self, runner, tmp_path):
         from pbi_cli.backends.pbir_backend import PbirBackend
         from pbi_cli.intelligence.visual_builder import (
-            AGG_SUM, FieldDef, VisualSpec, build_card,
+            AGG_SUM,
+            FieldDef,
+            VisualSpec,
+            build_card,
         )
 
         pbip = _make_fake_pbip(tmp_path)
         b = PbirBackend(pbip)
-        spec = VisualSpec("card", build_card(FieldDef(entity="Sales", property="Amount", agg=AGG_SUM)))
+        field = FieldDef(entity="Sales", property="Amount", agg=AGG_SUM)
+        spec = VisualSpec("card", build_card(field))
         name = b.visual_add("Page1", spec)["name"]
 
         result = _run(runner, "filter", "add-value",
