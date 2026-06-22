@@ -8,6 +8,49 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — filter field must reference Entity, not a query alias
+- **Filter `field` now uses `SourceRef.Entity` (the table), not `SourceRef.Source` (a
+  query alias).** A `FilterContainer.field` built with an alias is accepted by the
+  published filterConfiguration schema *and* loads on first open, but Power BI Desktop
+  cannot resolve the alias at report/visual scope and **rewrites it to an empty
+  SourceRef on its next save**, which then blocks the report from opening ("Required
+  property 'Entity'/'Source' was not included … invalid value"). Verified live in
+  Desktop. The `Where`/`From` body still uses the alias (correct there). `pbi report
+  validate` gained `pbir.filter-field-alias` (warning) for alias-based fields and
+  already flags empty SourceRefs via `pbir.filter-field-sourceref` (error) — so it now
+  catches both classes *before* Desktop does.
+
+### Added — PBIR maturity: validation, field parameters, filter scope, duplication, AI visuals
+- **`pbi report validate`** — offline structural + referential PBIR validator. Encodes
+  the runtime-validator rules Power BI Desktop enforces at *reload* (e.g. no `$schema`
+  inside an embedded `filterConfig`) plus cross-file integrity checks (`pageOrder`,
+  `bookmarks.json` items/children, `parentGroupName`, `visualInteractions`
+  source/target) and schema-version drift against the registry. `--fail-on` makes it a
+  CI gate. New module `pbi_cli.pbir_validate`.
+- **Field parameters** — `pbi model field-parameter` generates the model-side calculated
+  table (label / Fields / Order columns + `NAMEOF` constructor partition + the
+  `ParameterMetadata` extended property) and registers it in `model.tmdl`. New module
+  `pbi_cli.intelligence.field_parameter`.
+- **Filter scope** — `pbi filter` now takes `--scope page|report|visual`. Report-level
+  filters write to `definition/report.json`; visual-level filters to the visual's
+  `visual.json` (with `--visual`). Page scope remains the default.
+- **Page / visual duplication** — `pbi report page-duplicate` (regenerates page + visual
+  ids and remaps group / interaction references so the copy is fully independent),
+  `pbi visual clone` (same page with offset, or to another page), `pbi visual move`
+  (keeps id, scrubs now-dangling interactions).
+- **AI visuals wired up** — `decomptree` and `keyinfluencers` now build proper
+  Analyze/Explain role bindings; `smartnarrative` and `qanda` add cleanly. Previously
+  these types were in the type map but errored on add.
+- **Button actions** — `pbi visual action` wires a button/shape to a `visualLink`
+  action: `PageNavigation` (resolves page display name → GUID), `Bookmark` (resolves
+  display name → id), `WebUrl`, `Back`, `Drill`, `QnA`. Buttons added with
+  `add-element` are no longer inert.
+- **`pbi visual get`** — read-side introspection of a visual: type, position, role
+  bindings, formatting objects, conditional formatting, filters, action, sync group,
+  group membership, mobile layout.
+- **Reference lines** — `pbi visual reference-line` adds a constant Y target line
+  (value, label, colour, style) to cartesian charts.
+
 ### Added — PBIR hardening: schema registry, correct filters, generic formatting, atomic rebind
 - **Schema-version registry** (`pbi_cli.backends.pbir_schemas`) — single source of
   truth for every PBIR `$schema` URL, populated from the latest *published* versions

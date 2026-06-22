@@ -89,6 +89,35 @@ def visual_list(ctx: click.Context, pbip: str, page: str) -> None:
     output_json_or_table(visuals, ctx, title=f"Visuals on '{page}'")
 
 
+@visual.command("get")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--page", required=True, help="Page display name.")
+@click.option("--name", "visual_name", required=True, help="Visual name (from pbi visual list).")
+@click.pass_context
+def visual_get(ctx: click.Context, pbip: str, page: str, visual_name: str) -> None:
+    """Introspect a visual: type, position, field bindings, formatting, filters.
+
+    The read-side counterpart to add/rebind/format — useful for auditing,
+    idempotent edits, and understanding an existing report.
+
+    \b
+    Example:
+      pbi visual get --pbip MyReport --page "Sales" --name abc123 --json
+    """
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        info = b.visual_get(page, visual_name)
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    if info is None:
+        console.print(f"[red]Visual '{visual_name}' not found on page '{page}'.[/red]")
+        raise SystemExit(1)
+    output_json_or_table(info, ctx, title=f"Visual {visual_name}")
+
+
 @visual.command("add")
 @click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
 @click.option("--page", required=True, help="Page display name to add the visual to.")
@@ -149,16 +178,20 @@ def visual_add(
         build_bar_chart,
         build_card,
         build_column_chart,
+        build_decomposition_tree,
         build_donut_chart,
         build_funnel,
         build_gauge,
+        build_key_influencers,
         build_line_chart,
         build_matrix,
         build_multi_row_card,
         build_pie_chart,
+        build_qna,
         build_ribbon_chart,
         build_scatter_chart,
         build_slicer,
+        build_smart_narrative,
         build_table,
         build_treemap,
         build_waterfall,
@@ -265,6 +298,24 @@ def visual_add(
         cat_field = FieldDef(entity=table, property=category, agg=None)
         series_field = FieldDef(entity=table, property=series, agg=None) if series else None
         body = build_ribbon_chart(cat_field, value_field, series=series_field)
+    elif vtype in ("decomptree", "keyinfluencers"):
+        if not category:
+            raise click.UsageError(
+                f"--category is required for {vtype} (the Explain-by dimension); "
+                "use --extra-columns to add more."
+            )
+        explain = [FieldDef(entity=table, property=category, agg=None)]
+        if extra_columns:
+            for col_name in extra_columns.split(","):
+                col_name = col_name.strip()
+                if col_name:
+                    explain.append(FieldDef(entity=table, property=col_name, agg=None))
+        builder = build_decomposition_tree if vtype == "decomptree" else build_key_influencers
+        body = builder(value_field, explain)
+    elif vtype == "smartnarrative":
+        body = build_smart_narrative()
+    elif vtype == "qanda":
+        body = build_qna()
     else:
         raise click.UsageError(f"Unsupported visual type: {vtype}")
 
@@ -892,6 +943,197 @@ def visual_add_element(
     console.print(
         f"[green]Added[/green] {element_type} '{result['name']}' to page '{page}'."
     )
+    console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see it.")
+
+
+@visual.command("reference-line")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--page", required=True, help="Page display name.")
+@click.option("--name", "visual_name", required=True, help="Cartesian chart visual name.")
+@click.option("--value", type=float, required=True, help="Constant Y value for the line.")
+@click.option("--label", default="Target", show_default=True, help="Line label.")
+@click.option("--color", default="#E81123", show_default=True, help="Line colour (hex).")
+@click.option(
+    "--style",
+    type=click.Choice(["solid", "dashed", "dotted"]),
+    default="dashed",
+    show_default=True,
+)
+@click.option("--no-label", is_flag=True, help="Hide the line's data label.")
+@click.pass_context
+def visual_reference_line(
+    ctx: click.Context,
+    pbip: str,
+    page: str,
+    visual_name: str,
+    value: float,
+    label: str,
+    color: str,
+    style: str,
+    no_label: bool,
+) -> None:
+    """Add a constant Y reference (target) line to a cartesian chart.
+
+    \b
+    Example — a 1,000,000 sales target line:
+      pbi visual reference-line --pbip R --page "Sales" --name bar1 \\
+        --value 1000000 --label "Target" --color "#E81123"
+    """
+    if dry_run_echo(ctx, f"add reference line at {value} on visual '{visual_name}'"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        ok = b.visual_add_reference_line(
+            page, visual_name, value, name=label, color=color, style=style,
+            show_label=not no_label,
+        )
+    except (ValueError, RuntimeError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    if ok:
+        console.print(f"[green]Reference line added:[/green] {label} @ {value} on '{visual_name}'.")
+        console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see it.")
+    else:
+        console.print(f"[red]Visual '{visual_name}' not found on page '{page}'.[/red]")
+        raise SystemExit(1)
+
+
+@visual.command("action")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--page", required=True, help="Page display name.")
+@click.option("--name", "visual_name", required=True, help="Button/shape visual name.")
+@click.option(
+    "--type",
+    "action_type",
+    type=click.Choice(["Back", "PageNavigation", "Bookmark", "Drill", "QnA", "WebUrl"]),
+    required=True,
+    help="Action type.",
+)
+@click.option(
+    "--target",
+    default=None,
+    help="Target: page (PageNavigation), bookmark (Bookmark), or URL (WebUrl).",
+)
+@click.pass_context
+def visual_action(
+    ctx: click.Context,
+    pbip: str,
+    page: str,
+    visual_name: str,
+    action_type: str,
+    target: str | None,
+) -> None:
+    """Wire a navigation/action onto a button so it actually does something.
+
+    A button added with `add-element` has no action until you set one here.
+
+    \b
+    Examples:
+      pbi visual action --pbip R --page "Home" --name btn1 --type PageNavigation --target "Detail"
+      pbi visual action --pbip R --page "Home" --name btn2 --type Bookmark --target "Q4 View"
+      pbi visual action --pbip R --page "Home" --name back1 --type Back
+    """
+    if dry_run_echo(ctx, f"set {action_type} action on visual '{visual_name}'"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        ok = b.visual_set_action(page, visual_name, action_type, target=target)
+    except (ValueError, RuntimeError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    if ok:
+        tgt = f" → {target}" if target else ""
+        console.print(f"[green]Action set:[/green] {action_type}{tgt} on '{visual_name}'.")
+        console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see it.")
+    else:
+        console.print(f"[red]Visual '{visual_name}' not found on page '{page}'.[/red]")
+        raise SystemExit(1)
+
+
+# ── Clone & move ────────────────────────────────────────────────────────────────
+
+
+@visual.command("clone")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--page", required=True, help="Source page display name.")
+@click.option("--name", "visual_name", required=True, help="Visual name to clone.")
+@click.option("--to-page", default=None, help="Target page (default: same page, offset).")
+@click.option("--dx", type=int, default=24, show_default=True, help="X offset when cloning in place.")  # noqa: E501
+@click.option("--dy", type=int, default=24, show_default=True, help="Y offset when cloning in place.")  # noqa: E501
+@click.pass_context
+def visual_clone(
+    ctx: click.Context,
+    pbip: str,
+    page: str,
+    visual_name: str,
+    to_page: str | None,
+    dx: int,
+    dy: int,
+) -> None:
+    """Clone a visual under a fresh id — on the same page (offset) or another page.
+
+    Preserves bindings, formatting and conditional formatting. The clone never
+    inherits group membership.
+
+    \b
+    Example:
+      pbi visual clone --pbip R --page "Sales" --name abc123 --to-page "EMEA"
+    """
+    if dry_run_echo(ctx, f"clone visual '{visual_name}' from '{page}'"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        result = b.visual_clone(page, visual_name, target_page=to_page, dx=dx, dy=dy)
+    except (ValueError, RuntimeError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    if not result:
+        console.print(f"[red]Visual '{visual_name}' not found on page '{page}'.[/red]")
+        raise SystemExit(1)
+    console.print(
+        f"[green]Cloned[/green] '{visual_name}' → '{result['name']}' on page '{result['page']}'."
+    )
+    console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see it.")
+
+
+@visual.command("move")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--page", required=True, help="Source page display name.")
+@click.option("--name", "visual_name", required=True, help="Visual name to move.")
+@click.option("--to-page", required=True, help="Target page display name.")
+@click.pass_context
+def visual_move(
+    ctx: click.Context, pbip: str, page: str, visual_name: str, to_page: str
+) -> None:
+    """Move a visual to another page, keeping its id.
+
+    Drops group membership and removes now-dangling visual interactions on the
+    source page.
+
+    \b
+    Example:
+      pbi visual move --pbip R --page "Sales" --name abc123 --to-page "Detail"
+    """
+    if dry_run_echo(ctx, f"move visual '{visual_name}' from '{page}' to '{to_page}'"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        result = b.visual_move(page, visual_name, to_page)
+    except (ValueError, RuntimeError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    if not result:
+        console.print(f"[red]Visual '{visual_name}' not found on page '{page}'.[/red]")
+        raise SystemExit(1)
+    console.print(f"[green]Moved[/green] '{visual_name}' to page '{to_page}'.")
     console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see it.")
 
 

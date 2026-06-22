@@ -478,6 +478,68 @@ def _scan_pbir_for_field(pbip: str, name: str, is_measure: bool) -> list[dict]:
     return results
 
 
+@model.command("field-parameter")
+@click.option("--pbip", required=True, help="Path to the .pbip project (must have a local model).")
+@click.option("--name", required=True, help="Field parameter / table name, e.g. 'Metric'.")
+@click.option(
+    "--item",
+    "items",
+    multiple=True,
+    required=True,
+    help="A selectable field as 'Label:Table:Field[:measure]' (repeatable, in display order).",
+)
+@click.pass_context
+def model_field_parameter(
+    ctx: click.Context, pbip: str, name: str, items: tuple[str, ...]
+) -> None:
+    """Generate a field parameter (a calculated table users can switch fields with).
+
+    Writes a TMDL table into the project's semantic model and registers it in
+    model.tmdl. Bind the new '<name>' column to a slicer (and the visual's value
+    role) so report users can swap measures/dimensions live.
+
+    \b
+    Example:
+      pbi model field-parameter --pbip MyReport --name "Metric" \\
+        --item "Sales:financials:Sales:measure" \\
+        --item "Profit:financials:Profit:measure" \\
+        --item "Units:financials:Units Sold:measure"
+    """
+    from pbi_cli.intelligence.field_parameter import FieldParamItem, add_field_parameter
+
+    parsed: list[FieldParamItem] = []
+    for raw in items:
+        parts = raw.split(":")
+        if len(parts) < 3:
+            raise click.UsageError(
+                f"--item '{raw}' must be 'Label:Table:Field[:measure]'."
+            )
+        label, table, fieldname = parts[0], parts[1], parts[2]
+        is_measure = len(parts) > 3 and parts[3].strip().lower() == "measure"
+        if not (label and table and fieldname):
+            raise click.UsageError(f"--item '{raw}' has an empty Label, Table or Field.")
+        parsed.append(FieldParamItem(label=label, table=table, field=fieldname, is_measure=is_measure))  # noqa: E501
+
+    if dry_run_echo(ctx, f"generate field parameter '{name}' with {len(parsed)} item(s)"):
+        return
+
+    try:
+        result = add_field_parameter(pbip, name, parsed)
+    except (FileNotFoundError, ValueError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+
+    console.print(
+        f"[green]Field parameter created:[/green] '{result['table']}' "
+        f"({result['items']} field(s)) → {result['path']}"
+    )
+    console.print(
+        "[yellow]Next:[/yellow] add a slicer bound to "
+        f"'{name}'[{name}] and bind '{name}'[{name} Fields] to your visual's value role."
+    )
+    console.print("[yellow]Tip:[/yellow] Reload the model in Power BI Desktop to verify.")
+
+
 def _build_measure_suggestions(tables: list, columns: list) -> list[dict]:
     suggestions = []
     numeric_cols = [c for c in columns if c.get("dataType") in ("Decimal", "Double", "Int64")]

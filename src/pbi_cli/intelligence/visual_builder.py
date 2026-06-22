@@ -268,6 +268,41 @@ def build_ribbon_chart(
     }
 
 
+# ── AI / smart visuals ──────────────────────────────────────────────────────────
+# Decomposition tree and key influencers both take an "Analyze" measure/field plus
+# one or more "Explain" dimensions. Smart narrative and Q&A carry no query bindings.
+
+
+def build_decomposition_tree(analyze: FieldDef, explain_by: list[FieldDef]) -> dict[str, Any]:
+    """Decomposition tree: an Analyze value broken down by Explain dimensions."""
+    return {
+        "visualType": "decompositionTreeVisual",
+        "query": {"queryState": _query_state({"Analyze": [analyze], "Explain": explain_by})},
+        "objects": {},
+        "visualContainerObjects": {},
+    }
+
+
+def build_key_influencers(analyze: FieldDef, explain_by: list[FieldDef]) -> dict[str, Any]:
+    """Key influencers: what drives the Analyze field, explained by Explain fields."""
+    return {
+        "visualType": "keyDrivers",
+        "query": {"queryState": _query_state({"Analyze": [analyze], "Explain": explain_by})},
+        "objects": {},
+        "visualContainerObjects": {},
+    }
+
+
+def build_smart_narrative() -> dict[str, Any]:
+    """Smart narrative (auto-generated text summary). No query bindings required."""
+    return {"visualType": "narrativeVisual", "objects": {}, "visualContainerObjects": {}}
+
+
+def build_qna() -> dict[str, Any]:
+    """Q&A visual (natural-language query box). No query bindings required."""
+    return {"visualType": "qnaVisual", "objects": {}, "visualContainerObjects": {}}
+
+
 # ── Non-data elements: textbox, buttons, navigators ─────────────────────────────
 # These have no query bindings. Shapes verified against Power BI Desktop output:
 # a blank button serialises as visualType "actionButton" with objects.icon.shapeType;

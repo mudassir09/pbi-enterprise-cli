@@ -210,6 +210,68 @@ class TestFilterAddValue:
         assert "DRY RUN" in result.output
 
 
+class TestFilterScope:
+    def _report_json_path(self, tmp_path: Path) -> Path:
+        return Path(tmp_path) / "TestReport.Report" / "definition" / "report.json"
+
+    def test_report_scope_writes_report_json(self, runner, tmp_path):
+        pbip = _make_fake_pbip(tmp_path)
+        # report-level filters need definition/report.json to exist.
+        rj = self._report_json_path(tmp_path)
+        rj.write_text(
+            json.dumps({"$schema": schemas.definition_schema("report")}), encoding="utf-8"
+        )
+        result = _run(runner, "filter", "add-value",
+                      "--pbip", pbip, "--scope", "report",
+                      "--table", "Sales", "--column", "Region", "--values", "UK")
+        assert result.exit_code == 0, result.output
+        data = json.loads(rj.read_text(encoding="utf-8"))
+        filters = data.get("filterConfig", {}).get("filters", [])
+        assert len(filters) == 1
+        # Embedded filterConfig must NOT carry a $schema (Desktop rejects it).
+        assert "$schema" not in data["filterConfig"]
+        assert "report" in result.output
+
+    def test_report_scope_missing_report_json_errors(self, runner, tmp_path):
+        pbip = _make_fake_pbip(tmp_path)
+        result = _run(runner, "filter", "add-value",
+                      "--pbip", pbip, "--scope", "report",
+                      "--table", "Sales", "--column", "Region", "--values", "UK")
+        assert result.exit_code != 0
+
+    def test_visual_scope_writes_visual_json(self, runner, tmp_path):
+        from pbi_cli.backends.pbir_backend import PbirBackend
+        from pbi_cli.intelligence.visual_builder import (
+            AGG_SUM,
+            FieldDef,
+            VisualSpec,
+            build_card,
+        )
+
+        pbip = _make_fake_pbip(tmp_path)
+        b = PbirBackend(pbip)
+        field = FieldDef(entity="Sales", property="Amount", agg=AGG_SUM)
+        spec = VisualSpec("card", build_card(field))
+        name = b.visual_add("Page1", spec)["name"]
+
+        result = _run(runner, "filter", "add-value",
+                      "--pbip", pbip, "--scope", "visual", "--page", "Page1",
+                      "--visual", name,
+                      "--table", "Sales", "--column", "Region", "--values", "UK")
+        assert result.exit_code == 0, result.output
+        _, data = b._ga_find_visual_json("Page1", name)
+        filters = data.get("filterConfig", {}).get("filters", [])
+        assert len(filters) == 1
+        assert "$schema" not in data["filterConfig"]
+
+    def test_visual_scope_requires_visual(self, runner, tmp_path):
+        pbip = _make_fake_pbip(tmp_path)
+        result = _run(runner, "filter", "add-value",
+                      "--pbip", pbip, "--scope", "visual", "--page", "Page1",
+                      "--table", "Sales", "--column", "Region", "--values", "UK")
+        assert result.exit_code != 0
+
+
 class TestFilterClear:
     def test_clear_empty_page(self, runner, tmp_path):
         pbip = _make_fake_pbip(tmp_path)
