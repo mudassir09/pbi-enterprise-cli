@@ -983,3 +983,193 @@ def visual_mobile(
     else:
         console.print(f"[red]Visual '{visual_name}' not found on page '{page}'.[/red]")
         raise SystemExit(1)
+
+
+# ── Multi-role rebind & generic formatting ──────────────────────────────────────
+
+
+def _parse_bind(spec: str):
+    """Parse a 'ROLE/TABLE/FIELD[/KIND]' bind spec into (role, FieldDef).
+
+    KIND is one of: col, sum, avg, min, max, count, measure (default: sum).
+    """
+    from pbi_cli.intelligence.visual_builder import FieldDef
+
+    parts = spec.split("/")
+    if len(parts) < 3:
+        raise click.UsageError(
+            f"--bind '{spec}' must be ROLE/TABLE/FIELD[/KIND] (e.g. 'Y/financials/Sales/sum')."
+        )
+    role, table, fieldname = parts[0], parts[1], parts[2]
+    kind = parts[3].lower() if len(parts) > 3 else "sum"
+    if not (role and table and fieldname):
+        raise click.UsageError(f"--bind '{spec}' has an empty ROLE, TABLE or FIELD.")
+    if kind == "measure":
+        fd = FieldDef(entity=table, property=fieldname, is_measure=True)
+    elif kind == "col":
+        fd = FieldDef(entity=table, property=fieldname, agg=None)
+    elif kind in AGG_MAP and AGG_MAP[kind] >= 0:
+        fd = FieldDef(entity=table, property=fieldname, agg=AGG_MAP[kind])
+    else:
+        raise click.UsageError(
+            f"--bind '{spec}' has unknown KIND '{kind}'; use col/sum/avg/min/max/count/measure."
+        )
+    return role, fd
+
+
+@visual.command("rebind")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--page", required=True, help="Page display name.")
+@click.option("--name", "visual_name", required=True, help="Visual name (from pbi visual list).")
+@click.option(
+    "--bind",
+    "binds",
+    multiple=True,
+    required=True,
+    help="Role binding 'ROLE/TABLE/FIELD[/KIND]' (repeatable). "
+    "KIND: col, sum, avg, min, max, count, measure (default sum). "
+    "Repeat the same ROLE to put multiple fields in one slot.",
+)
+@click.option(
+    "--clear-unlisted",
+    is_flag=True,
+    help="Remove every role not given here (full atomic rebind).",
+)
+@click.pass_context
+def visual_rebind(
+    ctx: click.Context,
+    pbip: str,
+    page: str,
+    visual_name: str,
+    binds: tuple[str, ...],
+    clear_unlisted: bool,
+) -> None:
+    """Rebind several role slots of a visual at once, in a single atomic write.
+
+    Unlike ``set-field`` (one role), this rewrites multiple roles together and
+    preserves the visual's position, title and formatting. With --clear-unlisted
+    the visual ends up bound to exactly what you pass — the safe in-place
+    equivalent of delete + re-add.
+
+    \b
+    Example — turn a chart into Country/Sales+Profit:
+      pbi visual rebind --pbip R --page "Sales" --name abc123 \\
+        --bind "Category/financials/Country/col" \\
+        --bind "Y/financials/Sales/sum" --bind "Y/financials/Profit/sum" \\
+        --clear-unlisted
+    """
+    if dry_run_echo(ctx, f"rebind {len(binds)} role binding(s) on visual '{visual_name}'"):
+        return
+
+    bindings: dict[str, list] = {}
+    for spec in binds:
+        role, fd = _parse_bind(spec)
+        bindings.setdefault(role, []).append(fd)
+
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        ok = b.visual_rebind(page, visual_name, bindings, clear_unlisted=clear_unlisted)
+    except (ValueError, RuntimeError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    if ok:
+        roles = ", ".join(bindings)
+        console.print(f"[green]Rebound[/green] roles [{roles}] on visual '{visual_name}'.")
+        console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see changes.")
+    else:
+        console.print(f"[red]Visual '{visual_name}' not found on page '{page}'.[/red]")
+        raise SystemExit(1)
+
+
+@visual.command("set-format")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--page", required=True, help="Page display name.")
+@click.option("--name", "visual_name", required=True, help="Visual name (from pbi visual list).")
+@click.option(
+    "--object",
+    "object_name",
+    required=True,
+    help="Formatting object, e.g. title, background, legend, dataLabels, categoryAxis.",
+)
+@click.option("--property", "property_name", required=True, help="Property on the object.")
+@click.option("--value", required=True, help="Value to set.")
+@click.option(
+    "--type",
+    "value_type",
+    type=click.Choice(["auto", "text", "number", "bool", "color"]),
+    default="auto",
+    show_default=True,
+    help="How to interpret --value.",
+)
+@click.option(
+    "--container",
+    "container_level",
+    is_flag=True,
+    help="Target visualContainerObjects (title/background/border/header) instead "
+    "of the type-specific objects.",
+)
+@click.pass_context
+def visual_set_format(
+    ctx: click.Context,
+    pbip: str,
+    page: str,
+    visual_name: str,
+    object_name: str,
+    property_name: str,
+    value: str,
+    value_type: str,
+    container_level: bool,
+) -> None:
+    """Set any formatting-object property on a visual (general formatting writer).
+
+    Goes beyond conditional formatting: turn data labels on, set a legend
+    position, recolour the background, change an axis title, and so on.
+
+    \b
+    Examples:
+      pbi visual set-format --pbip R --page "Sales" --name abc --container \\
+        --object title --property show --value true --type bool
+      pbi visual set-format --pbip R --page "Sales" --name abc \\
+        --object legend --property position --value Top
+      pbi visual set-format --pbip R --page "Sales" --name abc --container \\
+        --object background --property color --value "#F5F5F5" --type color
+    """
+    if dry_run_echo(
+        ctx, f"set {object_name}.{property_name}={value} on visual '{visual_name}'"
+    ):
+        return
+
+    # Coerce the string --value to the right Python type for 'auto'/typed writes.
+    coerced: object = value
+    if value_type == "number":
+        coerced = float(value)
+    elif value_type == "bool":
+        coerced = value.strip().lower() in ("true", "1", "yes", "on")
+
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        ok = b.visual_set_format(
+            page,
+            visual_name,
+            object_name,
+            property_name,
+            coerced,
+            value_type=value_type,
+            container_level=container_level,
+        )
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    if ok:
+        console.print(
+            f"[green]Format set:[/green] {object_name}.{property_name} = {value} "
+            f"on visual '{visual_name}'."
+        )
+        console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see changes.")
+    else:
+        console.print(f"[red]Visual '{visual_name}' not found on page '{page}'.[/red]")
+        raise SystemExit(1)

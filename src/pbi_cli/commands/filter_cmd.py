@@ -1,4 +1,10 @@
-"""pbi filter — add relative-date, TopN, and basic filters to report pages."""
+"""pbi filter — add relative-date, value, and advanced filters to report pages.
+
+Filters are written to the page's ``filterConfig`` object using the official PBIR
+filterConfiguration schema (see :mod:`pbi_cli.intelligence.filter_builder`). The
+previous flat ``{operator, timeUnitsCount}`` shape did not match any published
+PBIR schema and is no longer produced.
+"""
 
 from __future__ import annotations
 
@@ -9,13 +15,14 @@ import click
 from rich.console import Console
 
 from pbi_cli.commands._shared import dry_run_echo, output_json_or_table
+from pbi_cli.intelligence import filter_builder as fb
 
 console = Console(legacy_windows=False)
 
 
 @click.group("filter")
 def filter_cmd() -> None:
-    """Add and manage filters on report pages (relative-date, TopN, basic value)."""
+    """Add and manage page filters (relative-date, value, advanced)."""
 
 
 def _page_json_path(pbip: str, page: str) -> Path:
@@ -38,11 +45,16 @@ def _page_json_path(pbip: str, page: str) -> Path:
     raise click.ClickException(f"page.json not found for page '{page}'.")
 
 
-def _append_filter(page_json: Path, filter_obj: dict) -> None:
+def _append_filter(page_json: Path, filter_container: dict) -> None:
+    """Append a FilterContainer into the page's ``filterConfig.filters``."""
     data = json.loads(page_json.read_text(encoding="utf-8"))
-    filters = data.setdefault("filters", [])
-    filters.append(filter_obj)
+    data["filterConfig"] = fb.add_filter(data.get("filterConfig"), filter_container)
     page_json.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def _read_filters(page_json: Path) -> list[dict]:
+    data = json.loads(page_json.read_text(encoding="utf-8"))
+    return data.get("filterConfig", {}).get("filters", [])
 
 
 @filter_cmd.command("list")
@@ -52,12 +64,31 @@ def _append_filter(page_json: Path, filter_obj: dict) -> None:
 def filter_list(ctx: click.Context, pbip: str, page: str) -> None:
     """List all filters applied to a report page."""
     pj = _page_json_path(pbip, page)
-    data = json.loads(pj.read_text(encoding="utf-8"))
-    filters = data.get("filters", [])
+    filters = _read_filters(pj)
     if not filters:
         console.print(f"[yellow]No filters on page '{page}'.[/yellow]")
         return
-    output_json_or_table(filters, ctx, title=f"Filters on '{page}'")
+    # Project to a friendly summary rather than dumping raw FilterDefinition JSON.
+    rows = [
+        {
+            "name": f.get("name", ""),
+            "type": f.get("type", ""),
+            "field": _describe_field(f.get("field", {})),
+            "locked": f.get("isLockedInViewMode", False),
+            "hidden": f.get("isHiddenInViewMode", False),
+        }
+        for f in filters
+    ]
+    output_json_or_table(rows, ctx, title=f"Filters on '{page}'")
+
+
+def _describe_field(field: dict) -> str:
+    for kind in ("Column", "Measure"):
+        node = field.get(kind)
+        if node:
+            entity = node.get("Expression", {}).get("SourceRef", {}).get("Source", "")
+            return f"{entity}.{node.get('Property', '')}" if entity else node.get("Property", "")
+    return ""
 
 
 @filter_cmd.command("add-relative-date")
@@ -68,10 +99,18 @@ def filter_list(ctx: click.Context, pbip: str, page: str) -> None:
 @click.option("--last", type=int, required=True, help="Number of time units (e.g. 30).")
 @click.option(
     "--unit",
-    type=click.Choice(["Days", "Weeks", "Months", "Quarters", "Years"]),
+    type=click.Choice(["Days", "Weeks", "Months", "Years"]),
     default="Days",
     show_default=True,
 )
+@click.option(
+    "--exclude-today/--include-today",
+    default=False,
+    show_default=True,
+    help="Exclude the current period from the range.",
+)
+@click.option("--locked", is_flag=True, help="Lock the filter in view mode.")
+@click.option("--hidden", is_flag=True, help="Hide the filter in view mode.")
 @click.pass_context
 def filter_add_relative_date(
     ctx: click.Context,
@@ -81,6 +120,9 @@ def filter_add_relative_date(
     column: str,
     last: int,
     unit: str,
+    exclude_today: bool,
+    locked: bool,
+    hidden: bool,
 ) -> None:
     """Add a relative-date filter to a page (e.g. 'last 30 days').
 
@@ -91,83 +133,15 @@ def filter_add_relative_date(
     """
     if dry_run_echo(ctx, f"add relative-date filter: last {last} {unit} on {table}[{column}]"):
         return
-
-    filter_obj = {
-        "type": "RelativeDate",
-        "field": {
-            "Column": {
-                "Expression": {"SourceRef": {"Entity": table}},
-                "Property": column,
-            }
-        },
-        "operator": "InTheLast",
-        "timeUnitsCount": last,
-        "timeUnitType": unit,
-    }
-
+    fc = fb.build_relative_date_filter(
+        table, column, last, unit, include_today=not exclude_today, locked=locked, hidden=hidden
+    )
     pj = _page_json_path(pbip, page)
-    _append_filter(pj, filter_obj)
+    _append_filter(pj, fc)
     console.print(
         f"[green]Filter added:[/green] last {last} {unit} on {table}[{column}] -> page '{page}'"
     )
-
-
-@filter_cmd.command("add-topn")
-@click.option("--pbip", required=True)
-@click.option("--page", required=True, help="Page to apply filter to.")
-@click.option("--table", required=True, help="Table containing the category field.")
-@click.option("--column", required=True, help="Column to filter (e.g. Product).")
-@click.option("--n", type=int, required=True, help="Number of top items to keep.")
-@click.option("--by-table", required=True, help="Table containing the measure to order by.")
-@click.option("--by-measure", required=True, help="Measure name to order by (e.g. Total Sales).")
-@click.option("--direction", type=click.Choice(["Top", "Bottom"]), default="Top", show_default=True)
-@click.pass_context
-def filter_add_topn(
-    ctx: click.Context,
-    pbip: str,
-    page: str,
-    table: str,
-    column: str,
-    n: int,
-    by_table: str,
-    by_measure: str,
-    direction: str,
-) -> None:
-    """Add a TopN filter to keep only the top (or bottom) N items by a measure.
-
-    \b
-    Example:
-      pbi filter add-topn --pbip MyReport --page "Sales" \\
-        --table Products --column Product --n 10 \\
-        --by-table Sales --by-measure "Total Sales"
-    """
-    if dry_run_echo(ctx, f"add TopN filter: {direction} {n} {table}[{column}] by {by_measure}"):
-        return
-
-    operator = "TopCount" if direction == "Top" else "BottomCount"
-    filter_obj = {
-        "type": "TopN",
-        "field": {
-            "Column": {
-                "Expression": {"SourceRef": {"Entity": table}},
-                "Property": column,
-            }
-        },
-        "operator": operator,
-        "itemCount": {"Literal": {"Value": str(n)}},
-        "orderByField": {
-            "Measure": {
-                "Expression": {"SourceRef": {"Entity": by_table}},
-                "Property": by_measure,
-            }
-        },
-    }
-
-    pj = _page_json_path(pbip, page)
-    _append_filter(pj, filter_obj)
-    console.print(
-        f"[green]Filter added:[/green] {direction} {n} {table}[{column}] by '{by_measure}' -> page '{page}'"  # noqa: E501
-    )
+    console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see changes.")
 
 
 @filter_cmd.command("add-value")
@@ -175,7 +149,10 @@ def filter_add_topn(
 @click.option("--page", required=True)
 @click.option("--table", required=True)
 @click.option("--column", required=True)
-@click.option("--values", required=True, help="Comma-separated list of values to include.")
+@click.option("--values", required=True, help="Comma-separated list of values.")
+@click.option("--exclude", is_flag=True, help="Exclude these values instead of including them.")
+@click.option("--locked", is_flag=True, help="Lock the filter in view mode.")
+@click.option("--hidden", is_flag=True, help="Hide the filter in view mode.")
 @click.pass_context
 def filter_add_value(
     ctx: click.Context,
@@ -184,39 +161,100 @@ def filter_add_value(
     table: str,
     column: str,
     values: str,
+    exclude: bool,
+    locked: bool,
+    hidden: bool,
 ) -> None:
-    """Add a basic value-in filter to a page.
+    """Add a categorical (value-in/-out) filter to a page.
 
     \b
     Example:
       pbi filter add-value --pbip MyReport --page "Sales" \\
         --table financials --column Segment --values "Enterprise,Government"
     """
-    if dry_run_echo(ctx, f"add value filter: {table}[{column}] in [{values}]"):
-        return
-
     value_list = [v.strip() for v in values.split(",") if v.strip()]
-    filter_conditions = [
-        {"operator": "Is", "value": {"Literal": {"Value": f"'{v}'"}}} for v in value_list
-    ]
-
-    filter_obj = {
-        "type": "BasicFilter",
-        "field": {
-            "Column": {
-                "Expression": {"SourceRef": {"Entity": table}},
-                "Property": column,
-            }
-        },
-        "operator": "In",
-        "values": filter_conditions,
-    }
-
-    pj = _page_json_path(pbip, page)
-    _append_filter(pj, filter_obj)
-    console.print(
-        f"[green]Filter added:[/green] {table}[{column}] in {value_list} -> page '{page}'"
+    if not value_list:
+        raise click.UsageError("--values must contain at least one value.")
+    verb = "exclude" if exclude else "include"
+    if dry_run_echo(ctx, f"add value filter: {verb} {table}[{column}] in {value_list}"):
+        return
+    fc = fb.build_value_filter(
+        table, column, value_list, exclude=exclude, locked=locked, hidden=hidden
     )
+    pj = _page_json_path(pbip, page)
+    _append_filter(pj, fc)
+    console.print(
+        f"[green]Filter added:[/green] {verb} {table}[{column}] in {value_list} -> page '{page}'"
+    )
+    console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see changes.")
+
+
+@filter_cmd.command("add-advanced")
+@click.option("--pbip", required=True)
+@click.option("--page", required=True)
+@click.option("--table", required=True)
+@click.option("--column", required=True, help="Column or measure to filter.")
+@click.option("--measure", "is_measure", is_flag=True, help="Treat --column as a DAX measure.")
+@click.option(
+    "--condition",
+    "conditions",
+    multiple=True,
+    required=True,
+    help="Condition as 'OP:VALUE' (e.g. '>=:1000'). Repeatable, max two.",
+)
+@click.option(
+    "--logic",
+    type=click.Choice(["And", "Or"]),
+    default="And",
+    show_default=True,
+    help="How to join two conditions.",
+)
+@click.option("--locked", is_flag=True, help="Lock the filter in view mode.")
+@click.option("--hidden", is_flag=True, help="Hide the filter in view mode.")
+@click.pass_context
+def filter_add_advanced(
+    ctx: click.Context,
+    pbip: str,
+    page: str,
+    table: str,
+    column: str,
+    is_measure: bool,
+    conditions: tuple[str, ...],
+    logic: str,
+    locked: bool,
+    hidden: bool,
+) -> None:
+    """Add an advanced numeric filter (one or two comparisons) to a page.
+
+    \b
+    Example — keep rows where Profit is between 0 and 1,000,000:
+      pbi filter add-advanced --pbip MyReport --page "Sales" \\
+        --table financials --column Profit \\
+        --condition ">=:0" --condition "<=:1000000" --logic And
+    """
+    parsed: list[tuple[str, float]] = []
+    for c in conditions:
+        if ":" not in c:
+            raise click.UsageError(f"--condition '{c}' must be 'OP:VALUE' (e.g. '>=:1000').")
+        op, _, raw = c.partition(":")
+        try:
+            parsed.append((op.strip(), float(raw)))
+        except ValueError as exc:
+            raise click.UsageError(f"--condition '{c}' has a non-numeric threshold.") from exc
+    if dry_run_echo(ctx, f"add advanced filter on {table}[{column}]: {parsed} ({logic})"):
+        return
+    try:
+        fc = fb.build_advanced_filter(
+            table, column, parsed, logic=logic, is_measure=is_measure, locked=locked, hidden=hidden
+        )
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+    pj = _page_json_path(pbip, page)
+    _append_filter(pj, fc)
+    console.print(
+        f"[green]Filter added:[/green] advanced {table}[{column}] {parsed} -> page '{page}'"
+    )
+    console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see changes.")
 
 
 @filter_cmd.command("clear")
@@ -229,7 +267,8 @@ def filter_clear(ctx: click.Context, pbip: str, page: str) -> None:
         return
     pj = _page_json_path(pbip, page)
     data = json.loads(pj.read_text(encoding="utf-8"))
-    count = len(data.get("filters", []))
-    data["filters"] = []
+    count = len(data.get("filterConfig", {}).get("filters", []))
+    if "filterConfig" in data:
+        data["filterConfig"]["filters"] = []
     pj.write_text(json.dumps(data, indent=2), encoding="utf-8")
     console.print(f"[green]Cleared[/green] {count} filter(s) from page '{page}'.")

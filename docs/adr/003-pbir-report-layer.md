@@ -32,3 +32,30 @@ Add a `PbirBackend` class that reads and writes PBIR JSON report files directly,
 - `pbi report`, `pbi visual`, `pbi layout`, `pbi theme` commands use the PBIR backend.
 - PBIR backend is file-based; it requires a `.pbip` folder path, not a network connection.
 - Tests for PBIR backend use fixture JSON files (no Power BI Desktop required).
+
+## Update (2026-06-21): schema drift, filters, and limitations
+
+Operating experience surfaced three things worth recording:
+
+1. **Schema-version drift is the main maintenance risk.** PBIR bumps each file's
+   schema version independently and frequently. Schema URLs are now centralised in
+   `pbi_cli.backends.pbir_schemas`, pinned to the latest *published* versions in
+   [microsoft/json-schemas](https://github.com/microsoft/json-schemas/tree/main/fabric/item/report)
+   and checked by `scripts/check_pbir_schemas.py`. A version bump is a one-line edit.
+
+2. **Filters must follow the published `filterConfiguration` schema.** Filters live
+   on a page/report/visual under `filterConfig`, as `FilterContainer`s whose `filter`
+   is a `FilterDefinition` (`Version`/`From`/`Where`) — a partial semantic query.
+   Generated filters are validated in CI against Microsoft's vendored schemas
+   (`tests/fixtures/pbir_schemas/`). One Desktop-only quirk, found by live testing:
+   an *embedded* `filterConfig` must omit the `$schema` key (Desktop treats it as a
+   disallowed additional property and blocks the open), even though the standalone
+   filterConfiguration schema marks `$schema` required. `$schema` belongs only on
+   standalone definition files, never on `$ref`-inlined objects. Filter *types* without a representation in
+   `FilterDefinition` (e.g. a page-level TopN with an order-by measure) are out of
+   scope and are not emitted rather than producing invalid JSON.
+
+3. **No live preview remains a deliberate limitation, not a gap.** PBIR is a save
+   format, not a live API: writing JSON cannot refresh an open Desktop instance, and
+   PBIR is not exposed over XMLA. Every write command therefore prints a "reload in
+   Desktop" hint, and `pbi visual screenshot` (Playwright) covers CI verification.

@@ -13,6 +13,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from pbi_cli.backends import pbir_schemas as _schemas
 from pbi_cli.backends.pbir_backend import PbirBackend
 from pbi_cli.intelligence.visual_builder import (
     AGG_SUM,
@@ -158,8 +159,7 @@ def _write_report(root: Path, name: str, table: str) -> PbirBackend:
     (rep / "definition.pbir").write_text(
         json.dumps(
             {
-                "$schema": "https://developer.microsoft.com/json-schemas/fabric/"
-                "item/report/definitionProperties/2.0.0/schema.json",
+                "$schema": _schemas.item_schema("definitionProperties"),
                 "version": "4.0",
                 "datasetReference": {"byPath": {"path": f"../{name}.SemanticModel"}},
             },
@@ -171,8 +171,7 @@ def _write_report(root: Path, name: str, table: str) -> PbirBackend:
     (rep / "definition" / "version.json").write_text(
         json.dumps(
             {
-                "$schema": "https://developer.microsoft.com/json-schemas/fabric/"
-                "item/report/definition/versionMetadata/1.0.0/schema.json",
+                "$schema": _schemas.definition_schema("versionMetadata"),
                 "version": "2.0.0",
             },
             indent=2,

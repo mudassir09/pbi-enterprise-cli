@@ -109,7 +109,7 @@ Each visual is stored in `definition/pages/{pageId}/visuals/{visualId}/visual.js
 
 ```json
 {
-  "$schema": "https://developer.microsoft.com/.../visualContainer/2.7.0/schema.json",
+  "$schema": "https://developer.microsoft.com/.../visualContainer/2.9.0/schema.json",
   "name": "abc123def456",
   "position": { "x": 16, "y": 16, "z": 0, "width": 200, "height": 120, "tabOrder": 0 },
   "visual": {
@@ -158,7 +158,7 @@ Run `pbi visual recommend --measures "Total Sales,Profit,Units"` for AI-powered 
 | Issue | Cause | Fix |
 |-------|-------|-----|
 | Visual appears empty after reload | Field name typo | Run `pbi model columns` to verify exact column name |
-| Schema validation errors | Wrong `$schema` URL | Ensure `visualContainer/2.7.0/schema.json` |
+| Schema validation errors | Wrong `$schema` URL | Ensure `visualContainer/2.9.0/schema.json` |
 | "Additional property" error | Old `projections` format | Use new `query.queryState` format (current pbi-cli version) |
 | Title not showing | `visualContainerObjects` missing | Pass `--title` flag to `pbi visual add` |
 | All visuals stack at same position | Auto-position bug | Use explicit `--x` and `--y` flags |

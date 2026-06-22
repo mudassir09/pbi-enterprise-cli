@@ -1,8 +1,8 @@
 """Build Power BI PBIR GA visual JSON blobs.
 
-Schema reference:
+Schema reference (versions are centralised in ``pbi_cli.backends.pbir_schemas``):
   visualContainer: https://developer.microsoft.com/json-schemas/fabric/item/
-                   report/definition/visualContainer/2.7.0/schema.json
+                   report/definition/visualContainer/<version>/schema.json
   visualConfiguration (embedded inside "visual" key):
     - visualType, query, objects, visualContainerObjects
   query.queryState:
@@ -21,6 +21,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from pbi_cli.backends import pbir_schemas as _schemas
+
 AGG_SUM = 0
 AGG_AVG = 1
 AGG_MIN = 2
@@ -28,10 +30,7 @@ AGG_MAX = 3
 AGG_COUNT = 4
 AGG_NAMES = {AGG_SUM: "Sum", AGG_AVG: "Avg", AGG_MIN: "Min", AGG_MAX: "Max", AGG_COUNT: "Count"}
 
-VISUAL_CONTAINER_SCHEMA = (
-    "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/"
-    "visualContainer/2.7.0/schema.json"
-)
+VISUAL_CONTAINER_SCHEMA = _schemas.definition_schema("visualContainer")
 
 
 @dataclass
