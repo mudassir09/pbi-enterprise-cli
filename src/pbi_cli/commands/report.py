@@ -78,6 +78,38 @@ def report_clear_page(ctx: click.Context, pbip: str, page: str) -> None:
     console.print(f"[green]Cleared[/green] all visuals on '{page}'.")
 
 
+@report.command("page-duplicate")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--name", required=True, help="Display name of the page to duplicate.")
+@click.option("--new-name", default=None, help="Display name for the copy (default: '<name> (copy)').")  # noqa: E501
+@click.pass_context
+def report_page_duplicate(ctx: click.Context, pbip: str, name: str, new_name: str | None) -> None:
+    """Duplicate a page and all its visuals under a fresh, independent id.
+
+    Visual ids are regenerated and internal references (groups, visual
+    interactions) are remapped, so the copy never aliases the original.
+
+    \b
+    Example:
+      pbi report page-duplicate --pbip MyReport --name "Sales" --new-name "Sales (EMEA)"
+    """
+    if dry_run_echo(ctx, f"duplicate page '{name}'"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        result = b.page_duplicate(name, new_display_name=new_name)
+    except (ValueError, RuntimeError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    console.print(
+        f"[green]Page duplicated:[/green] '{result['displayName']}' "
+        f"({result['visuals']} visual(s), id: {result['name']})"
+    )
+    console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see it.")
+
+
 # ── Scaffold ───────────────────────────────────────────────────────────────────
 
 
@@ -616,6 +648,40 @@ def report_lint(ctx: click.Context, pbip: str, fail_on: str) -> None:
         console.print("[green]No report lint findings.[/green]")
     rank = {"error": 3, "warning": 2, "info": 1, "never": 99}
     worst = max((rank.get(v["severity"], 0) for v in violations), default=0)
+    if worst >= rank[fail_on]:
+        raise SystemExit(3)
+
+
+@report.command("validate")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option(
+    "--fail-on", default="error", show_default=True,
+    type=click.Choice(["error", "warning", "info", "never"]),
+    help="Exit 3 when findings at or above this severity exist (CI gate).",
+)
+@click.pass_context
+def report_validate(ctx: click.Context, pbip: str, fail_on: str) -> None:
+    """Validate PBIR files: schema drift, structural invariants, referential integrity.
+
+    Encodes the runtime-validator rules Power BI Desktop enforces at reload
+    (e.g. no $schema inside an embedded filterConfig) plus cross-file reference
+    checks (pageOrder, bookmark items, parentGroupName, visualInteractions).
+    Runs offline — no Desktop required. Exit 3 if findings reach --fail-on.
+    """
+    from pbi_cli.pbir_validate import validate_report
+
+    try:
+        findings = validate_report(pbip)
+    except FileNotFoundError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+
+    output_json_or_table(findings, ctx, title="PBIR Validation")
+    quiet_json = bool(ctx.obj and (ctx.obj.get("output_json") or ctx.obj.get("output_yaml")))
+    if not findings and not quiet_json:
+        console.print("[green]PBIR is valid — no findings.[/green]")
+    rank = {"error": 3, "warning": 2, "info": 1, "never": 99}
+    worst = max((rank.get(f["severity"], 0) for f in findings), default=0)
     if worst >= rank[fail_on]:
         raise SystemExit(3)
 

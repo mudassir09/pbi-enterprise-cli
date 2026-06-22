@@ -52,6 +52,36 @@ def filter_validator():
     return jsonschema.Draft7Validator(container_ref, registry=registry)
 
 
+class TestContainerFieldShape:
+    """The FilterContainer `field` must reference the table via Entity, not a
+    query alias via Source. Desktop blanks an alias-based field on its next save,
+    which then blocks the report from opening (verified live 2026-06-22). The MS
+    schema permits either, so only this behavioural check guards against it."""
+
+    def _field_sourceref(self, fc: dict) -> dict:
+        node = fc["field"].get("Column") or fc["field"].get("Measure")
+        return node["Expression"]["SourceRef"]
+
+    def test_value_filter_field_uses_entity(self):
+        fc = fb.build_value_filter("financials", "Segment", ["Enterprise"])
+        assert self._field_sourceref(fc) == {"Entity": "financials"}
+
+    def test_advanced_filter_field_uses_entity(self):
+        fc = fb.build_advanced_filter("financials", "Profit", [(">=", 0)])
+        assert self._field_sourceref(fc) == {"Entity": "financials"}
+
+    def test_relative_date_field_uses_entity(self):
+        fc = fb.build_relative_date_filter("Calendar", "Date", 30, "Days")
+        assert self._field_sourceref(fc) == {"Entity": "Calendar"}
+
+    def test_where_clause_still_uses_alias(self):
+        # The Where/From body still references the query alias — only the
+        # container field changed.
+        fc = fb.build_value_filter("financials", "Segment", ["Enterprise"])
+        in_col = fc["filter"]["Where"][0]["Condition"]["In"]["Expressions"][0]
+        assert "Source" in in_col["Column"]["Expression"]["SourceRef"]
+
+
 class TestSchemaValidation:
     def test_value_filter_validates(self, filter_validator):
         fc = fb.build_value_filter("financials", "Segment", ["Enterprise", "Government"])

@@ -278,6 +278,63 @@ class PbirBackend:
             )
         return results
 
+    def visual_get(self, page: str, visual_name: str) -> dict[str, Any] | None:
+        """Introspect a visual: bindings, formatting, conditional formatting, filters.
+
+        Reads the visual.json back into a structured summary — the read-side
+        counterpart to the add/rebind/format writers. PBIR GA only. Returns None
+        if the visual is not found.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("visual_get requires PBIR GA format (definition/ folder).")
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return None
+        vj, data = found
+        visual = data.get("visual", {})
+
+        # Role → field queryRefs.
+        bindings: dict[str, list[str]] = {}
+        for role, role_data in visual.get("query", {}).get("queryState", {}).items():
+            refs = [p.get("queryRef", "") for p in role_data.get("projections", [])]
+            if refs:
+                bindings[role] = refs
+
+        # Conditional formatting: which properties target which field.
+        cond_fmt: list[dict[str, str]] = []
+        for entry in visual.get("objects", {}).get("values", []):
+            field = entry.get("selector", {}).get("metadata", "")
+            for prop in entry.get("properties", {}):
+                cond_fmt.append({"field": field, "property": prop})
+
+        # Button action, if any.
+        action = None
+        for link in visual.get("visualContainerObjects", {}).get("visualLink", []):
+            lit = link.get("properties", {}).get("type", {}).get("expr", {}).get("Literal", {})
+            if lit.get("Value"):
+                action = str(lit["Value"]).strip("'")
+
+        vtype = visual.get("visualType", "")
+        if not vtype and "visualGroup" in data:
+            vtype = "group"
+
+        return {
+            "name": data.get("name", vj.parent.name),
+            "visualType": vtype,
+            "position": data.get("position", {}),
+            "bindings": bindings,
+            "formattingObjects": sorted(visual.get("objects", {}).keys()),
+            "containerObjects": sorted(visual.get("visualContainerObjects", {}).keys()),
+            "conditionalFormatting": cond_fmt,
+            "filters": len(data.get("filterConfig", {}).get("filters", [])),
+            "isHidden": bool(data.get("isHidden")),
+            "parentGroupName": data.get("parentGroupName"),
+            "syncGroup": visual.get("syncGroup"),
+            "action": action,
+            "hasMobileLayout": (vj.parent / "mobile.json").exists(),
+        }
+
     def _ga_visual_add(self, page: str, spec: Any) -> dict[str, Any]:
         from pbi_cli.intelligence.visual_builder import spec_to_pbir_visual
 
@@ -324,6 +381,152 @@ class PbirBackend:
         rj = self._report_dir / "definition" / "report.json"
         rj.parent.mkdir(parents=True, exist_ok=True)
         rj.write_text(json.dumps(report_json, indent=2), encoding="utf-8")
+
+    # ── Page / visual duplication & move (PBIR GA) ─────────────────────────────
+    # Folder-per-object makes copy cheap, but ids must stay unique: a duplicated
+    # page gets a fresh page id AND fresh visual ids (with parentGroupName and
+    # page visualInteractions remapped), so the copy is fully independent.
+
+    def page_duplicate(self, display_name: str, new_display_name: str | None = None) -> dict[str, Any]:  # noqa: E501
+        """Duplicate a page (and all its visuals) under a new id. PBIR GA only.
+
+        Visual ids are regenerated and every internal reference (parentGroupName,
+        visualInteractions source/target) is remapped so the new page does not
+        alias the original. Returns the new page's {name, displayName}.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Page duplication requires PBIR GA format (definition/ folder).")
+        src_dir = self._ga_find_page_dir(display_name)
+        if not src_dir:
+            raise ValueError(f"Page '{display_name}' not found.")
+
+        new_page_id = uuid.uuid4().hex
+        dst_dir = self._ga_pages_dir() / new_page_id
+        shutil.copytree(src_dir, dst_dir)
+
+        # Rewrite page.json identity.
+        pj = dst_dir / "page.json"
+        page_data = json.loads(pj.read_text(encoding="utf-8"))
+        page_data["name"] = new_page_id
+        page_data["displayName"] = new_display_name or f"{display_name} (copy)"
+
+        # Regenerate visual ids and build an old→new map.
+        vd = dst_dir / "visuals"
+        id_map: dict[str, str] = {}
+        visual_dirs: list[Path] = []
+        if vd.is_dir():
+            for vdir in [d for d in vd.iterdir() if d.is_dir()]:
+                vj = vdir / "visual.json"
+                if not vj.exists():
+                    continue
+                old = json.loads(vj.read_text(encoding="utf-8")).get("name", vdir.name)
+                id_map[old] = uuid.uuid4().hex[:20]
+                visual_dirs.append(vdir)
+            for vdir in visual_dirs:
+                vj = vdir / "visual.json"
+                data = json.loads(vj.read_text(encoding="utf-8"))
+                old = data.get("name", vdir.name)
+                new = id_map[old]
+                data["name"] = new
+                if data.get("parentGroupName") in id_map:
+                    data["parentGroupName"] = id_map[data["parentGroupName"]]
+                vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                vdir.rename(vdir.parent / new)
+
+        # Remap page-level visualInteractions to the new visual ids.
+        for inter in page_data.get("visualInteractions", []):
+            for slot in ("source", "target"):
+                if inter.get(slot) in id_map:
+                    inter[slot] = id_map[inter[slot]]
+        pj.write_text(json.dumps(page_data, indent=2), encoding="utf-8")
+
+        meta = self._ga_read_pages_json()
+        meta.setdefault("pageOrder", []).append(new_page_id)
+        self._ga_write_pages_json(meta)
+
+        return {"name": new_page_id, "displayName": page_data["displayName"],
+                "visuals": len(id_map)}
+
+    def visual_clone(
+        self,
+        page: str,
+        visual_name: str,
+        target_page: str | None = None,
+        *,
+        dx: int = 24,
+        dy: int = 24,
+    ) -> dict[str, Any] | None:
+        """Clone a visual under a fresh id, on the same page or another page.
+
+        The clone is offset by (dx, dy) when staying on the same page, and never
+        inherits group membership. PBIR GA only. Returns the new {name, page} or
+        None if the source visual was not found.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Visual clone requires PBIR GA format (definition/ folder).")
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return None
+        src_vj, _ = found
+        dest_page = target_page or page
+        dest_vd = self._ga_visuals_dir(dest_page)
+        if dest_vd is None:
+            raise ValueError(f"Target page '{dest_page}' not found.")
+
+        new_name = uuid.uuid4().hex[:20]
+        dst_dir = dest_vd / new_name
+        shutil.copytree(src_vj.parent, dst_dir)
+
+        vj = dst_dir / "visual.json"
+        data = json.loads(vj.read_text(encoding="utf-8"))
+        data["name"] = new_name
+        data.pop("parentGroupName", None)  # never auto-join a group
+        if target_page is None:
+            pos = data.setdefault("position", {})
+            pos["x"] = pos.get("x", 0) + dx
+            pos["y"] = pos.get("y", 0) + dy
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return {"name": new_name, "page": dest_page}
+
+    def visual_move(self, page: str, visual_name: str, target_page: str) -> dict[str, Any] | None:
+        """Move a visual to another page, keeping its id. PBIR GA only.
+
+        Drops group membership and removes any visualInteractions on the source
+        page that referenced it (they would otherwise dangle). Returns
+        {name, page} or None if the source visual was not found.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Visual move requires PBIR GA format (definition/ folder).")
+        if target_page == page:
+            raise ValueError("Source and target page are the same.")
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return None
+        src_vj, data = found
+        dest_vd = self._ga_visuals_dir(target_page)
+        if dest_vd is None:
+            raise ValueError(f"Target page '{target_page}' not found.")
+
+        name = data.get("name", src_vj.parent.name)
+        data.pop("parentGroupName", None)
+        src_vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        shutil.move(str(src_vj.parent), str(dest_vd / src_vj.parent.name))
+
+        # Scrub dangling interactions on the source page.
+        src_page_dir = self._ga_find_page_dir(page)
+        if src_page_dir:
+            pj = src_page_dir / "page.json"
+            pdata = json.loads(pj.read_text(encoding="utf-8"))
+            inters = pdata.get("visualInteractions")
+            if inters:
+                pdata["visualInteractions"] = [
+                    i for i in inters if name not in (i.get("source"), i.get("target"))
+                ]
+                pj.write_text(json.dumps(pdata, indent=2), encoding="utf-8")
+        return {"name": name, "page": target_page}
 
     # ── Old PBIP implementation ────────────────────────────────────────────────
 
@@ -1192,6 +1395,54 @@ class PbirBackend:
         vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return True
 
+    # ── Analytics: constant reference line ─────────────────────────────────────
+    # A constant line lives under visual.objects.referenceLine as a list entry with
+    # its own selector id and properties (show/value/lineColor/style/displayName).
+    # Each call adds one line; ids keep multiple lines distinct.
+
+    def visual_add_reference_line(
+        self,
+        page: str,
+        visual_name: str,
+        value: float,
+        *,
+        name: str = "Target",
+        color: str = "#E81123",
+        style: str = "dashed",
+        show_label: bool = True,
+    ) -> bool:
+        """Add a constant Y reference line to a cartesian chart. PBIR GA only.
+
+        style: 'solid' | 'dashed' | 'dotted'. Returns True if found and updated.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Reference lines require PBIR GA format (definition/ folder).")
+        if style not in ("solid", "dashed", "dotted"):
+            raise ValueError("style must be 'solid', 'dashed' or 'dotted'")
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return False
+        vj, data = found
+
+        entry = {
+            "selector": {"id": uuid.uuid4().hex[:20]},
+            "properties": {
+                "show": {"expr": {"Literal": {"Value": "true"}}},
+                "displayName": {"expr": {"Literal": {"Value": f"'{name}'"}}},
+                "value": {"expr": {"Literal": {"Value": self._num_literal(value)}}},
+                "lineColor": {"solid": {"color": {"expr": {"Literal": {"Value": f"'{color}'"}}}}},
+                "style": {"expr": {"Literal": {"Value": f"'{style}'"}}},
+                "dataLabelShow": {
+                    "expr": {"Literal": {"Value": "true" if show_label else "false"}}
+                },
+            },
+        }
+        objects = data.setdefault("visual", {}).setdefault("objects", {})
+        objects.setdefault("referenceLine", []).append(entry)
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
     # ── Visual field rebinding ─────────────────────────────────────────────────
 
     def visual_set_field(
@@ -1607,6 +1858,65 @@ class PbirBackend:
 
         return {"name": group_id, "displayName": group_display,
                 "members": [m[1].get("name") for m in members]}
+
+    # ── Button / shape actions ─────────────────────────────────────────────────
+    # A button's action is a `visualLink` entry under visualContainerObjects
+    # (the GA home for the legacy vcObjects.visualLink). `type` selects the action
+    # and the target property depends on it: PageNavigation→navigationSection
+    # (page GUID), Bookmark→bookmark (bookmark id), WebUrl→webUrl. Back / Drill /
+    # QnA need no target.
+
+    ACTION_TYPES = ("Back", "PageNavigation", "Bookmark", "Drill", "QnA", "WebUrl")
+
+    def visual_set_action(
+        self, page: str, visual_name: str, action_type: str, target: str | None = None
+    ) -> bool:
+        """Wire a navigation/action onto a button (or shape) visual. PBIR GA only.
+
+        For PageNavigation, ``target`` is a page display name or GUID; for Bookmark
+        it is a bookmark display name or id; for WebUrl it is the URL. Back/Drill/
+        QnA ignore ``target``. Returns True if the visual was found and updated.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Button actions require PBIR GA format (definition/ folder).")
+        if action_type not in self.ACTION_TYPES:
+            raise ValueError(f"type must be one of {self.ACTION_TYPES}")
+        found = self._ga_find_visual_json(page, visual_name)
+        if not found:
+            return False
+        vj, data = found
+
+        props: dict[str, Any] = {
+            "type": {"expr": {"Literal": {"Value": f"'{action_type}'"}}}
+        }
+        if action_type == "PageNavigation":
+            if not target:
+                raise ValueError("PageNavigation needs a target page.")
+            page_id = next(
+                (p["name"] for p in self.page_list()
+                 if target in (p["displayName"], p["name"])),
+                target,
+            )
+            props["navigationSection"] = {"expr": {"Literal": {"Value": f"'{page_id}'"}}}
+        elif action_type == "Bookmark":
+            if not target:
+                raise ValueError("Bookmark action needs a target bookmark.")
+            bm_id = next(
+                (b["name"] for b in self.bookmark_list()
+                 if target in (b["displayName"], b["name"])),
+                target,
+            )
+            props["bookmark"] = {"expr": {"Literal": {"Value": f"'{bm_id}'"}}}
+        elif action_type == "WebUrl":
+            if not target:
+                raise ValueError("WebUrl action needs a target URL.")
+            props["webUrl"] = {"expr": {"Literal": {"Value": f"'{target}'"}}}
+
+        vco = data.setdefault("visual", {}).setdefault("visualContainerObjects", {})
+        vco["visualLink"] = [{"properties": props}]
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
 
     # ── Mobile layout ──────────────────────────────────────────────────────────
     # Each visual's mobile position is a sibling mobile.json (visualContainerMobileState).

@@ -60,6 +60,19 @@ def _measure(alias: str, measure: str) -> dict[str, Any]:
     return {"Measure": {"Expression": _source_ref(alias), "Property": measure}}
 
 
+def _field_ref(table: str, prop: str, is_measure: bool = False) -> dict[str, Any]:
+    """The FilterContainer ``field`` identifier.
+
+    Unlike the ``Where``/``From`` body (which references a query *alias* via
+    ``SourceRef.Source``), the container ``field`` must reference the *table*
+    via ``SourceRef.Entity``. Power BI Desktop cannot resolve an alias here at
+    report/visual scope and rewrites it to an empty SourceRef on its next save —
+    which then blocks the report from opening (verified live 2026-06-22).
+    """
+    key = "Measure" if is_measure else "Column"
+    return {key: {"Expression": {"SourceRef": {"Entity": table}}, "Property": prop}}
+
+
 def _string_literal(value: str) -> dict[str, Any]:
     # String literals are single-quoted inside the Value per the literal grammar.
     return {"Literal": {"Value": f"'{value}'"}}
@@ -135,7 +148,7 @@ def build_value_filter(
     }
     return _container(
         name=_filter_name(),
-        field=col,
+        field=_field_ref(table, column),
         filter_type="Exclude" if exclude else "Categorical",
         definition=definition,
         locked=locked,
@@ -193,7 +206,7 @@ def build_advanced_filter(
     }
     return _container(
         name=_filter_name(),
-        field=left,
+        field=_field_ref(table, column, is_measure=is_measure),
         filter_type="Advanced",
         definition=definition,
         locked=locked,
@@ -264,7 +277,7 @@ def build_relative_date_filter(
     }
     return _container(
         name=_filter_name(),
-        field=col,
+        field=_field_ref(table, column),
         filter_type="RelativeDate",
         definition=definition,
         locked=locked,
