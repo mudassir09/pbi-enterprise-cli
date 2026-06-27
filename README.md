@@ -31,6 +31,10 @@ It brings software-engineering discipline to BI: six backends (including a pure-
 - **AI-agent native** — `pbi mcp serve` exposes every capability to Cursor/Copilot/Claude Desktop; `pbi ask` turns English into executed DAX; 12 Claude Code skills install in one step
 - **One-step CI** — a published GitHub Action and pre-commit hooks: the governance gate is one `uses:` line
 
+<div align="center">
+  <img src="docs/assets/terminal-demo.svg" alt="pbi-enterprise-cli in action — connect, govern, fix, test, and edit a live model" width="100%"/>
+</div>
+
 ---
 
 ## Installation
@@ -106,6 +110,16 @@ pbi ask "top 10 customers by revenue"          # English → DAX → results (re
 
 <div align="center">
   <img src="docs/assets/before-after.svg" alt="Before and after pbi-enterprise-cli" width="100%"/>
+</div>
+
+---
+
+## The end-to-end workflow
+
+One CLI carries a model from design to production — each step scriptable and CI-gateable:
+
+<div align="center">
+  <img src="docs/assets/workflow.svg" alt="Workflow: model → DAX → govern → test → deploy" width="100%"/>
 </div>
 
 ---

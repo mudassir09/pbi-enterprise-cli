@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="180" viewBox="0 0 900 180"
+     font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0D1117"/>
+      <stop offset="100%" style="stop-color:#161B22"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="900" height="180" rx="12" fill="url(#bg)"/>
+  <rect width="900" height="4" rx="2" fill="#0078D4"/>
+
+  <!-- Title -->
+  <text x="450" y="34" font-size="15" font-weight="600" fill="#8B949E"
+        text-anchor="middle" letter-spacing="2">THE END-TO-END WORKFLOW</text>
+
+  <!-- arrows between the five stages -->
+  <g fill="#484F58" font-size="18">
+    <text x="186" y="100" text-anchor="middle">→</text>
+    <text x="366" y="100" text-anchor="middle">→</text>
+    <text x="546" y="100" text-anchor="middle">→</text>
+    <text x="726" y="100" text-anchor="middle">→</text>
+  </g>
+
+  <!-- ① Model -->
+  <g transform="translate(18,54)">
+    <rect width="150" height="92" rx="10" fill="#11161D" stroke="#1F6FEB" stroke-width="1.5"/>
+    <rect width="150" height="6" rx="3" fill="#58A6FF"/>
+    <text x="75" y="34" font-size="13" font-weight="700" fill="#58A6FF" text-anchor="middle">① Model</text>
+    <text x="75" y="56" font-family="'Consolas','Courier New',monospace" font-size="11.5" fill="#C9D1D9" text-anchor="middle">pbi model</text>
+    <text x="75" y="76" font-size="10" fill="#8B949E" text-anchor="middle">star schema · partitions</text>
+  </g>
+
+  <!-- ② DAX -->
+  <g transform="translate(198,54)">
+    <rect width="150" height="92" rx="10" fill="#11161D" stroke="#1F9AA8" stroke-width="1.5"/>
+    <rect width="150" height="6" rx="3" fill="#56D4DD"/>
+    <text x="75" y="34" font-size="13" font-weight="700" fill="#56D4DD" text-anchor="middle">② DAX</text>
+    <text x="75" y="56" font-family="'Consolas','Courier New',monospace" font-size="11.5" fill="#C9D1D9" text-anchor="middle">pbi measure</text>
+    <text x="75" y="76" font-size="10" fill="#8B949E" text-anchor="middle">author · lint · format</text>
+  </g>
+
+  <!-- ③ Govern -->
+  <g transform="translate(378,54)">
+    <rect width="150" height="92" rx="10" fill="#11161D" stroke="#BD7B1D" stroke-width="1.5"/>
+    <rect width="150" height="6" rx="3" fill="#F0883E"/>
+    <text x="75" y="34" font-size="13" font-weight="700" fill="#F0883E" text-anchor="middle">③ Govern</text>
+    <text x="75" y="56" font-family="'Consolas','Courier New',monospace" font-size="11.5" fill="#C9D1D9" text-anchor="middle">pbi govern</text>
+    <text x="75" y="76" font-size="10" fill="#8B949E" text-anchor="middle">rules · BPA · auto-fix</text>
+  </g>
+
+  <!-- ④ Test -->
+  <g transform="translate(558,54)">
+    <rect width="150" height="92" rx="10" fill="#11161D" stroke="#238636" stroke-width="1.5"/>
+    <rect width="150" height="6" rx="3" fill="#3FB950"/>
+    <text x="75" y="34" font-size="13" font-weight="700" fill="#3FB950" text-anchor="middle">④ Test</text>
+    <text x="75" y="56" font-family="'Consolas','Courier New',monospace" font-size="11.5" fill="#C9D1D9" text-anchor="middle">pbi dax test</text>
+    <text x="75" y="76" font-size="10" fill="#8B949E" text-anchor="middle">unit · contracts · RLS</text>
+  </g>
+
+  <!-- ⑤ Deploy -->
+  <g transform="translate(738,54)">
+    <rect width="150" height="92" rx="10" fill="#11161D" stroke="#8957E5" stroke-width="1.5"/>
+    <rect width="150" height="6" rx="3" fill="#A371F7"/>
+    <text x="75" y="34" font-size="13" font-weight="700" fill="#A371F7" text-anchor="middle">⑤ Deploy</text>
+    <text x="75" y="56" font-family="'Consolas','Courier New',monospace" font-size="11.5" fill="#C9D1D9" text-anchor="middle">pbi deploy</text>
+    <text x="75" y="76" font-size="10" fill="#8B949E" text-anchor="middle">XMLA · Fabric · any OS</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="450" y="170" font-size="11" fill="#6E7681" text-anchor="middle">
+    every step is scriptable, CI-gateable (exit codes + SARIF), and driveable by an AI agent via MCP
+  </text>
+</svg>
