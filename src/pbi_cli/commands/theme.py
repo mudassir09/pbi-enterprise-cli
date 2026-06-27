@@ -47,6 +47,34 @@ def theme_generate(ctx: click.Context, brand_color: str, style: str, output: str
     console.print(f"[green]Theme written to:[/green] {output}")
 
 
+@theme.command("apply")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--theme", "theme_file", required=True, type=click.Path(exists=True),
+              help="Theme JSON to register.")
+@click.option("--name", default="CustomTheme", show_default=True, help="Registered theme name.")
+@click.pass_context
+def theme_apply(ctx: click.Context, pbip: str, theme_file: str, name: str) -> None:
+    """Register a custom theme into a PBIR report and bind it in report.json.
+
+    Unlike just dropping a theme file in the project, this also wires the
+    themeCollection.customTheme reference and resourcePackages entry that Power
+    BI requires to actually load the theme.
+    """
+    if dry_run_echo(ctx, f"register theme '{name}' into {pbip}"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    theme_json = json.loads(Path(theme_file).read_text(encoding="utf-8"))
+    b = PbirBackend(pbip)
+    try:
+        path = b.theme_register(theme_json, name=name)
+    except (ValueError, RuntimeError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    console.print(f"[green]Theme registered:[/green] {path}")
+    console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to apply it.")
+
+
 @theme.command("validate")
 @click.argument("theme_file", type=click.Path(exists=True))
 @click.pass_context

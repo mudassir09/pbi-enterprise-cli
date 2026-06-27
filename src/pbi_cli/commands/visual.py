@@ -1000,6 +1000,114 @@ def visual_reference_line(
         raise SystemExit(1)
 
 
+def _analytics_result(ok: bool, label: str, visual_name: str, page: str) -> None:
+    if ok:
+        console.print(f"[green]{label} applied to[/green] '{visual_name}'.")
+        console.print("[yellow]Tip:[/yellow] Reload the report in Power BI Desktop to see it.")
+    else:
+        console.print(f"[red]Visual '{visual_name}' not found on page '{page}'.[/red]")
+        raise SystemExit(1)
+
+
+@visual.command("trend-line")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--page", required=True, help="Page display name.")
+@click.option("--name", "visual_name", required=True, help="Cartesian chart visual name.")
+@click.option("--color", default="#118DFF", show_default=True, help="Trend line colour (hex).")
+@click.option(
+    "--style", type=click.Choice(["solid", "dashed", "dotted"]),
+    default="dashed", show_default=True,
+)
+@click.option("--transparency", type=int, default=0, show_default=True,
+              help="Line transparency 0-100.")
+@click.option("--combine-series", is_flag=True, help="One trend line across all series.")
+@click.pass_context
+def visual_trend_line(
+    ctx: click.Context, pbip: str, page: str, visual_name: str,
+    color: str, style: str, transparency: int, combine_series: bool,
+) -> None:
+    """Add a trend line to a line/scatter/column chart."""
+    if dry_run_echo(ctx, f"add trend line on visual '{visual_name}'"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        ok = b.visual_add_trend_line(
+            page, visual_name, color=color, style=style,
+            transparency=transparency, combine_series=combine_series,
+        )
+    except (ValueError, RuntimeError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    _analytics_result(ok, "Trend line", visual_name, page)
+
+
+@visual.command("forecast")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--page", required=True, help="Page display name.")
+@click.option("--name", "visual_name", required=True, help="Line chart visual name.")
+@click.option("--length", type=int, default=10, show_default=True,
+              help="Points to forecast forward.")
+@click.option("--confidence", type=float, default=0.95, show_default=True,
+              help="Confidence level 0-1.")
+@click.option("--seasonality", type=int, default=None, help="Points per cycle (auto if omitted).")
+@click.option("--ignore-last", type=int, default=0, show_default=True,
+              help="Trailing points to ignore (hindcast).")
+@click.option("--color", default="#118DFF", show_default=True, help="Forecast line colour (hex).")
+@click.option("--no-band", is_flag=True, help="Hide the confidence band.")
+@click.pass_context
+def visual_forecast(
+    ctx: click.Context, pbip: str, page: str, visual_name: str,
+    length: int, confidence: float, seasonality: int | None,
+    ignore_last: int, color: str, no_band: bool,
+) -> None:
+    """Add a forecast to a line chart with a date or numeric axis."""
+    if dry_run_echo(ctx, f"add forecast on visual '{visual_name}'"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        ok = b.visual_add_forecast(
+            page, visual_name, length=length, confidence_level=confidence,
+            seasonality=seasonality, ignore_last=ignore_last, color=color,
+            show_confidence_band=not no_band,
+        )
+    except (ValueError, RuntimeError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    _analytics_result(ok, "Forecast", visual_name, page)
+
+
+@visual.command("register-custom")
+@click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
+@click.option("--guid", required=True, help="Custom visual GUID (from its .pbiviz pbiviz.json).")
+@click.pass_context
+def visual_register_custom(ctx: click.Context, pbip: str, guid: str) -> None:
+    """Register a custom (.pbiviz) visual GUID so visuals of that type render.
+
+    \b
+    After registering, add the visual with its GUID as the type:
+      pbi visual register-custom --pbip R --guid MyViz1A2B3C
+      pbi visual add --pbip R --page "P" --type MyViz1A2B3C ...
+    """
+    if dry_run_echo(ctx, f"register custom visual '{guid}'"):
+        return
+    from pbi_cli.backends.pbir_backend import PbirBackend
+
+    b = PbirBackend(pbip)
+    try:
+        added = b.custom_visual_register(guid)
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from exc
+    if added:
+        console.print(f"[green]Custom visual registered:[/green] {guid}")
+    else:
+        console.print(f"[yellow]Already registered:[/yellow] {guid}")
+
+
 @visual.command("action")
 @click.option("--pbip", required=True, help="Path to the .pbip project folder or file.")
 @click.option("--page", required=True, help="Page display name.")

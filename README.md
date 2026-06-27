@@ -15,7 +15,11 @@
 
 ---
 
-**pbi-enterprise-cli** is the enterprise-grade Power BI & Microsoft Fabric automation CLI — five backends (including a pure-Python TMDL reader that needs no Windows), the only Python-native BPA governance runner, full Fabric REST coverage, DAX testing + lint + format, PBIR report intelligence, a declarative test platform, an MCP server for AI agents, and 10 Claude Code skills.
+### Treat Power BI like real software — version it, test it, govern it, ship it.
+
+**`pbi-enterprise-cli` automates Power BI & Microsoft Fabric from the command line — model, govern, test, document, and deploy semantic models and reports, on any OS.**
+
+It brings software-engineering discipline to BI: six backends (including a pure-Python TMDL reader that needs no Windows), the only Python-native BPA governance runner, full Fabric REST coverage, DAX testing + lint + format, PBIR report intelligence, a declarative test platform, an MCP server for AI agents, and 12 Claude Code skills.
 
 **Key differentiators vs alternatives:**
 
@@ -24,7 +28,7 @@
 - **Python-native BPA runner** — runs the Best Practice Analyzer `BPARules.json` format with no .NET tooling; safe AST evaluation (no `eval()`) with an honest evaluated/skipped tally per run
 - **Full Fabric lifecycle** — items (CRUD via the Item Definition API), workspaces, git sync, deployment pipelines, OneLake, capacity pause/resume/scale, jobs, Direct Lake diagnostics
 - **Quality platform** — DAX lint/format, report lint + field-usage analysis, dbt-style data tests, schema contracts, RLS matrices, drift detection — all CI-gateable with exit codes and SARIF
-- **AI-agent native** — `pbi mcp serve` exposes every capability to Cursor/Copilot/Claude Desktop; `pbi ask` turns English into executed DAX; 10 Claude Code skills install in one step
+- **AI-agent native** — `pbi mcp serve` exposes every capability to Cursor/Copilot/Claude Desktop; `pbi ask` turns English into executed DAX; 12 Claude Code skills install in one step
 - **One-step CI** — a published GitHub Action and pre-commit hooks: the governance gate is one `uses:` line
 
 ---
@@ -65,7 +69,7 @@ uv tool install "pbi-enterprise-cli[viz]"         # WCAG theme validation
 # 1. Verify setup
 pbi doctor
 
-# 2. Connect to open Power BI Desktop + install all 10 Claude Code skills
+# 2. Connect to open Power BI Desktop + install all 12 Claude Code skills
 pbi connect
 
 # 3. Explore the model
@@ -83,8 +87,9 @@ pbi govern fix --auto
 pbi dax test --suite ./tests/measures/
 pbi dax lint --fail-on error
 
-# 7. Deploy to Fabric (XMLA — or `pbi fabric item update` from any OS)
-pbi deploy push --connection fabric-prod
+# 7. Deploy to a workspace via XMLA (Windows) — or edit a live model from
+#    any OS with `--backend fabric` (see the backend table below)
+pbi deploy push --workspace "Production"
 ```
 
 No Desktop open? Everything above also works straight off the repo files:
@@ -144,7 +149,7 @@ pbi ask "top 10 customers by revenue"          # English → DAX → results (re
 | **Diagnostics** | `pbi doctor` — check pythonnet, optional deps, platform |
 | **Watch mode** | `pbi watch` — re-run governance + DAX tests on file change |
 | **REST API** | `pbi server` — authenticated FastAPI server for pipeline integration |
-| **Skills** | `pbi skills` — install, list, check 10 Claude Code Power BI skills |
+| **Skills** | `pbi skills` — install, list, check 12 Claude Code Power BI skills |
 
 ---
 
@@ -181,7 +186,8 @@ If your work is **Power BI semantic models, governance, and analytics**, this is
 pbi --backend file --path . govern check --fail-on error          # real artifacts, any OS
 pbi --backend rest dax query "EVALUATE TOPN(10, Sales)"            # live DAX, any OS
 pbi --backend fabric --workspace <ws> --dataset <ds> \
-    measure add Sales "Margin %" "DIVIDE([Profit],[Revenue])"     # live WRITE, any OS
+    measure add --table Sales --name "Margin %" \
+    --expression "DIVIDE([Profit],[Revenue])"                     # live WRITE, any OS
 pbi --backend xmla model tables                                   # Fabric without Desktop
 pbi --backend desktop measure list                                # local Desktop (default)
 ```
@@ -253,7 +259,7 @@ class NoHardcodedDatesRule(GovernanceRule):
 
 ## Claude Code Skills
 
-Run `pbi connect` to install all 10 skills into `~/.claude/skills/` in one step:
+Run `pbi connect` to install all 12 skills into `~/.claude/skills/` in one step:
 
 ```bash
 pbi connect    # connects to Desktop + installs skills + prints model summary
@@ -278,6 +284,8 @@ pbi skills check          # verify compatibility with installed CLI version
 | `power-bi-deployment` | XMLA deploy, TMDL snapshots, multi-environment promotion, auth setup |
 | `power-bi-diagnostics` | `pbi doctor`, pythonnet/AMO resolution, error playbook, connection troubleshooting |
 | `power-bi-project-orchestrator` | Coordinates multi-skill workflows: model → DAX → governance → report → deploy |
+| `power-bi-report-management` | Publish/download/update/delete PBIR reports in Fabric: pull/push round-trip, binding verification |
+| `power-bi-report-planner` | Guided end-to-end report build: requirements, design brief, approval-gated PBIR authoring & publish |
 
 ---
 
@@ -326,7 +334,7 @@ jobs:
 ```yaml
 repos:
   - repo: https://github.com/mudassir09/pbi-enterprise-cli
-    rev: v1.1.0
+    rev: v1.1.1
     hooks:
       - id: pbi-govern
       - id: pbi-dax-lint
@@ -346,8 +354,11 @@ Scaffold all of this in one command: **`pbi init`**.
 | `--workspace <id>` / `--dataset <id>` | Fabric workspace + semantic-model id (fabric backend) |
 | `--dry-run` | Preview changes without applying them |
 | `--json` / `--yaml` | Machine-readable output |
-| `--connection <name>` | Use a named connection from `~/.pbi-cli/connections.json` |
 | `--port 5000` | Desktop local server port |
+
+> **Named connections:** save and switch reusable connection profiles with
+> `pbi connections add/use/list` (or environment profiles with `pbi env`), rather
+> than passing endpoints on every command.
 
 ## Exit Code Contract
 

@@ -9,12 +9,24 @@ back with ``updateDefinition`` (a long-running operation). No Windows, no .NET.
 
 Heavier structural edits (tables, relationships, partitions) are intentionally
 out of scope — use the desktop/xmla backends for those.
+
+**Cost & concurrency.** ``updateDefinition`` always uploads the *whole* model
+definition, so each individual write is a full round-trip. Use :meth:`batch` to
+coalesce several edits into a single push. The Item Definition API is
+last-writer-wins — it has no ETag/optimistic-concurrency guard — so a concurrent
+editor's change can be overwritten; serialise writes to one model accordingly.
+
+The temp folder is owned by the backend: use it as a context manager, or call
+:meth:`disconnect` when done, so it is cleaned up deterministically rather than
+at GC time.
 """
 
 from __future__ import annotations
 
 import shutil
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +44,10 @@ class FabricDefinitionBackend(FileBackend):
         self.item_id = item_id
         self._token = token or _fab.get_token()
         self._tmpdir = Path(tempfile.mkdtemp(prefix="pbi-fabric-"))
+        # When deferring (inside a batch), local edits are applied to the temp
+        # TMDL but the expensive remote push is held back until the batch exits.
+        self._defer_push = False
+        self._dirty = False
         try:
             self._download_definition()
             super().__init__(path=self._tmpdir)
@@ -62,6 +78,11 @@ class FabricDefinitionBackend(FileBackend):
         _fab.decode_parts(parts, self._tmpdir)
 
     def _push_definition(self) -> None:
+        # Inside a batch we only mark the model dirty; the single push happens
+        # when the batch exits (or flush() is called explicitly).
+        if self._defer_push:
+            self._dirty = True
+            return
         parts = _fab.encode_parts(self._tmpdir)
         _fab.poll_lro(
             _fab.post(
@@ -71,6 +92,40 @@ class FabricDefinitionBackend(FileBackend):
             ),
             self._token,
         )
+        self._dirty = False
+
+    def flush(self) -> None:
+        """Push pending local edits if a batch deferred them. No-op when clean."""
+        if not self._dirty:
+            return
+        was_deferring = self._defer_push
+        self._defer_push = False
+        try:
+            self._push_definition()
+        finally:
+            self._defer_push = was_deferring
+
+    @contextmanager
+    def batch(self) -> Iterator[FabricDefinitionBackend]:
+        """Coalesce multiple edits into a single ``updateDefinition`` round-trip.
+
+        ``updateDefinition`` re-uploads the entire model, so adding ten measures
+        one-by-one is ten full pushes. Inside this context each edit is applied to
+        the local TMDL only; one push happens on exit::
+
+            with backend.batch():
+                backend.measure_add("Sales", "A", "...")
+                backend.measure_add("Sales", "B", "...")
+            # single push here
+        """
+        previous = self._defer_push
+        self._defer_push = True
+        try:
+            yield self
+        finally:
+            self._defer_push = previous
+            if not self._defer_push:
+                self.flush()
 
     # --- Writes: edit local TMDL, then push the whole definition back ---
 
@@ -91,10 +146,21 @@ class FabricDefinitionBackend(FileBackend):
     # --- Lifecycle ---
 
     def disconnect(self) -> None:
-        self._connected = False
-        shutil.rmtree(self._tmpdir, ignore_errors=True)
+        # Flush any deferred edits before tearing down so a batch that exited via
+        # disconnect() (rather than the context manager) is not silently dropped.
+        try:
+            self.flush()
+        finally:
+            self._connected = False
+            shutil.rmtree(self._tmpdir, ignore_errors=True)
 
-    def __del__(self) -> None:  # best-effort temp cleanup
+    def __enter__(self) -> FabricDefinitionBackend:
+        return self
+
+    def __exit__(self, *exc: Any) -> None:
+        self.disconnect()
+
+    def __del__(self) -> None:  # best-effort safety net only; prefer disconnect()
         try:
             shutil.rmtree(self._tmpdir, ignore_errors=True)
         except Exception:

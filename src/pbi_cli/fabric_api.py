@@ -98,11 +98,18 @@ def request(
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
             raw = resp.read()
-            if not raw:
-                return {"status": resp.status, "headers": dict(resp.headers)}
+            envelope = {"status": resp.status, "headers": dict(resp.headers)}
+            # A 202 starts a long-running operation: Fabric returns an empty or
+            # literal-`null` body with the operation URL in the Location header.
+            # Always hand back the envelope (status + headers) so poll_lro can find
+            # the Location — otherwise json.loads("null") returns None and the
+            # status/headers are silently lost (breaks every LRO).
+            if resp.status == 202 or not raw:
+                return envelope
             content_type = resp.headers.get("Content-Type", "")
             if "json" in content_type or raw[:1] in (b"{", b"["):
-                return json.loads(raw.decode())
+                parsed = json.loads(raw.decode())
+                return parsed if parsed is not None else envelope
             return raw
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")
@@ -130,12 +137,21 @@ def delete(url: str, token: str, **kw: Any) -> Any:
 
 
 def poll_lro(response: Any, token: str, timeout: int = 300) -> Any:
-    """Poll a Fabric long-running operation (202 + Location header) to completion."""
+    """Poll a Fabric long-running operation (202 + Location header) to completion.
+
+    On success, result-bearing operations (e.g. ``getDefinition``) expose their
+    payload at ``{operation}/result``; status-only operations (e.g.
+    ``updateDefinition``) have no such sub-resource. We fetch ``/result`` when it
+    carries real content and otherwise return the operation-status object — so a
+    caller of ``getDefinition`` gets ``{"definition": ...}`` while ``push``/update
+    still gets a status summary.
+    """
     import time
 
     if not isinstance(response, dict) or response.get("status") != 202:
         return response  # synchronous completion
-    location = (response.get("headers") or {}).get("Location")
+    headers = response.get("headers") or {}
+    location = headers.get("Location") or headers.get("location")
     if not location:
         return response
     deadline = time.monotonic() + timeout
@@ -143,6 +159,14 @@ def poll_lro(response: Any, token: str, timeout: int = 300) -> Any:
         op = get(location, token)
         state = op.get("status") or op.get("state")
         if state in ("Succeeded", "Completed"):
+            try:
+                result = get(location.rstrip("/") + "/result", token)
+            except FabricApiError:
+                result = None
+            # Return /result only when it has real content beyond the bare
+            # {status, headers} envelope; otherwise the status object is the result.
+            if isinstance(result, dict) and set(result) - {"status", "headers"}:
+                return result
             return op
         if state in ("Failed", "Cancelled"):
             raise FabricApiError(0, f"Operation failed: {json.dumps(op)[:300]}")

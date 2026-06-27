@@ -10,6 +10,8 @@ Synthetic PBIR GA project in tmp_path — runs anywhere, no Desktop.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from pbi_cli.backends.pbir_backend import PbirBackend
@@ -22,6 +24,7 @@ from pbi_cli.intelligence.visual_builder import (
     build_card,
     build_decomposition_tree,
     build_key_influencers,
+    build_line_chart,
     build_qna,
     build_smart_narrative,
 )
@@ -132,6 +135,101 @@ class TestReferenceLine:
         page, name = self._bar(backend)
         with pytest.raises(ValueError):
             backend.visual_add_reference_line(page, name, 1, style="wavy")
+
+
+class TestAnalytics:
+    def _line(self, b, page="P"):
+        b.page_add(page)
+        spec = VisualSpec(
+            "lineChart", build_line_chart(_col("Month"), _meas("Sales")), 0, 0, 400, 300
+        )
+        return page, b.visual_add(page, spec)["name"]
+
+    def test_trend_line(self, backend, tmp_path):
+        page, name = self._line(backend)
+        assert backend.visual_add_trend_line(page, name, color="#FF0000", transparency=20)
+        _, data = backend._ga_find_visual_json(page, name)
+        trend = data["visual"]["objects"]["trend"]
+        assert len(trend) == 1
+        props = trend[0]["properties"]
+        assert props["show"]["expr"]["Literal"]["Value"] == "true"
+        assert props["transparency"]["expr"]["Literal"]["Value"] == "20D"
+        assert not [f for f in validate_report(str(tmp_path)) if f["severity"] == "error"]
+
+    def test_trend_line_reapply_replaces(self, backend):
+        page, name = self._line(backend)
+        backend.visual_add_trend_line(page, name)
+        backend.visual_add_trend_line(page, name, style="solid")
+        _, data = backend._ga_find_visual_json(page, name)
+        # Single-instance object: re-applying updates, never stacks duplicates.
+        assert len(data["visual"]["objects"]["trend"]) == 1
+        assert data["visual"]["objects"]["trend"][0]["properties"][
+            "style"]["expr"]["Literal"]["Value"] == "'solid'"
+
+    def test_trend_bad_style_raises(self, backend):
+        page, name = self._line(backend)
+        with pytest.raises(ValueError):
+            backend.visual_add_trend_line(page, name, style="zigzag")
+
+    def test_forecast(self, backend, tmp_path):
+        page, name = self._line(backend)
+        assert backend.visual_add_forecast(page, name, length=12, confidence_level=0.9,
+                                           seasonality=12)
+        _, data = backend._ga_find_visual_json(page, name)
+        props = data["visual"]["objects"]["forecast"][0]["properties"]
+        assert props["forecastLength"]["expr"]["Literal"]["Value"] == "12D"
+        assert props["confidenceLevel"]["expr"]["Literal"]["Value"] == "0.9D"
+        assert props["seasonality"]["expr"]["Literal"]["Value"] == "12D"
+        assert not [f for f in validate_report(str(tmp_path)) if f["severity"] == "error"]
+
+    def test_forecast_bad_confidence_raises(self, backend):
+        page, name = self._line(backend)
+        with pytest.raises(ValueError):
+            backend.visual_add_forecast(page, name, confidence_level=1.5)
+
+    def test_missing_visual_returns_false(self, backend):
+        backend.page_add("P")
+        assert backend.visual_add_trend_line("P", "ghost") is False
+        assert backend.visual_add_forecast("P", "ghost") is False
+
+
+class TestThemeAndCustomVisual:
+    def test_theme_register_writes_file_and_binds_report_json(self, backend, tmp_path):
+        path = backend.theme_register({"name": "Brand", "dataColors": ["#112233"]}, name="Brand")
+        assert (tmp_path / "T.Report" / "StaticResources" / "RegisteredResources"
+                / "Brand.json").exists()
+        assert path.endswith("Brand.json")
+        rj = json.loads(
+            (tmp_path / "T.Report" / "definition" / "report.json").read_text(encoding="utf-8")
+        )
+        ct = rj["themeCollection"]["customTheme"]
+        assert ct["name"] == "Brand"
+        assert ct["type"] == "RegisteredResources"
+        # Desktop rejects a customTheme without reportVersionAtImport (verified live).
+        assert "reportVersionAtImport" in ct
+        pkg = next(p for p in rj["resourcePackages"] if p["type"] == "RegisteredResources")
+        assert any(it["path"] == "Brand.json" and it["type"] == "CustomTheme"
+                   for it in pkg["items"])
+        # Base theme is preserved alongside the custom theme.
+        assert "baseTheme" in rj["themeCollection"]
+
+    def test_theme_register_reapply_no_duplicate_items(self, backend, tmp_path):
+        backend.theme_register({"name": "Brand"}, name="Brand")
+        backend.theme_register({"name": "Brand", "dataColors": ["#abcdef"]}, name="Brand")
+        rj = json.loads(
+            (tmp_path / "T.Report" / "definition" / "report.json").read_text(encoding="utf-8")
+        )
+        pkg = next(p for p in rj["resourcePackages"] if p["type"] == "RegisteredResources")
+        assert len([it for it in pkg["items"] if it["path"] == "Brand.json"]) == 1
+
+    def test_custom_visual_register(self, backend, tmp_path):
+        assert backend.custom_visual_register("MyViz1A2B3C") is True
+        assert backend.custom_visual_register("MyViz1A2B3C") is False  # idempotent
+        rj = json.loads(
+            (tmp_path / "T.Report" / "definition" / "report.json").read_text(encoding="utf-8")
+        )
+        assert rj["publicCustomVisuals"] == ["MyViz1A2B3C"]
+        assert not [f for f in validate_report(str(tmp_path)) if f["severity"] == "error"]
 
 
 class TestVisualGet:

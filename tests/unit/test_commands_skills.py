@@ -48,10 +48,10 @@ class TestSkillsList:
         result = _run(runner, "skills", "list")
         assert result.exit_code == 0
 
-    def test_list_shows_10_skills(self, runner):
-        """The _BUNDLED_SKILLS list has 10 consolidated entries."""
+    def test_list_shows_12_skills(self, runner):
+        """_BUNDLED_SKILLS has 12 entries (10 original + report-management + report-planner)."""
         from pbi_cli.commands.skills_cmd import _BUNDLED_SKILLS
-        assert len(_BUNDLED_SKILLS) == 10
+        assert len(_BUNDLED_SKILLS) == 12
 
     def test_list_output_contains_skill_names(self, runner):
         result = _run(runner, "skills", "list")

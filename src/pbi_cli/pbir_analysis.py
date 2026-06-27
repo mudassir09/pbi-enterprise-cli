@@ -47,21 +47,73 @@ def load_report(path: str | Path) -> dict[str, Any]:
     return {"reportDir": str(report_dir), "pages": pages}
 
 
+def _collect_source_aliases(obj: Any) -> dict[str, str]:
+    """Map query-source aliases to their table from every ``From`` clause.
+
+    A PBIR semantic query declares its sources as ``From: [{"Name": "s",
+    "Entity": "Sales", ...}]`` and then references columns by the alias
+    (``SourceRef.Source == "s"``). To compare report usage against model table
+    names we must resolve those aliases back to the real entity.
+    """
+    aliases: dict[str, str] = {}
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            frm = node.get("From")
+            if isinstance(frm, list):
+                for src in frm:
+                    if isinstance(src, dict) and src.get("Name") and src.get("Entity"):
+                        aliases[str(src["Name"])] = str(src["Entity"])
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(obj)
+    return aliases
+
+
 def extract_fields(obj: Any) -> set[tuple[str, str, str]]:
-    """Collect (entity, property, kind) field references from PBIR JSON."""
+    """Collect ``(entity, property, kind)`` field references from PBIR JSON.
+
+    Handles the three reference shapes Power BI actually emits:
+
+    * ``Column`` / ``Measure`` — ``{Expression: {SourceRef}, Property}``;
+    * ``HierarchyLevel`` — ``{Expression: {Hierarchy: {Expression: {SourceRef}}},
+      Level}`` (a different shape that the old positional walk silently dropped);
+    * ``Aggregation`` — wraps an inner ``Column`` which is captured as that column.
+
+    Source-alias references (``SourceRef.Source``) are resolved to their table
+    via the enclosing query's ``From`` clause so usage compares against real
+    model table names rather than per-query aliases.
+    """
+    aliases = _collect_source_aliases(obj)
     found: set[tuple[str, str, str]] = set()
 
     def _entity_of(expr: Any) -> str:
-        if isinstance(expr, dict):
-            source = expr.get("SourceRef") or {}
-            return source.get("Entity") or source.get("Source") or ""
+        if not isinstance(expr, dict):
+            return ""
+        source = expr.get("SourceRef") or {}
+        entity = source.get("Entity")
+        if entity:
+            return str(entity)
+        alias = source.get("Source")
+        if alias:
+            return aliases.get(str(alias), str(alias))
         return ""
 
     def walk(node: Any, parent_key: str = "") -> None:
         if isinstance(node, dict):
             if "Property" in node and "Expression" in node:
-                kind = parent_key if parent_key in _FIELD_KINDS else "Column"
+                kind = parent_key if parent_key in ("Column", "Measure") else "Column"
                 found.add((_entity_of(node["Expression"]), str(node["Property"]), kind))
+            elif "Level" in node and "Expression" in node:
+                expr = node["Expression"]
+                hierarchy = expr.get("Hierarchy", {}) if isinstance(expr, dict) else {}
+                entity = _entity_of(hierarchy.get("Expression", {})) \
+                    if isinstance(hierarchy, dict) else ""
+                found.add((entity, str(node["Level"]), "HierarchyLevel"))
             for key, value in node.items():
                 walk(value, key)
         elif isinstance(node, list):
