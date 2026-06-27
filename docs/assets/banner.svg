@@ -57,25 +57,25 @@
   <text x="380" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
         fill="#50E6FF" text-anchor="middle">Python-native BPA</text>
 
-  <!-- 3 Backends -->
+  <!-- 6 Backends -->
   <rect x="472" y="198" width="120" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
   <text x="532" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
-        fill="#50E6FF" text-anchor="middle">3 Backends</text>
+        fill="#50E6FF" text-anchor="middle">6 Backends</text>
 
   <!-- CI/CD Ready -->
   <rect x="610" y="198" width="120" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
   <text x="670" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
         fill="#50E6FF" text-anchor="middle">CI/CD Ready</text>
 
-  <!-- 10 Skills -->
+  <!-- 12 Skills -->
   <rect x="748" y="198" width="106" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
   <text x="801" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
-        fill="#50E6FF" text-anchor="middle">10 AI Skills</text>
+        fill="#50E6FF" text-anchor="middle">12 AI Skills</text>
 
-  <!-- 500+ Tests -->
-  <rect x="872" y="198" width="118" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
-  <text x="931" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
-        fill="#50E6FF" text-anchor="middle">500+ Tests</text>
+  <!-- 1,200+ Tests -->
+  <rect x="872" y="198" width="130" height="34" fill="url(#pill-bg)" rx="17" stroke="#0078D4" stroke-width="1" stroke-opacity="0.4"/>
+  <text x="937" y="220" font-family="'Segoe UI', system-ui, sans-serif" font-size="13" font-weight="600"
+        fill="#50E6FF" text-anchor="middle">1,200+ Tests</text>
 
   <!-- Install hint -->
   <rect x="380" y="248" width="440" height="34" fill="#161B22" rx="8" stroke="#30363D" stroke-width="1"/>

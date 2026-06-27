@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420">
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="590" viewBox="0 0 900 590" font-family="'Segoe UI', system-ui, -apple-system, sans-serif">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#0D1117"/>
@@ -8,129 +8,128 @@
       <stop offset="0%" style="stop-color:#1C2128"/>
       <stop offset="100%" style="stop-color:#161B22"/>
     </linearGradient>
-    <linearGradient id="desktop-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#0D2137"/>
-      <stop offset="100%" style="stop-color:#0A1929"/>
-    </linearGradient>
-    <linearGradient id="xmla-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#0D2D1A"/>
-      <stop offset="100%" style="stop-color:#091A10"/>
-    </linearGradient>
-    <linearGradient id="mock-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#2D1A0D"/>
-      <stop offset="100%" style="stop-color:#1A0D09"/>
-    </linearGradient>
-    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L8,3 z" fill="#0078D4"/>
-    </marker>
-    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L8,3 z" fill="#3FB950"/>
-    </marker>
-    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L8,3 z" fill="#F78166"/>
-    </marker>
   </defs>
 
   <!-- Background -->
-  <rect width="900" height="420" fill="url(#bg)" rx="12"/>
+  <rect width="900" height="590" fill="url(#bg)" rx="12"/>
   <rect x="0" y="0" width="900" height="4" fill="#0078D4" rx="2"/>
 
   <!-- Title -->
-  <text x="450" y="38" font-family="'Segoe UI', system-ui, sans-serif" font-size="16"
-        font-weight="600" fill="#8B949E" text-anchor="middle" letter-spacing="2">
-    THREE-BACKEND ARCHITECTURE
+  <text x="450" y="36" font-size="16" font-weight="600" fill="#8B949E"
+        text-anchor="middle" letter-spacing="2">SIX-BACKEND ARCHITECTURE</text>
+  <text x="450" y="58" font-size="12.5" fill="#6E7681" text-anchor="middle">
+    one CLI · the same commands · pick where they run with --backend
   </text>
 
   <!-- ─── pbi CLI box (centre) ─── -->
-  <rect x="325" y="60" width="250" height="110" fill="url(#cli-grad)"
-        rx="10" stroke="#30363D" stroke-width="1.5"/>
-  <rect x="325" y="60" width="250" height="36" fill="#21262D" rx="10"/>
-  <rect x="325" y="84" width="250" height="12" fill="#21262D"/>
-  <text x="450" y="83" font-family="'Consolas','Courier New',monospace" font-size="14"
-        font-weight="700" fill="#58A6FF" text-anchor="middle">pbi</text>
-  <text x="450" y="108" font-family="'Segoe UI', system-ui, sans-serif" font-size="12"
-        fill="#C9D1D9" text-anchor="middle">pbi-enterprise-cli</text>
-  <text x="450" y="126" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#8B949E" text-anchor="middle">25+ command groups</text>
-  <text x="450" y="144" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#8B949E" text-anchor="middle">Claude Code · FastAPI server</text>
+  <rect x="320" y="76" width="260" height="86" fill="url(#cli-grad)" rx="10" stroke="#30363D" stroke-width="1.5"/>
+  <rect x="320" y="76" width="260" height="30" fill="#21262D" rx="10"/>
+  <rect x="320" y="96" width="260" height="10" fill="#21262D"/>
+  <text x="450" y="96" font-family="'Consolas','Courier New',monospace" font-size="14" font-weight="700" fill="#58A6FF" text-anchor="middle">pbi</text>
+  <text x="450" y="124" font-size="12" fill="#C9D1D9" text-anchor="middle">pbi-enterprise-cli</text>
+  <text x="450" y="141" font-size="10.5" fill="#8B949E" text-anchor="middle">30+ command groups · MCP server · FastAPI</text>
+  <text x="450" y="156" font-size="10.5" fill="#8B949E" text-anchor="middle">12 Claude Code skills</text>
 
   <!-- Governance layer -->
-  <rect x="325" y="182" width="250" height="44" fill="#1C2128"
-        rx="8" stroke="#30363D" stroke-width="1"/>
-  <text x="450" y="200" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        font-weight="600" fill="#F0883E" text-anchor="middle">Governance Engine</text>
-  <text x="450" y="218" font-family="'Segoe UI', system-ui, sans-serif" font-size="10"
-        fill="#8B949E" text-anchor="middle">Built-in rules · BPA · Custom plugins</text>
+  <rect x="320" y="174" width="260" height="40" fill="#1C2128" rx="8" stroke="#30363D" stroke-width="1"/>
+  <text x="450" y="191" font-size="11" font-weight="600" fill="#F0883E" text-anchor="middle">Governance Engine</text>
+  <text x="450" y="206" font-size="10" fill="#8B949E" text-anchor="middle">built-in rules · BPA · custom plugins</text>
 
-  <!-- ─── Arrow lines from CLI box ─── -->
-  <!-- → Desktop -->
-  <line x1="325" y1="115" x2="196" y2="260" stroke="#0078D4" stroke-width="1.8"
-        stroke-dasharray="none" marker-end="url(#arrow-blue)"/>
-  <!-- → XMLA -->
-  <line x1="450" y1="170" x2="450" y2="258" stroke="#3FB950" stroke-width="1.8"
-        marker-end="url(#arrow-green)"/>
-  <!-- → Mock -->
-  <line x1="575" y1="115" x2="704" y2="260" stroke="#F78166" stroke-width="1.8"
-        marker-end="url(#arrow-orange)"/>
+  <!-- Selector divider -->
+  <line x1="60" y1="236" x2="360" y2="236" stroke="#21262D" stroke-width="1"/>
+  <text x="450" y="240" font-size="11" fill="#6E7681" text-anchor="middle">▾  swap with --backend — same commands, same output  ▾</text>
+  <line x1="540" y1="236" x2="840" y2="236" stroke="#21262D" stroke-width="1"/>
 
-  <!-- ─── Desktop backend ─── -->
-  <rect x="60" y="260" width="230" height="130" fill="url(#desktop-grad)"
-        rx="10" stroke="#0078D4" stroke-width="1.5"/>
-  <rect x="60" y="260" width="230" height="34" fill="#0D2137" rx="10"/>
-  <rect x="60" y="282" width="230" height="12" fill="#0D2137"/>
-  <text x="175" y="282" font-family="'Segoe UI', system-ui, sans-serif" font-size="13"
-        font-weight="700" fill="#58A6FF" text-anchor="middle">desktop</text>
-  <text x="175" y="304" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#C9D1D9" text-anchor="middle">TOM via pythonnet + AMO</text>
-  <text x="175" y="320" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#8B949E" text-anchor="middle">Requires: Windows +</text>
-  <text x="175" y="336" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#8B949E" text-anchor="middle">Power BI Desktop open</text>
-  <rect x="90" y="350" width="170" height="24" fill="#0078D41A" rx="6"
-        stroke="#0078D4" stroke-width="0.8"/>
-  <text x="175" y="366" font-family="'Consolas','Courier New',monospace" font-size="10"
-        fill="#58A6FF" text-anchor="middle">--backend desktop</text>
+  <!-- ════════ ROW 1 ════════ -->
 
-  <!-- ─── XMLA backend ─── -->
-  <rect x="325" y="260" width="250" height="130" fill="url(#xmla-grad)"
-        rx="10" stroke="#3FB950" stroke-width="1.5"/>
-  <rect x="325" y="260" width="250" height="34" fill="#0D2D1A" rx="10"/>
-  <rect x="325" y="282" width="250" height="12" fill="#0D2D1A"/>
-  <text x="450" y="282" font-family="'Segoe UI', system-ui, sans-serif" font-size="13"
-        font-weight="700" fill="#3FB950" text-anchor="middle">xmla</text>
-  <text x="450" y="304" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#C9D1D9" text-anchor="middle">Premium / Microsoft Fabric</text>
-  <text x="450" y="320" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#8B949E" text-anchor="middle">No Desktop required</text>
-  <text x="450" y="336" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#8B949E" text-anchor="middle">Service principal · Device flow</text>
-  <rect x="355" y="350" width="190" height="24" fill="#3FB9501A" rx="6"
-        stroke="#3FB950" stroke-width="0.8"/>
-  <text x="450" y="366" font-family="'Consolas','Courier New',monospace" font-size="10"
-        fill="#3FB950" text-anchor="middle">--backend xmla</text>
+  <!-- desktop -->
+  <g transform="translate(30,256)">
+    <rect width="270" height="146" rx="10" fill="#11161D" stroke="#1F6FEB" stroke-width="1.5"/>
+    <rect width="270" height="30" rx="10" fill="#0D2137"/><rect y="20" width="270" height="10" fill="#0D2137"/>
+    <text x="16" y="20" font-family="'Consolas','Courier New',monospace" font-size="13" font-weight="700" fill="#58A6FF">desktop</text>
+    <rect x="196" y="8" width="58" height="16" rx="8" fill="#D2992226"/>
+    <text x="225" y="19.5" font-size="9.5" font-weight="600" fill="#D29922" text-anchor="middle">Windows</text>
+    <text x="16" y="56" font-size="11.5" fill="#C9D1D9">Local Power BI Desktop (.pbip)</text>
+    <text x="16" y="74" font-size="11" fill="#8B949E">TOM via pythonnet + AMO</text>
+    <text x="16" y="96" font-size="10.5" fill="#6E7681">needs: Windows + Desktop open</text>
+    <rect x="16" y="108" width="160" height="24" rx="6" fill="#1F6FEB1A" stroke="#1F6FEB" stroke-width="0.8"/>
+    <text x="96" y="124" font-family="'Consolas','Courier New',monospace" font-size="10.5" fill="#58A6FF" text-anchor="middle">--backend desktop</text>
+  </g>
 
-  <!-- ─── Mock backend ─── -->
-  <rect x="610" y="260" width="230" height="130" fill="url(#mock-grad)"
-        rx="10" stroke="#F78166" stroke-width="1.5"/>
-  <rect x="610" y="260" width="230" height="34" fill="#2D1A0D" rx="10"/>
-  <rect x="610" y="282" width="230" height="12" fill="#2D1A0D"/>
-  <text x="725" y="282" font-family="'Segoe UI', system-ui, sans-serif" font-size="13"
-        font-weight="700" fill="#F78166" text-anchor="middle">mock</text>
-  <text x="725" y="304" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#C9D1D9" text-anchor="middle">CI/CD · Tests · Demos</text>
-  <text x="725" y="320" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#8B949E" text-anchor="middle">Zero infrastructure</text>
-  <text x="725" y="336" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#8B949E" text-anchor="middle">Works on Linux / macOS</text>
-  <rect x="640" y="350" width="170" height="24" fill="#F781661A" rx="6"
-        stroke="#F78166" stroke-width="0.8"/>
-  <text x="725" y="366" font-family="'Consolas','Courier New',monospace" font-size="10"
-        fill="#F78166" text-anchor="middle">--backend mock</text>
+  <!-- xmla -->
+  <g transform="translate(315,256)">
+    <rect width="270" height="146" rx="10" fill="#11161D" stroke="#238636" stroke-width="1.5"/>
+    <rect width="270" height="30" rx="10" fill="#0D2D1A"/><rect y="20" width="270" height="10" fill="#0D2D1A"/>
+    <text x="16" y="20" font-family="'Consolas','Courier New',monospace" font-size="13" font-weight="700" fill="#3FB950">xmla</text>
+    <rect x="196" y="8" width="58" height="16" rx="8" fill="#D2992226"/>
+    <text x="225" y="19.5" font-size="9.5" font-weight="600" fill="#D29922" text-anchor="middle">Windows</text>
+    <text x="16" y="56" font-size="11.5" fill="#C9D1D9">Premium / Microsoft Fabric</text>
+    <text x="16" y="74" font-size="11" fill="#8B949E">no Desktop · service principal</text>
+    <text x="16" y="96" font-size="10.5" fill="#6E7681">needs: Windows + MSAL</text>
+    <rect x="16" y="108" width="150" height="24" rx="6" fill="#2386361A" stroke="#238636" stroke-width="0.8"/>
+    <text x="91" y="124" font-family="'Consolas','Courier New',monospace" font-size="10.5" fill="#3FB950" text-anchor="middle">--backend xmla</text>
+  </g>
 
-  <!-- Footer note -->
-  <text x="450" y="406" font-family="'Segoe UI', system-ui, sans-serif" font-size="11"
-        fill="#484F58" text-anchor="middle">
-    Swap backends with  --backend desktop|xmla|mock  — same commands, same output
+  <!-- file -->
+  <g transform="translate(600,256)">
+    <rect width="270" height="146" rx="10" fill="#11161D" stroke="#1F9AA8" stroke-width="1.5"/>
+    <rect width="270" height="30" rx="10" fill="#06282B"/><rect y="20" width="270" height="10" fill="#06282B"/>
+    <text x="16" y="20" font-family="'Consolas','Courier New',monospace" font-size="13" font-weight="700" fill="#56D4DD">file</text>
+    <rect x="196" y="8" width="58" height="16" rx="8" fill="#3FB95026"/>
+    <text x="225" y="19.5" font-size="9.5" font-weight="600" fill="#3FB950" text-anchor="middle">Any OS</text>
+    <text x="16" y="56" font-size="11.5" fill="#C9D1D9">TMDL/PBIP straight from repo</text>
+    <text x="16" y="74" font-size="11" fill="#8B949E">governance · lint · docs · diff</text>
+    <text x="16" y="96" font-size="10.5" fill="#6E7681">pure Python — no .NET</text>
+    <rect x="16" y="108" width="150" height="24" rx="6" fill="#1F9AA81A" stroke="#1F9AA8" stroke-width="0.8"/>
+    <text x="91" y="124" font-family="'Consolas','Courier New',monospace" font-size="10.5" fill="#56D4DD" text-anchor="middle">--backend file</text>
+  </g>
+
+  <!-- ════════ ROW 2 ════════ -->
+
+  <!-- rest -->
+  <g transform="translate(30,418)">
+    <rect width="270" height="146" rx="10" fill="#11161D" stroke="#8957E5" stroke-width="1.5"/>
+    <rect width="270" height="30" rx="10" fill="#1A1033"/><rect y="20" width="270" height="10" fill="#1A1033"/>
+    <text x="16" y="20" font-family="'Consolas','Courier New',monospace" font-size="13" font-weight="700" fill="#A371F7">rest</text>
+    <rect x="196" y="8" width="58" height="16" rx="8" fill="#3FB95026"/>
+    <text x="225" y="19.5" font-size="9.5" font-weight="600" fill="#3FB950" text-anchor="middle">Any OS</text>
+    <text x="16" y="56" font-size="11.5" fill="#C9D1D9">Live DAX on any dataset</text>
+    <text x="16" y="74" font-size="11" fill="#8B949E">executeQueries REST API</text>
+    <text x="16" y="96" font-size="10.5" fill="#6E7681">needs: just a token</text>
+    <rect x="16" y="108" width="150" height="24" rx="6" fill="#8957E51A" stroke="#8957E5" stroke-width="0.8"/>
+    <text x="91" y="124" font-family="'Consolas','Courier New',monospace" font-size="10.5" fill="#A371F7" text-anchor="middle">--backend rest</text>
+  </g>
+
+  <!-- fabric -->
+  <g transform="translate(315,418)">
+    <rect width="270" height="146" rx="10" fill="#11161D" stroke="#BF4B8A" stroke-width="1.5"/>
+    <rect width="270" height="30" rx="10" fill="#2B0E20"/><rect y="20" width="270" height="10" fill="#2B0E20"/>
+    <text x="16" y="20" font-family="'Consolas','Courier New',monospace" font-size="13" font-weight="700" fill="#DB61A2">fabric</text>
+    <rect x="190" y="8" width="64" height="16" rx="8" fill="#3FB95026"/>
+    <text x="222" y="19.5" font-size="9.5" font-weight="600" fill="#3FB950" text-anchor="middle">Any OS</text>
+    <text x="16" y="56" font-size="11.5" fill="#C9D1D9">Edit a live model, any OS</text>
+    <text x="16" y="74" font-size="11" fill="#8B949E">TMDL round-trip · Item Defn API</text>
+    <text x="16" y="96" font-size="10.5" fill="#6E7681">needs: just a token</text>
+    <rect x="16" y="108" width="160" height="24" rx="6" fill="#BF4B8A1A" stroke="#BF4B8A" stroke-width="0.8"/>
+    <text x="96" y="124" font-family="'Consolas','Courier New',monospace" font-size="10.5" fill="#DB61A2" text-anchor="middle">--backend fabric</text>
+  </g>
+
+  <!-- mock -->
+  <g transform="translate(600,418)">
+    <rect width="270" height="146" rx="10" fill="#11161D" stroke="#BD561D" stroke-width="1.5"/>
+    <rect width="270" height="30" rx="10" fill="#2D1A0D"/><rect y="20" width="270" height="10" fill="#2D1A0D"/>
+    <text x="16" y="20" font-family="'Consolas','Courier New',monospace" font-size="13" font-weight="700" fill="#F0883E">mock</text>
+    <rect x="196" y="8" width="58" height="16" rx="8" fill="#3FB95026"/>
+    <text x="225" y="19.5" font-size="9.5" font-weight="600" fill="#3FB950" text-anchor="middle">Any OS</text>
+    <text x="16" y="56" font-size="11.5" fill="#C9D1D9">CI · unit tests · demos</text>
+    <text x="16" y="74" font-size="11" fill="#8B949E">deterministic fixtures</text>
+    <text x="16" y="96" font-size="10.5" fill="#6E7681">zero infrastructure</text>
+    <rect x="16" y="108" width="150" height="24" rx="6" fill="#BD561D1A" stroke="#BD561D" stroke-width="0.8"/>
+    <text x="91" y="124" font-family="'Consolas','Courier New',monospace" font-size="10.5" fill="#F0883E" text-anchor="middle">--backend mock</text>
+  </g>
+
+  <!-- Footer story -->
+  <text x="450" y="582" font-size="11.5" fill="#6E7681" text-anchor="middle">
+    4 of 6 backends run on Linux &amp; macOS — governance, DAX, docs and live model edits with no Windows, no .NET
   </text>
 </svg>
