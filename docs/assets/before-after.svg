@@ -70,7 +70,7 @@
   <text x="516" y="236" font-family="'Consolas','Courier New',monospace" font-size="10" fill="#3FB950">✓ All BPA rules pass</text>
 
   <text x="516" y="254" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#484F58">$</text>
-  <text x="530" y="254" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#58A6FF">pbi deploy push --connection fabric-prod</text>
+  <text x="530" y="254" font-family="'Consolas','Courier New',monospace" font-size="11" fill="#58A6FF">pbi deploy push --workspace Production</text>
   <text x="516" y="270" font-family="'Consolas','Courier New',monospace" font-size="10" fill="#3FB950">✓ Deployed to Fabric workspace</text>
 
   <!-- Time estimate -->
