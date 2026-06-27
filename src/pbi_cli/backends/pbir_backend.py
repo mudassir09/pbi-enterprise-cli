@@ -134,6 +134,63 @@ class PbirBackend:
         theme_dir.mkdir(parents=True, exist_ok=True)
         (theme_dir / "CY24SU10.json").write_text(json.dumps(theme_json, indent=2), encoding="utf-8")
 
+    def theme_register(self, theme_json: dict[str, Any], name: str = "CustomTheme") -> str:
+        """Register a custom theme and bind it in report.json. PBIR GA only.
+
+        Writes the theme to ``StaticResources/RegisteredResources/<name>.json``,
+        sets ``themeCollection.customTheme`` and adds the matching
+        ``resourcePackages`` item so Power BI actually loads it (writing the file
+        alone is not enough — it must be referenced from report.json). Returns the
+        written theme path. Re-registering the same name updates in place.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Theme registration requires PBIR GA format (definition/ folder).")
+        assert self._report_dir
+        res_dir = self._report_dir / "StaticResources" / "RegisteredResources"
+        res_dir.mkdir(parents=True, exist_ok=True)
+        fname = f"{name}.json"
+        (res_dir / fname).write_text(json.dumps(theme_json, indent=2), encoding="utf-8")
+
+        rj = self._ga_read_report_json()
+        # Desktop requires customTheme to carry reportVersionAtImport, exactly like
+        # baseTheme — omitting it raises "Required property 'reportVersionAtImport'
+        # was not included in /themeCollection/customTheme" at load (verified live).
+        rj.setdefault("themeCollection", {})["customTheme"] = {
+            "name": name,
+            "reportVersionAtImport": dict(_schemas.REPORT_VERSION_AT_IMPORT),
+            "type": "RegisteredResources",
+        }
+        packages = rj.setdefault("resourcePackages", [])
+        pkg = next((p for p in packages if p.get("type") == "RegisteredResources"), None)
+        if pkg is None:
+            pkg = {"name": "RegisteredResources", "type": "RegisteredResources", "items": []}
+            packages.append(pkg)
+        items = pkg.setdefault("items", [])
+        if not any(it.get("path") == fname for it in items):
+            items.append({"name": name, "path": fname, "type": "CustomTheme"})
+        self._ga_write_report_json(rj)
+        return str(res_dir / fname)
+
+    def custom_visual_register(self, guid: str) -> bool:
+        """Register a custom (.pbiviz) visual GUID in report.json. PBIR GA only.
+
+        A visual whose ``visualType`` is a custom-visual GUID only renders if that
+        GUID is listed in report.json's ``publicCustomVisuals``. After registering,
+        add the visual with ``visual add`` using the GUID as the type. Returns True
+        if the GUID was newly added, False if it was already registered.
+        """
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError("Custom visual registration requires PBIR GA format.")
+        rj = self._ga_read_report_json()
+        pcv = rj.setdefault("publicCustomVisuals", [])
+        if guid in pcv:
+            return False
+        pcv.append(guid)
+        self._ga_write_report_json(rj)
+        return True
+
     # ── PBIR GA implementation ─────────────────────────────────────────────────
     # Pages are stored in folders named by their GUID (= page `name` field).
     # A pages.json file at the pages/ level tracks page order.
@@ -366,9 +423,24 @@ class PbirBackend:
                 shutil.rmtree(vdir)
                 return
 
-    def _write_ga_report_json(self) -> None:
+    def _ga_report_json_path(self) -> Path:
         assert self._report_dir
-        report_json = {
+        return self._report_dir / "definition" / "report.json"
+
+    def _ga_read_report_json(self) -> dict[str, Any]:
+        """Read report.json, creating the default if it does not yet exist."""
+        rj = self._ga_report_json_path()
+        if not rj.exists():
+            self._write_ga_report_json()
+        return json.loads(rj.read_text(encoding="utf-8"))
+
+    def _ga_write_report_json(self, data: dict[str, Any]) -> None:
+        rj = self._ga_report_json_path()
+        rj.parent.mkdir(parents=True, exist_ok=True)
+        rj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    def _write_ga_report_json(self) -> None:
+        self._ga_write_report_json({
             "$schema": _schemas.definition_schema("report"),
             "themeCollection": {
                 "baseTheme": {
@@ -377,10 +449,7 @@ class PbirBackend:
                     "type": "SharedResources",
                 }
             },
-        }
-        rj = self._report_dir / "definition" / "report.json"
-        rj.parent.mkdir(parents=True, exist_ok=True)
-        rj.write_text(json.dumps(report_json, indent=2), encoding="utf-8")
+        })
 
     # ── Page / visual duplication & move (PBIR GA) ─────────────────────────────
     # Folder-per-object makes copy cheap, but ids must stay unique: a duplicated
@@ -957,18 +1026,14 @@ class PbirBackend:
             }
         }
 
-        visual = data.setdefault("visual", {})
-        objects = visual.setdefault("objects", {})
+        objects = data.setdefault("visual", {}).setdefault("objects", {})
         values_obj = objects.setdefault("values", [])
-        # Remove ALL existing entries for this field (deduplication)
-        values_obj[:] = [
-            v for v in values_obj if v.get("selector", {}).get("metadata") != query_ref
-        ]
-        values_obj.append(
-            {
-                "selector": selector,
-                "properties": {"backColor": {"solid": {"color": {"expr": gradient_expr}}}},
-            }
+        # Merge into the field's existing entry so a previously-applied data bar,
+        # icon set or font colour on the same field is preserved (Desktop keeps a
+        # single values entry per field with multiple property keys).
+        self._upsert_values_entry(
+            values_obj, selector, query_ref,
+            {"backColor": {"solid": {"color": {"expr": gradient_expr}}}},
         )
         vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return True
@@ -998,25 +1063,19 @@ class PbirBackend:
             "metadata": query_ref,
         }
 
-        visual = data.setdefault("visual", {})
-        objects = visual.setdefault("objects", {})
+        objects = data.setdefault("visual", {}).setdefault("objects", {})
         values_obj = objects.setdefault("values", [])
-        values_obj[:] = [
-            v for v in values_obj if v.get("selector", {}).get("metadata") != query_ref
-        ]
-        values_obj.append(
+        self._upsert_values_entry(
+            values_obj, selector, query_ref,
             {
-                "selector": selector,
-                "properties": {
-                    "dataBarEnabled": {"expr": {"Literal": {"Value": "true"}}},
-                    "positiveColor": {
-                        "solid": {"color": {"expr": {"Literal": {"Value": f"'{positive_color}'"}}}}
-                    },
-                    "negativeColor": {
-                        "solid": {"color": {"expr": {"Literal": {"Value": f"'{negative_color}'"}}}}
-                    },
+                "dataBarEnabled": {"expr": {"Literal": {"Value": "true"}}},
+                "positiveColor": {
+                    "solid": {"color": {"expr": {"Literal": {"Value": f"'{positive_color}'"}}}}
                 },
-            }
+                "negativeColor": {
+                    "solid": {"color": {"expr": {"Literal": {"Value": f"'{negative_color}'"}}}}
+                },
+            },
         )
         vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return True
@@ -1442,6 +1501,107 @@ class PbirBackend:
         objects.setdefault("referenceLine", []).append(entry)
         vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return True
+
+    # ── Analytics: trend line / forecast / sparkline ───────────────────────────
+    # These follow the same objects.<name> analytics-container shape as
+    # referenceLine. Trend and forecast are single-instance objects, so each call
+    # replaces the object (re-applying updates it rather than stacking duplicates).
+
+    def _bool_literal(self, flag: bool) -> dict[str, Any]:
+        return {"expr": {"Literal": {"Value": "true" if flag else "false"}}}
+
+    def _color_solid(self, hex_color: str) -> dict[str, Any]:
+        return {"solid": {"color": {"expr": {"Literal": {"Value": f"'{hex_color}'"}}}}}
+
+    def _num_expr(self, value: float | int) -> dict[str, Any]:
+        return {"expr": {"Literal": {"Value": self._num_literal(value)}}}
+
+    def _require_ga_visual(
+        self, page: str, visual_name: str, feature: str
+    ) -> tuple[Any, dict[str, Any]] | None:
+        self._require_load()
+        if self._format != "pbir_ga":
+            raise RuntimeError(f"{feature} requires PBIR GA format (definition/ folder).")
+        return self._ga_find_visual_json(page, visual_name)
+
+    def visual_add_trend_line(
+        self,
+        page: str,
+        visual_name: str,
+        *,
+        color: str = "#118DFF",
+        style: str = "dashed",
+        transparency: int = 0,
+        combine_series: bool = False,
+    ) -> bool:
+        """Add (or update) a trend line on a cartesian chart. PBIR GA only.
+
+        style: 'solid' | 'dashed' | 'dotted'. Returns True if found and updated.
+        """
+        if style not in ("solid", "dashed", "dotted"):
+            raise ValueError("style must be 'solid', 'dashed' or 'dotted'")
+        found = self._require_ga_visual(page, visual_name, "Trend lines")
+        if not found:
+            return False
+        vj, data = found
+        props = {
+            "show": self._bool_literal(True),
+            "lineColor": self._color_solid(color),
+            "style": {"expr": {"Literal": {"Value": f"'{style}'"}}},
+            "transparency": self._num_expr(transparency),
+            "combineSeries": self._bool_literal(combine_series),
+        }
+        objects = data.setdefault("visual", {}).setdefault("objects", {})
+        objects["trend"] = [{"properties": props}]
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
+    def visual_add_forecast(
+        self,
+        page: str,
+        visual_name: str,
+        *,
+        length: int = 10,
+        confidence_level: float = 0.95,
+        seasonality: int | None = None,
+        ignore_last: int = 0,
+        color: str = "#118DFF",
+        show_confidence_band: bool = True,
+    ) -> bool:
+        """Add (or update) a forecast on a line chart with a date/numeric axis.
+
+        length: number of points to forecast forward. confidence_level: 0..1
+        (e.g. 0.95). seasonality: points per cycle (None = auto-detect).
+        Returns True if the visual was found and updated.
+        """
+        if not 0 < confidence_level < 1:
+            raise ValueError("confidence_level must be between 0 and 1 (e.g. 0.95)")
+        if length < 1:
+            raise ValueError("length must be >= 1")
+        found = self._require_ga_visual(page, visual_name, "Forecast")
+        if not found:
+            return False
+        vj, data = found
+        props: dict[str, Any] = {
+            "show": self._bool_literal(True),
+            "forecastLength": self._num_expr(length),
+            "confidenceLevel": self._num_expr(confidence_level),
+            "confidenceBand": self._bool_literal(show_confidence_band),
+            "ignoreLast": self._num_expr(ignore_last),
+            "lineColor": self._color_solid(color),
+        }
+        if seasonality is not None:
+            props["seasonality"] = self._num_expr(seasonality)
+        objects = data.setdefault("visual", {}).setdefault("objects", {})
+        objects["forecast"] = [{"properties": props}]
+        vj.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return True
+
+    # Note: table/matrix sparklines are intentionally NOT implemented as a format
+    # object. Live testing in Power BI Desktop showed a standalone
+    # ``objects.sparkline`` entry is stripped on load — real sparklines require a
+    # query-level sparkline grouping (an extra projection), not just formatting.
+    # Deferred until that binding is reverse-engineered and verified.
 
     # ── Visual field rebinding ─────────────────────────────────────────────────
 

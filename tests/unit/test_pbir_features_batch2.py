@@ -92,6 +92,26 @@ class TestIconCF:
         assert len(values) == 1
         assert {"backColor", "icon"} <= set(values[0]["properties"])
 
+    def test_color_scale_after_icon_preserves_icon(self, backend):
+        # Reverse order of the merge test: color scale must not clobber the icon
+        # already applied to the same field (regression for the remove-all bug).
+        page, name = self._setup(backend, "ColorAfterIcon")
+        backend.visual_format_icons(page, name, "financials", "Profit")
+        backend.visual_format_color_scale(page, name, "financials", "Profit", mid_color=None)
+        _, d = backend._ga_find_visual_json(page, name)
+        values = d["visual"]["objects"]["values"]
+        assert len(values) == 1
+        assert {"backColor", "icon"} <= set(values[0]["properties"])
+
+    def test_data_bar_and_color_scale_coexist(self, backend):
+        page, name = self._setup(backend, "BarPlusScale")
+        backend.visual_format_data_bar(page, name, "financials", "Profit")
+        backend.visual_format_color_scale(page, name, "financials", "Profit")
+        _, d = backend._ga_find_visual_json(page, name)
+        values = d["visual"]["objects"]["values"]
+        assert len(values) == 1
+        assert {"backColor", "dataBarEnabled"} <= set(values[0]["properties"])
+
 
 # ── Between-bounds colour rules ───────────────────────────────────────────────
 

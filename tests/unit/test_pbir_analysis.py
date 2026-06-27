@@ -75,6 +75,33 @@ class TestExtractFields:
         assert ("Sales", "Revenue", "Column") in fields
         assert ("Sales", "Total Revenue", "Measure") in fields
 
+    def test_resolves_source_alias_to_entity(self):
+        # A query that aliases Sales as "s" and references s.Amount must resolve
+        # back to the real table, not the alias.
+        query = {
+            "From": [{"Name": "s", "Entity": "Sales", "Type": 0}],
+            "Select": [{"Column": {"Expression": {"SourceRef": {"Source": "s"}},
+                                   "Property": "Amount"}}],
+        }
+        fields = extract_fields(query)
+        assert ("Sales", "Amount", "Column") in fields
+        assert all(e != "s" for e, _, _ in fields)
+
+    def test_extracts_hierarchy_level(self):
+        # HierarchyLevel uses Level/Hierarchy keys — the old walk dropped it.
+        node = {
+            "HierarchyLevel": {
+                "Expression": {
+                    "Hierarchy": {
+                        "Expression": {"SourceRef": {"Entity": "Calendar"}},
+                        "Hierarchy": "Date Hierarchy",
+                    }
+                },
+                "Level": "Month",
+            }
+        }
+        assert ("Calendar", "Month", "HierarchyLevel") in extract_fields(node)
+
 
 class TestLint:
     def test_empty_page_and_alt_text(self, tmp_path):
