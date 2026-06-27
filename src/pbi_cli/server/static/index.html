@@ -50,7 +50,8 @@
   <div class="ml-auto flex items-center gap-2">
     <span id="conn-dot" class="w-2 h-2 rounded-full bg-gray-500"></span>
     <span id="conn-label" class="text-xs text-pbi-muted">Connecting…</span>
-    <button onclick="refreshAll()" class="ml-3 text-xs px-2 py-1 rounded bg-pbi-card hover:bg-pbi-border text-pbi-muted">↻ Refresh</button>
+    <button onclick="promptApiKey()" title="Set the server API key (PBI_SERVER_KEY)" class="ml-3 text-xs px-2 py-1 rounded bg-pbi-card hover:bg-pbi-border text-pbi-muted">🔑 Key</button>
+    <button onclick="refreshAll()" class="text-xs px-2 py-1 rounded bg-pbi-card hover:bg-pbi-border text-pbi-muted">↻ Refresh</button>
   </div>
 </header>
 
@@ -202,6 +203,43 @@
 // ── State ──────────────────────────────────────────────────────────
 let state = { tables: [], columns: [], measures: [], relationships: [] };
 
+// ── API auth ───────────────────────────────────────────────────────
+// The server enforces an X-PBI-API-Key header when PBI_SERVER_KEY is set
+// (the default for `pbi server start`). The key is stored in localStorage and
+// sent on every API call; on a 401/403 we prompt once and retry. In keyless
+// mode (`pbi server start --insecure`) no key is needed and nothing is prompted.
+const API_KEY_LS = 'pbiServerApiKey';
+let _keyPrompt = null;  // shared in-flight prompt so concurrent 401s prompt once
+function getApiKey() { return localStorage.getItem(API_KEY_LS) || ''; }
+function setApiKey(k) {
+  if (k) localStorage.setItem(API_KEY_LS, k); else localStorage.removeItem(API_KEY_LS);
+}
+function promptApiKey(msg) {
+  const k = window.prompt(msg || 'Server API key (PBI_SERVER_KEY):', getApiKey());
+  if (k !== null) setApiKey(k.trim());
+  return getApiKey();
+}
+async function apiFetch(url, opts = {}) {
+  const headers = Object.assign({}, opts.headers || {});
+  const key = getApiKey();
+  if (key) headers['X-PBI-API-Key'] = key;
+  let r = await fetch(url, Object.assign({}, opts, { headers }));
+  if (r.status === 401 || r.status === 403) {
+    // Need a key (or the stored one is wrong) — prompt once, share across calls, retry.
+    if (!_keyPrompt) {
+      _keyPrompt = Promise.resolve(
+        promptApiKey('Server requires an API key. Paste your PBI_SERVER_KEY:')
+      ).finally(() => { _keyPrompt = null; });
+    }
+    const k = await _keyPrompt;
+    if (k) {
+      headers['X-PBI-API-Key'] = k;
+      r = await fetch(url, Object.assign({}, opts, { headers }));
+    }
+  }
+  return r;
+}
+
 // ── Navigation ────────────────────────────────────────────────────
 function showSection(name) {
   document.querySelectorAll('section[id^="section-"]').forEach(s => s.classList.add('hidden'));
@@ -213,7 +251,7 @@ function showSection(name) {
 // ── Connection status ──────────────────────────────────────────────
 async function checkConnection() {
   try {
-    const r = await fetch('/api/status');
+    const r = await apiFetch('/api/status');
     const d = await r.json();
     const dot = document.getElementById('conn-dot');
     const lbl = document.getElementById('conn-label');
@@ -236,7 +274,7 @@ async function checkConnection() {
 // ── Data loading ───────────────────────────────────────────────────
 async function loadTables() {
   try {
-    const r = await fetch('/api/tables');
+    const r = await apiFetch('/api/tables');
     state.tables = await r.json();
     document.getElementById('stat-tables').textContent = state.tables.length;
     const el = document.getElementById('dash-tables');
@@ -252,7 +290,7 @@ async function loadTables() {
 
 async function loadColumns() {
   try {
-    const r = await fetch('/api/columns');
+    const r = await apiFetch('/api/columns');
     state.columns = await r.json();
     document.getElementById('stat-cols').textContent = state.columns.length;
     renderColumns();
@@ -283,7 +321,7 @@ function renderColumns() {
 
 async function loadRelationships() {
   try {
-    const r = await fetch('/api/relationships');
+    const r = await apiFetch('/api/relationships');
     state.relationships = await r.json();
     document.getElementById('stat-rels').textContent = state.relationships.length;
     const el = document.getElementById('relationships-content');
@@ -310,7 +348,7 @@ async function loadRelationships() {
 
 async function loadMeasures() {
   try {
-    const r = await fetch('/api/measures');
+    const r = await apiFetch('/api/measures');
     state.measures = await r.json();
     document.getElementById('stat-measures').textContent = state.measures.length;
     renderDashMeasures();
@@ -365,7 +403,7 @@ async function addMeasure() {
   if (!table || !name || !expr) { st.textContent = 'Table, name, and expression are required.'; return; }
   st.textContent = 'Adding…';
   try {
-    const r = await fetch('/api/measures', {
+    const r = await apiFetch('/api/measures', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ table, name, expression: expr, formatString: fmt || undefined })
@@ -383,7 +421,7 @@ async function addMeasure() {
 async function deleteMeasure(table, name) {
   if (!confirm(`Delete measure "${name}" from "${table}"?`)) return;
   try {
-    const r = await fetch(`/api/measures/${encodeURIComponent(table)}/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    const r = await apiFetch(`/api/measures/${encodeURIComponent(table)}/${encodeURIComponent(name)}`, { method: 'DELETE' });
     if (!r.ok) { const d = await r.json(); alert(d.detail || 'Error'); return; }
     await loadMeasures();
   } catch(e) { alert(e.message); }
@@ -395,7 +433,7 @@ async function validateMeasureExpr() {
   if (!expr) { st.textContent = 'Enter an expression first.'; return; }
   st.textContent = 'Validating…';
   try {
-    const r = await fetch('/api/dax/validate', {
+    const r = await apiFetch('/api/dax/validate', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ expression: expr })
     });
@@ -417,7 +455,7 @@ async function runDax() {
   results.innerHTML = '';
   const t0 = Date.now();
   try {
-    const r = await fetch('/api/dax/query', {
+    const r = await apiFetch('/api/dax/query', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ expression: expr })
     });
@@ -454,7 +492,7 @@ async function validateDax() {
   if (!expr) return;
   timing.textContent = 'Validating…';
   try {
-    const r = await fetch('/api/dax/validate', {
+    const r = await apiFetch('/api/dax/validate', {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ expression: expr })
     });
@@ -479,7 +517,7 @@ async function runGovernance() {
   st.textContent = 'Checking…';
   el.innerHTML = '';
   try {
-    const r = await fetch('/api/govern/check');
+    const r = await apiFetch('/api/govern/check');
     const d = await r.json();
     st.textContent = '';
     if (!d.length) {
@@ -503,7 +541,7 @@ async function fixGovernance() {
   const st = document.getElementById('gov-status');
   st.textContent = 'Fixing…';
   try {
-    const r = await fetch('/api/govern/fix', { method: 'POST' });
+    const r = await apiFetch('/api/govern/fix', { method: 'POST' });
     const d = await r.json();
     st.textContent = '✓ Fixed ' + (d.fixed || 0) + ' issues';
     await loadMeasures();
@@ -516,7 +554,7 @@ async function loadDocs() {
   const el = document.getElementById('docs-content');
   el.textContent = 'Generating…';
   try {
-    const r = await fetch('/api/docs/markdown');
+    const r = await apiFetch('/api/docs/markdown');
     const text = await r.text();
     el.innerHTML = `<pre class="text-xs text-pbi-text">${escHtml(text)}</pre>`;
   } catch(e) { el.textContent = 'Error: ' + e.message; }

@@ -14,13 +14,20 @@ try:
     from fastapi.security import APIKeyHeader
     from fastapi.staticfiles import StaticFiles
 
-    from pbi_cli.server.auth import verify_api_key
+    from pbi_cli import __version__
+    from pbi_cli.server.auth import get_configured_key, verify_api_key
 
-    app = FastAPI(title="pbi-server", version="4.0.0.dev0", docs_url="/api/docs")
+    app = FastAPI(title="pbi-server", version=__version__, docs_url="/api/docs")
 
     _api_key_header = APIKeyHeader(name="X-PBI-API-Key", auto_error=False)
 
     def _require_key(api_key: str | None = Security(_api_key_header)) -> str:
+        # Keyless local mode: when no PBI_SERVER_KEY is configured the API is open
+        # (intended for a localhost-only dev session). When a key IS configured it
+        # is enforced. `pbi server start` requires a key by default; `--insecure`
+        # opts into keyless mode explicitly.
+        if get_configured_key() is None:
+            return ""
         if not api_key or not verify_api_key(api_key):
             raise HTTPException(
                 status_code=403,
