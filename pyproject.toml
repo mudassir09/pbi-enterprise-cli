@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pbi-enterprise-cli"
-version = "1.1.1"
+version = "1.2.0"
 description = "Power BI & Microsoft Fabric automation CLI — TMDL/XMLA/REST backends, Python-native BPA governance, DAX testing & lint, PBIR authoring, MCP server, AI measures"
 readme = "README.pypi.md"
 requires-python = ">=3.10"
