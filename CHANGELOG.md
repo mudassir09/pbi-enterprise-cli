@@ -8,6 +8,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed — web dashboard could not authenticate to its own API
+- **The bundled `pbi server` dashboard now sends `X-PBI-API-Key`.** Every `/api/*`
+  data call in `index.html` previously omitted the header, so with a key configured
+  (the default — `pbi server start` requires `PBI_SERVER_KEY`) the dashboard got
+  **403 on everything** except the connection indicator. The frontend now stores the
+  key in `localStorage`, sends it on every request, and prompts once (shared across
+  concurrent calls) on a 401/403; a 🔑 button lets you set/clear it.
+- **Keyless local mode** — when no `PBI_SERVER_KEY` is configured the API is open
+  (was: always 403). `pbi server start --insecure` opts into this for a trusted
+  localhost-only session (refuses any non-localhost bind). With a key set, it is
+  still enforced. The FastAPI app version is now the real package version (was a
+  hard-coded `4.0.0.dev0`).
+
 ### Fixed / Hardened — write safety, fail-closed verification, docs
 - **Atomic TMDL writes** — every on-disk edit by the `file` backend (and the
   `model.tmdl` ref-line helpers) now writes to a temp file in the same directory

@@ -21,7 +21,13 @@ def server() -> None:
     show_default=True,
     help="Host to bind. Use 0.0.0.0 only behind a firewall.",
 )
-def server_start(port: int, host: str) -> None:
+@click.option(
+    "--insecure",
+    is_flag=True,
+    help="Run without authentication (keyless local mode). Forces localhost binding. "
+    "Use only for a trusted single-user session.",
+)
+def server_start(port: int, host: str, insecure: bool) -> None:
     """Start the FastAPI REST server (requires PBI_SERVER_KEY env var).
 
     \b
@@ -32,16 +38,30 @@ def server_start(port: int, host: str) -> None:
     \b
     Call the API:
       curl -H "X-PBI-API-Key: $PBI_SERVER_KEY" http://localhost:7788/api/status
+
+    \b
+    Keyless local session (no auth, localhost only):
+      pbi server start --insecure
     """
     import os
 
-    if not os.environ.get("PBI_SERVER_KEY"):
+    if insecure:
+        # Keyless local mode: the API is open, so refuse to expose it on the network.
+        if host != "127.0.0.1":
+            console.print("[red]--insecure may only bind 127.0.0.1 (localhost).[/red]")
+            raise SystemExit(1)
+        os.environ.pop("PBI_SERVER_KEY", None)  # ensure the app runs keyless
+        console.print(
+            "[yellow]WARNING:[/yellow] running WITHOUT authentication (--insecure). "
+            f"Anyone with access to localhost:{port} can use the API."
+        )
+    elif not os.environ.get("PBI_SERVER_KEY"):
         console.print("[red]PBI_SERVER_KEY is not set.[/red]")
         console.print("Generate one with:  pbi server generate-key")
         console.print("Then set it:        export PBI_SERVER_KEY=<key>")
+        console.print("Or run a keyless local session:  pbi server start --insecure")
         raise SystemExit(1)
-
-    if host != "127.0.0.1":
+    elif host != "127.0.0.1":
         console.print(
             f"[yellow]WARNING:[/yellow] Binding to {host} exposes the server on the network. "
             "Ensure a firewall or VPN is in place."
@@ -53,7 +73,10 @@ def server_start(port: int, host: str) -> None:
         from pbi_cli.server.api import app
 
         console.print(f"[green]Starting pbi-server[/green] on {host}:{port}")
-        console.print("[dim]Authentication: X-PBI-API-Key header required[/dim]")
+        console.print(
+            "[dim]Authentication: keyless (--insecure)[/dim]" if insecure
+            else "[dim]Authentication: X-PBI-API-Key header required[/dim]"
+        )
         uvicorn.run(app, host=host, port=port)
     except ImportError:
         console.print("[red]Server dependencies not installed.[/red]")

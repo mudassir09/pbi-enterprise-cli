@@ -270,3 +270,46 @@ class TestSuggest:
         r = client.post("/api/suggest/visuals", json={"measures": ["Total Revenue"]})
         assert r.status_code == 200
         assert isinstance(r.json(), list)
+
+
+# ── Authentication (the bundled dashboard depends on this) ─────────────────────
+
+
+class TestAuth:
+    """A protected route must: allow keyless when no key is configured, and require a
+    matching X-PBI-API-Key when one is. (The bundled dashboard sends the header.)"""
+
+    def _client(self) -> TestClient:
+        from pbi_cli.server.api import app
+
+        return TestClient(app)  # no default auth header
+
+    def test_keyless_mode_allows_without_header(self, monkeypatch):
+        monkeypatch.delenv("PBI_SERVER_KEY", raising=False)
+        assert self._client().get("/api/tables").status_code == 200
+
+    def test_key_required_when_configured(self, monkeypatch):
+        monkeypatch.setenv("PBI_SERVER_KEY", "secret-key")
+        assert self._client().get("/api/tables").status_code == 403
+
+    def test_wrong_key_rejected(self, monkeypatch):
+        monkeypatch.setenv("PBI_SERVER_KEY", "secret-key")
+        r = self._client().get("/api/tables", headers={"X-PBI-API-Key": "nope"})
+        assert r.status_code == 403
+
+    def test_correct_key_accepted(self, monkeypatch):
+        monkeypatch.setenv("PBI_SERVER_KEY", "secret-key")
+        r = self._client().get("/api/tables", headers={"X-PBI-API-Key": "secret-key"})
+        assert r.status_code == 200
+
+
+class TestServerStartInsecure:
+    def test_insecure_rejects_non_localhost(self, monkeypatch):
+        from click.testing import CliRunner
+
+        from pbi_cli.cli import cli
+
+        monkeypatch.delenv("PBI_SERVER_KEY", raising=False)
+        r = CliRunner().invoke(cli, ["server", "start", "--insecure", "--host", "0.0.0.0"])
+        assert r.exit_code != 0
+        assert "localhost" in r.output.lower()
