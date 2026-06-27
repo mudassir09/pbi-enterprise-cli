@@ -348,7 +348,7 @@ jobs:
 ```yaml
 repos:
   - repo: https://github.com/mudassir09/pbi-enterprise-cli
-    rev: v1.1.1
+    rev: v1.2.0
     hooks:
       - id: pbi-govern
       - id: pbi-dax-lint

@@ -8,6 +8,8 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-06-27
+
 ### Fixed — web dashboard could not authenticate to its own API
 - **The bundled `pbi server` dashboard now sends `X-PBI-API-Key`.** Every `/api/*`
   data call in `index.html` previously omitted the header, so with a key configured
