@@ -13,11 +13,42 @@ unconditionally. `project_scaffold._write_model` is the reference shape.
 
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 from pathlib import Path
 
 _REF_TABLE_RE = re.compile(r"^ref\s+table\s+(?P<name>.+?)\s*$")
 _REF_CULTURE_RE = re.compile(r"^ref\s+cultureInfo\s+(?P<name>.+?)\s*$")
+
+
+def atomic_write_text(path: str | Path, text: str, encoding: str = "utf-8") -> None:
+    """Write *text* to *path* atomically.
+
+    A plain ``Path.write_text`` truncates the destination first, so a crash,
+    full disk, or Ctrl-C mid-write leaves a partial/empty file — unacceptable
+    when the destination is a TMDL file in the user's git repo. This writes to a
+    temp file in the *same* directory (so ``os.replace`` is a same-filesystem
+    rename, which is atomic on POSIX and Windows) and only then swaps it into
+    place. The original is never observed in a half-written state.
+
+    Newline handling matches :meth:`pathlib.Path.write_text` (the default text
+    mode translates ``\\n`` to the platform line ending) so call sites that pass
+    ``"\\n"``-joined TMDL keep their existing on-disk byte shape.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding=encoding) as fh:
+            fh.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def quote_tmdl_name(name: str) -> str:
@@ -70,7 +101,7 @@ def ensure_ref_table(model_tmdl_path: str | Path, table_name: str) -> bool:
             lines.append("")
         lines.append(new_line)
 
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    atomic_write_text(path, "\n".join(lines) + "\n")
     return True
 
 
@@ -101,7 +132,7 @@ def remove_ref_table(model_tmdl_path: str | Path, table_name: str) -> bool:
         target -= 1
     del lines[target:end]
 
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    atomic_write_text(path, "\n".join(lines) + "\n")
     return True
 
 
@@ -121,5 +152,5 @@ def ensure_ref_culture(model_tmdl_path: str | Path, culture: str = "en-US") -> b
     if lines and lines[-1].strip():
         lines.append("")
     lines.append(f"ref cultureInfo {culture}")
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    atomic_write_text(path, "\n".join(lines) + "\n")
     return True

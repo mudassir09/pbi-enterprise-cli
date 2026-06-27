@@ -223,31 +223,53 @@ class TestFileBackend:
         with pytest.raises(NotImplementedError):
             b.dax_query("EVALUATE Sales")
 
-    def test_structural_writes_fail_loud(self, tmdl_project):
-        # These are not persisted to TMDL, so they must raise rather than mutate
-        # in-memory state and report a success that never reaches disk.
+    def test_structural_writes_persist(self, tmdl_project):
+        # Structural edits are now serialised back to TMDL and survive a reload.
+        b = FileBackend(path=tmdl_project)
+        b.column_add("Sales", "Margin", "decimal")
+        b.partition_add("Sales", "p2", "let Source = 1 in Source")
+        b.role_add("Auditor", "Sales", 'Sales[Region] = "East"')
+        b.relationship_add("Sales", "DateKey", "Calendar", "DateKey",
+                            crossFilteringBehavior="bothDirections")
+
+        b2 = FileBackend(path=tmdl_project)
+        assert any(c["name"] == "Margin" for c in b2.column_list("Sales"))
+        assert any(p["name"] == "p2" for p in b2.partition_list("Sales"))
+        assert any(r["name"] == "Auditor" for r in b2.role_list())
+        assert any(
+            r["from"] == "Sales[DateKey]" and r["to"] == "Calendar[DateKey]"
+            and r["crossFilteringBehavior"] == "bothDirections"
+            for r in b2.relationship_list()
+        )
+
+    def test_partition_refresh_still_fails_loud(self, tmdl_project):
+        # No engine to process data — refresh must raise, not pretend success.
         b = FileBackend(path=tmdl_project)
         with pytest.raises(NotImplementedError):
-            b.table_add("NewTable")
-        with pytest.raises(NotImplementedError):
-            b.table_delete("Sales")
-        with pytest.raises(NotImplementedError):
-            b.column_add("Sales", "Margin", "decimal")
-        with pytest.raises(NotImplementedError):
-            b.relationship_add("Sales", "DateKey", "Calendar", "DateKey")
-        with pytest.raises(NotImplementedError):
-            b.partition_add("Sales", "p2", "let Source = 1 in Source")
-        with pytest.raises(NotImplementedError):
-            b.role_add("Auditor", "Sales", "Sales[Region] = \"East\"")
+            b.partition_refresh("Sales", "Sales")
 
-    def test_failed_table_add_leaves_disk_untouched(self, tmdl_project):
+    def test_table_add_persists_and_syncs_ref(self, tmdl_project):
         b = FileBackend(path=tmdl_project)
         d = tmdl_project / "Demo.SemanticModel" / "definition"
-        before = (d / "model.tmdl").read_text(encoding="utf-8")
-        with pytest.raises(NotImplementedError):
-            b.table_add("Ghost")
-        assert (d / "model.tmdl").read_text(encoding="utf-8") == before
+        b.table_add("Ghost")
+        assert (d / "tables" / "Ghost.tmdl").exists()
+        # model.tmdl gains the ref table line (TMDL does not auto-discover files).
+        assert "ref table Ghost" in (d / "model.tmdl").read_text(encoding="utf-8")
+        assert "Ghost" in {t["name"] for t in FileBackend(path=tmdl_project).table_list()}
+
+    def test_table_delete_removes_file_and_ref(self, tmdl_project):
+        b = FileBackend(path=tmdl_project)
+        d = tmdl_project / "Demo.SemanticModel" / "definition"
+        b.table_add("Ghost")
+        b.table_delete("Ghost")
         assert not (d / "tables" / "Ghost.tmdl").exists()
+        assert "ref table Ghost" not in (d / "model.tmdl").read_text(encoding="utf-8")
+
+    def test_column_delete_persists(self, tmdl_project):
+        b = FileBackend(path=tmdl_project)
+        b.column_delete("Sales", "Revenue")
+        names = [c["name"] for c in FileBackend(path=tmdl_project).column_list("Sales")]
+        assert "Revenue" not in names and "SalesKey" in names
 
     def test_dax_validate_static(self, tmdl_project):
         b = FileBackend(path=tmdl_project)
@@ -279,10 +301,9 @@ class TestFileBackendCli:
         )
         assert result.exit_code != 0
 
-    def test_source_scaffold_fails_loud_on_file_backend(self, tmdl_project):
-        # `source scaffold` materialises tables via backend.table_add — on the file
-        # backend that cannot persist, so it must fail loud, not report success
-        # while writing nothing to disk.
+    def test_source_scaffold_persists_on_file_backend(self, tmdl_project):
+        # `source scaffold` materialises tables via backend.table_add — now
+        # persisted to TMDL on the file backend.
         profile = tmdl_project / "profile.json"
         profile.write_text(
             json.dumps(
@@ -305,8 +326,6 @@ class TestFileBackendCli:
             encoding="utf-8",
         )
         d = tmdl_project / "Demo.SemanticModel" / "definition"
-        model_before = (d / "model.tmdl").read_text(encoding="utf-8")
-        tables_before = {p.name for p in (d / "tables").glob("*.tmdl")}
 
         runner = CliRunner()
         result = runner.invoke(
@@ -315,9 +334,13 @@ class TestFileBackendCli:
              "source", "scaffold", "--profile", str(profile)],
         )
 
-        assert result.exit_code != 0
-        assert isinstance(result.exception, NotImplementedError)
-        assert "Scaffolded" not in result.output
-        # Nothing was written: model.tmdl and the tables folder are untouched.
-        assert (d / "model.tmdl").read_text(encoding="utf-8") == model_before
-        assert {p.name for p in (d / "tables").glob("*.tmdl")} == tables_before
+        assert result.exit_code == 0
+        # Tables were materialised to disk and ref-table lines added to model.tmdl.
+        assert (d / "tables" / "FactOrders.tmdl").exists()
+        assert (d / "tables" / "DimDate.tmdl").exists()
+        model_text = (d / "model.tmdl").read_text(encoding="utf-8")
+        assert "ref table FactOrders" in model_text and "ref table DimDate" in model_text
+        # Re-parsing the project sees the scaffolded tables and their columns.
+        b = FileBackend(path=tmdl_project)
+        assert {"FactOrders", "DimDate"}.issubset({t["name"] for t in b.table_list()})
+        assert {c["name"] for c in b.column_list("FactOrders")} == {"OrderKey", "Amount"}
