@@ -296,10 +296,14 @@ def fabric_lineage(workspace_id: str, output_json: bool) -> None:
 # ---------------------------------------------------------------------------
 
 import base64 as _b64  # noqa: E402
+import shutil as _shutil  # noqa: E402
+import tempfile as _tempfile  # noqa: E402
 from pathlib import Path as _Path  # noqa: E402
 
 from pbi_cli import fabric_api as _fab  # noqa: E402
 from pbi_cli.commands._shared import output_json_or_table as _out  # noqa: E402
+from pbi_cli.fabric_api import FabricApiError  # noqa: E402  (stable except target)
+from pbi_cli.tmdl_util import atomic_write_text as _atomic_write_text  # noqa: E402
 
 
 def _folder_to_parts(folder: _Path) -> list[dict]:
@@ -1001,3 +1005,564 @@ def ontology_delete(ctx: click.Context, workspace_id: str, ontology_id: str, yes
     _fab.delete(f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/ontologies/{ontology_id}",
                 token)
     console.print(f"[green]Deleted ontology {ontology_id}.[/green]")
+
+
+# --- Reports: PBIR-specific CRUD + definition transport ---
+
+
+def _resolve_report(workspace_id: str, name_or_id: str, token: str) -> str:
+    """Resolve a report display name or GUID to a report ID."""
+    import re
+    if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                    name_or_id, re.IGNORECASE):
+        return name_or_id
+    reports = _fab.get_paged(
+        f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/reports", token
+    )
+    for r in reports:
+        if r.get("displayName", "").lower() == name_or_id.lower():
+            return r["id"]
+    raise click.ClickException(
+        f"Report '{name_or_id}' not found in workspace {workspace_id}."
+    )
+
+
+def _model_inventory(workspace_id: str, dataset_id: str, token: str) -> dict[str, Any]:
+    """Return the model's tables, columns and measures by parsing its TMDL definition.
+
+    Downloads the semantic model's TMDL via ``getDefinition`` (the LRO result) and
+    reads the schema with the pure-Python ``FileBackend`` parser. This is robust
+    across every model type — verified live that the ``executeQueries`` ``INFO.*``
+    functions are *not* available on all models, whereas the TMDL definition always
+    is. Propagates ``FabricApiError`` so callers can fail *closed* (abort the push)
+    rather than assume the model is fine when it could not actually be read.
+
+    Returns ``{"tables": set[str], "columns": set[(table, column)],
+    "measures": set[str]}``.
+    """
+    url = (
+        f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}"
+        f"/semanticModels/{dataset_id}/getDefinition?format=TMDL"
+    )
+    result = _fab.poll_lro(_fab.post(url, token, payload={}), token)
+    parts = (result.get("definition") or {}).get("parts", []) if isinstance(result, dict) else []
+    if not parts:
+        raise FabricApiError(
+            0, f"Could not retrieve the TMDL definition for semantic model {dataset_id}."
+        )
+    tmp = _Path(_tempfile.mkdtemp(prefix="pbi-bindverify-"))
+    try:
+        _fab.decode_parts(parts, tmp)
+        from pbi_cli.backends.file_backend import FileBackend
+
+        fb = FileBackend(path=tmp)
+        return {
+            "tables": {t["name"] for t in fb.table_list()},
+            "columns": {(c["table"], c["name"]) for c in fb.column_list()},
+            "measures": {m["name"] for m in fb.measure_list()},
+        }
+    finally:
+        _shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _report_level_measures(pbir_folder: _Path) -> set[str]:
+    """Names of report-level measures (reportExtensions.json) — valid but not in the model."""
+    names: set[str] = set()
+    ext = pbir_folder / "definition" / "reportExtensions.json"
+    if ext.exists():
+        try:
+            data = json.loads(ext.read_text(encoding="utf-8"))
+            for entity in data.get("entities", []):
+                for meas in entity.get("measures", []):
+                    n = meas.get("name")
+                    if isinstance(n, str) and n:
+                        names.add(n)
+        except Exception:
+            pass
+    return names
+
+
+def _collect_refs(pbir_folder: _Path) -> dict[str, Any]:
+    """Collect every table/column/measure binding referenced by the report's visuals.
+
+    PBIR field expressions name a table via ``SourceRef.Entity`` and a field via
+    ``Property`` inside a ``Column`` or ``Measure`` node; bare ``Entity`` strings
+    (From clauses, filters) are table references too. Returns the same shape as
+    :func:`_model_inventory`.
+    """
+    refs: dict[str, Any] = {"tables": set(), "columns": set(), "measures": set()}
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for kind in ("Column", "Measure"):
+                spec = node.get(kind)
+                if isinstance(spec, dict):
+                    ent = ((spec.get("Expression") or {}).get("SourceRef") or {}).get("Entity")
+                    prop = spec.get("Property")
+                    if isinstance(ent, str) and ent:
+                        refs["tables"].add(ent)
+                        if isinstance(prop, str) and prop:
+                            if kind == "Column":
+                                refs["columns"].add((ent, prop))
+                            else:
+                                refs["measures"].add(prop)
+            ent = node.get("Entity")
+            if isinstance(ent, str) and ent:
+                refs["tables"].add(ent)
+            for val in node.values():
+                _walk(val)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    for vf in pbir_folder.rglob("visual.json"):
+        try:
+            _walk(json.loads(vf.read_text(encoding="utf-8")))
+        except Exception:
+            pass
+    return refs
+
+
+def _verify_bindings(
+    pbir_folder: _Path, workspace_id: str, dataset_id: str, token: str
+) -> list[str]:
+    """Return human-readable bindings referenced by the report that the model lacks.
+
+    Checks table (``Entity``), column (``table[column]``) and measure references
+    against the target semantic model's actual tables/columns/measures. Column
+    mismatches are only reported when the table exists (a missing table already
+    covers its columns); report-level measures are treated as valid.
+
+    Raises ``FabricApiError`` if the model cannot be inventoried — the caller must
+    treat that as a verification *failure*, never a pass. A safety check that
+    silently passes when it couldn't run is worse than no check at all.
+    """
+    refs = _collect_refs(pbir_folder)
+    if not (refs["tables"] or refs["columns"] or refs["measures"]):
+        return []
+    inv = _model_inventory(workspace_id, dataset_id, token)
+    local_measures = _report_level_measures(pbir_folder)
+
+    mismatches: list[str] = []
+    for t in sorted(refs["tables"] - inv["tables"]):
+        mismatches.append(f"table '{t}'")
+    for tname, cname in sorted(refs["columns"]):
+        if tname in inv["tables"] and (tname, cname) not in inv["columns"]:
+            mismatches.append(f"column {tname}[{cname}]")
+    for m in sorted(refs["measures"] - inv["measures"] - local_measures):
+        mismatches.append(f"measure '{m}'")
+    return mismatches
+
+
+def _datasetref_kind(pbir_folder: _Path) -> str | None:
+    """Return 'byPath' / 'byConnection' / None for the report's definition.pbir binding."""
+    pbir = pbir_folder / "definition.pbir"
+    if not pbir.exists():
+        return None
+    try:
+        ref = (json.loads(pbir.read_text(encoding="utf-8")).get("datasetReference") or {})
+    except Exception:
+        return None
+    if "byConnection" in ref:
+        return "byConnection"
+    if "byPath" in ref:
+        return "byPath"
+    return None
+
+
+# definition.pbir property schema. Fabric's report import rejects a definition.pbir
+# missing $schema with an opaque "Workload_FailedToParseFile" (verified live), so a
+# rebind ensures it is present.
+_PBIR_DEFINITION_SCHEMA = (
+    "https://developer.microsoft.com/json-schemas/fabric/item/report"
+    "/definitionProperties/2.0.0/schema.json"
+)
+
+
+def _byconnection_ref(workspace_name: str, model_name: str, dataset_id: str) -> dict[str, Any]:
+    """Build the PBIR ``byConnection`` reference Fabric itself emits for a live model.
+
+    Verified against a real Fabric report: the shape is a single ``connectionString``
+    (not the XMLA-style ``pbiModelDatabaseName`` form) keyed by ``semanticmodelid``.
+    """
+    cs = (
+        f"Data Source=powerbi://api.powerbi.com/v1.0/myorg/{workspace_name};"
+        f'initial catalog="{model_name}";integrated security=ClaimsToken;'
+        f"semanticmodelid={dataset_id}"
+    )
+    return {"byConnection": {"connectionString": cs}}
+
+
+def _display_name(url: str, token: str, default: str) -> str:
+    """Resolve an item/workspace displayName via REST, falling back to *default*."""
+    try:
+        data = _fab.get(url, token)
+    except FabricApiError:
+        return default
+    name = data.get("displayName") if isinstance(data, dict) else None
+    return name or default
+
+
+def _rebind_pbir(
+    pbir_folder: _Path, dataset_id: str, workspace_name: str, model_name: str
+) -> bool:
+    """Rewrite definition.pbir's datasetReference to a live byConnection.
+
+    A locally-authored .pbip binds to a *sibling* ``.SemanticModel`` folder with a
+    ``byPath`` reference; Fabric requires a live ``byConnection`` reference to a
+    *published* model. First-time publish must rebind or the report uploads
+    unbound and every visual renders empty. Idempotent — returns True if changed.
+    """
+    pbir = pbir_folder / "definition.pbir"
+    if not pbir.exists():
+        return False
+    data = json.loads(pbir.read_text(encoding="utf-8"))
+    ref = data.get("datasetReference") or {}
+    conn = (ref.get("byConnection") or {}).get("connectionString") or ""
+    if "byPath" not in ref and f"semanticmodelid={dataset_id}".lower() in conn.lower():
+        return False  # already bound to this model
+    data["datasetReference"] = _byconnection_ref(workspace_name, model_name, dataset_id)
+    # A .pbip whose definition.pbir omits these fails Fabric's import; ensure they exist.
+    data.setdefault("$schema", _PBIR_DEFINITION_SCHEMA)
+    data.setdefault("version", "4.0")
+    _atomic_write_text(pbir, json.dumps(data, indent=2))
+    return True
+
+
+def _parse_remaps(remaps: tuple[str, ...]) -> dict[str, str]:
+    """Parse repeatable ``--remap Old=New`` options into a substitution map."""
+    mapping: dict[str, str] = {}
+    for raw in remaps:
+        if "=" not in raw:
+            raise click.UsageError(f"--remap expects 'Old=New', got: {raw!r}")
+        old, _, new = raw.partition("=")
+        old, new = old.strip(), new.strip()
+        if not old or not new:
+            raise click.UsageError(f"--remap expects non-empty 'Old=New', got: {raw!r}")
+        mapping[old] = new
+    return mapping
+
+
+def _apply_remap(pbir_folder: _Path, mapping: dict[str, str]) -> int:
+    """Rename table (``Entity``) references across every visual.json. Returns the count.
+
+    Deterministic, user-specified substitutions for migrations where the target
+    model renamed a table. Binding lives in ``Entity``; ``queryRef`` strings are
+    cosmetic and regenerated by Power BI, so only ``Entity`` is rewritten.
+    """
+    if not mapping:
+        return 0
+    total = 0
+    for vf in pbir_folder.rglob("visual.json"):
+        try:
+            data = json.loads(vf.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        changed = 0
+
+        def _walk(node: Any) -> None:
+            nonlocal changed
+            if isinstance(node, dict):
+                ent = node.get("Entity")
+                if isinstance(ent, str) and ent in mapping:
+                    node["Entity"] = mapping[ent]
+                    changed += 1
+                for val in node.values():
+                    _walk(val)
+            elif isinstance(node, list):
+                for item in node:
+                    _walk(item)
+
+        _walk(data)
+        if changed:
+            _atomic_write_text(vf, json.dumps(data, indent=2))
+            total += changed
+    return total
+
+
+@fabric_cmd.group("report")
+def fabric_report() -> None:
+    """Report items: PBIR-aware CRUD, pull/push round-trip, binding verification."""
+
+
+@fabric_report.command("list")
+@click.option("--workspace", "workspace_id", required=True, help="Workspace id.")
+@click.pass_context
+def report_list(ctx: click.Context, workspace_id: str) -> None:
+    """List all reports in a workspace."""
+    token = _fab.get_token()
+    reports = _fab.get_paged(
+        f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/reports", token
+    )
+    rows = [
+        {
+            "id": r.get("id", ""),
+            "name": r.get("displayName", ""),
+            "datasetId": r.get("datasetId", ""),
+            "description": r.get("description", ""),
+        }
+        for r in reports
+    ]
+    _out(rows, ctx, title=f"Reports in {workspace_id[:8]}…")
+
+
+@fabric_report.command("get")
+@click.option("--workspace", "workspace_id", required=True)
+@click.option("--report", "report_ref", required=True, help="Report name or id.")
+@click.pass_context
+def report_get(ctx: click.Context, workspace_id: str, report_ref: str) -> None:
+    """Get report metadata."""
+    token = _fab.get_token()
+    report_id = _resolve_report(workspace_id, report_ref, token)
+    result = _fab.get(
+        f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/reports/{report_id}", token
+    )
+    _out(result, ctx, title="Report")
+
+
+@fabric_report.command("pull")
+@click.option("--workspace", "workspace_id", required=True)
+@click.option("--report", "report_ref", required=True, help="Report name or id.")
+@click.option("--output", "output_dir", default=None, type=click.Path(),
+              help="Local directory to write PBIR files. Defaults to <report-name>.Report/")
+@click.pass_context
+def report_pull(
+    ctx: click.Context, workspace_id: str, report_ref: str, output_dir: str | None
+) -> None:
+    """Download a report's PBIR definition to a local folder.
+
+    Retrieves the definition from Fabric (getDefinition?format=PBIR), polls the LRO
+    to completion, and decodes all parts into a local directory ready for editing
+    with 'pbi report' and 'pbi visual' commands.
+
+    Examples:
+
+      pbi fabric report pull --workspace <id> --report "Sales Dashboard"
+      pbi fabric report pull --workspace <id> --report <report-id> --output ./local/Sales.Report
+    """
+    token = _fab.get_token()
+    report_id = _resolve_report(workspace_id, report_ref, token)
+    url = (
+        f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/reports/{report_id}"
+        "/getDefinition?format=PBIR"
+    )
+    result = _fab.poll_lro(_fab.post(url, token, payload={}), token)
+    parts = (result.get("definition") or {}).get("parts", [])
+    if not parts:
+        raise click.ClickException(
+            "No definition parts returned — report may be in PBIR-Legacy format "
+            "which is not supported. Use 'pbi fabric item get --format PBIR' to check."
+        )
+    dest = _Path(output_dir) if output_dir else _Path(f"{report_ref}.Report")
+    written = _parts_to_folder(parts, dest)
+    console.print(f"[green]{len(written)} file(s) written to {dest}[/green]")
+    console.print(
+        f"  Edit locally, then push back:\n"
+        f"  [cyan]pbi fabric report push --workspace {workspace_id} "
+        f"--report '{report_ref}' --definition {dest}[/cyan]"
+    )
+
+
+@fabric_report.command("push")
+@click.option("--workspace", "workspace_id", required=True)
+@click.option("--report", "report_ref", required=True,
+              help="Report display name. Used to detect create-vs-update.")
+@click.option("--definition", "definition_dir", required=True, type=click.Path(exists=True),
+              help="Local PBIR folder to upload (e.g. MyReport.Report/).")
+@click.option("--dataset-id", default=None,
+              help="Semantic model id to bind. Required when creating a new report.")
+@click.option("--bind-verify", is_flag=True,
+              help="Verify every table/column/measure reference in the report exists in the "
+                   "target semantic model before pushing. Requires --dataset-id. Prevents the "
+                   "most common publish failure (name mismatches → empty visuals).")
+@click.option("--remap", "remaps", multiple=True,
+              help="Rename a table reference before push: --remap 'Old=New' (repeatable). "
+                   "Use when the target model renamed a table. Applied to a temp copy; your "
+                   "local files are not modified.")
+@click.option("--description", default=None)
+@click.pass_context
+def report_push(
+    ctx: click.Context,
+    workspace_id: str,
+    report_ref: str,
+    definition_dir: str,
+    dataset_id: str | None,
+    bind_verify: bool,
+    remaps: tuple[str, ...],
+    description: str | None,
+) -> None:
+    """Publish a local PBIR folder to Fabric — creates or updates automatically.
+
+    Checks whether a report with the given name already exists in the workspace.
+    If it does, runs updateDefinition (LRO). If not, creates a new report item.
+
+    When --dataset-id is given the report's definition.pbir is rebound to that
+    published model (byConnection) — required for a locally-authored .pbip, whose
+    model reference is a local byPath. Transforms are applied to a temp copy, so
+    your local files are never modified.
+
+    Examples:
+
+      # First publish (create) — rebinds the local byPath model to the Fabric model:
+      pbi fabric report push --workspace <id> --report "Sales" \
+        --definition ./Sales.Report --dataset-id <id>
+
+      # Re-publish after local edits (update):
+      pbi fabric report push --workspace <id> --report "Sales" --definition ./Sales.Report
+
+      # Publish with binding check + a table rename:
+      pbi fabric report push --workspace <id> --report "Sales" --definition ./Sales.Report \\
+        --dataset-id <id> --bind-verify --remap "Sales Data=Sales"
+    """
+    token = _fab.get_token()
+    src = _Path(definition_dir)
+    remap_map = _parse_remaps(remaps)
+
+    # Warn early if publishing a local (byPath) report with no model to bind to.
+    if not dataset_id and _datasetref_kind(src) == "byPath":
+        console.print(
+            "[yellow]Warning:[/yellow] this report's definition.pbir uses a local "
+            "(byPath) model reference. Without --dataset-id it publishes unbound and "
+            "visuals may render empty. Pass --dataset-id <model-id> to rebind it."
+        )
+
+    tmp_root: _Path | None = None
+    try:
+        # Apply transforms on a throwaway copy — never mutate the user's local files.
+        if dataset_id or remap_map:
+            tmp_root = _Path(_tempfile.mkdtemp(prefix="pbi-report-push-"))
+            push_dir = tmp_root / src.name
+            _shutil.copytree(src, push_dir)
+            if dataset_id:
+                base = f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}"
+                ws_name = _display_name(base, token, workspace_id)
+                model_name = _display_name(f"{base}/items/{dataset_id}", token, dataset_id)
+                if _rebind_pbir(push_dir, dataset_id, ws_name, model_name):
+                    console.print(
+                        f"[cyan]Rebound report to semantic model "
+                        f"'{model_name}' ({dataset_id}) via byConnection.[/cyan]"
+                    )
+            if remap_map:
+                n = _apply_remap(push_dir, remap_map)
+                pairs = ", ".join(f"{k}→{v}" for k, v in remap_map.items())
+                console.print(f"[cyan]Remapped {n} table reference(s): {pairs}[/cyan]")
+        else:
+            push_dir = src
+
+        if bind_verify:
+            if not dataset_id:
+                raise click.ClickException("--bind-verify requires --dataset-id.")
+            console.print("[cyan]Verifying bindings…[/cyan]")
+            try:
+                mismatches = _verify_bindings(push_dir, workspace_id, dataset_id, token)
+            except FabricApiError as exc:
+                # Fail closed: if we could not query the model we must NOT pretend the
+                # bindings are valid. Abort so the user fixes access or skips the check.
+                raise click.ClickException(
+                    f"Could not verify bindings — the semantic model could not be queried "
+                    f"({exc}). Check --dataset-id and your access to the model, or re-run "
+                    f"without --bind-verify to skip the check."
+                )
+            if mismatches:
+                raise click.ClickException(
+                    f"Binding check failed — {len(mismatches)} reference(s) not found in the "
+                    f"semantic model:\n  " + "\n  ".join(mismatches)
+                    + "\nFix the field references, pass --remap 'Old=New' to rename a table, "
+                      "or check --dataset-id."
+                )
+            console.print("[green]Binding check passed.[/green]")
+
+        parts = _folder_to_parts(push_dir)
+
+        existing_id: str | None = None
+        try:
+            existing_id = _resolve_report(workspace_id, report_ref, token)
+        except click.ClickException:
+            pass  # doesn't exist yet → create
+
+        if existing_id:
+            url = (
+                f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/reports/{existing_id}"
+                "/updateDefinition?updateMetadata=true"
+            )
+            result = _fab.poll_lro(
+                _fab.post(url, token, payload={"definition": {"parts": parts}}), token
+            )
+            summary = result if isinstance(result, dict) else {
+                "status": "Succeeded", "reportId": existing_id,
+            }
+            _out(summary, ctx, title="Report Updated")
+        else:
+            if not dataset_id:
+                raise click.ClickException(
+                    "Creating a new report requires --dataset-id. "
+                    "If updating an existing report, ensure --report matches the exact "
+                    "display name."
+                )
+            payload: dict = {
+                "displayName": report_ref,
+                "type": "Report",
+                "definition": {"parts": parts},
+            }
+            if description:
+                payload["description"] = description
+            result = _fab.poll_lro(
+                _fab.post(
+                    f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/reports",
+                    token, payload=payload,
+                ),
+                token,
+            )
+            _out(result, ctx, title="Report Created")
+    finally:
+        if tmp_root is not None:
+            _shutil.rmtree(tmp_root, ignore_errors=True)
+
+
+@fabric_report.command("update")
+@click.option("--workspace", "workspace_id", required=True)
+@click.option("--report", "report_ref", required=True, help="Report name or id.")
+@click.option("--name", "new_name", default=None, help="New display name.")
+@click.option("--description", default=None, help="New description.")
+@click.pass_context
+def report_update(
+    ctx: click.Context,
+    workspace_id: str,
+    report_ref: str,
+    new_name: str | None,
+    description: str | None,
+) -> None:
+    """Update a report's display name or description (metadata only, no definition change)."""
+    token = _fab.get_token()
+    report_id = _resolve_report(workspace_id, report_ref, token)
+    payload: dict = {}
+    if new_name:
+        payload["displayName"] = new_name
+    if description:
+        payload["description"] = description
+    if not payload:
+        raise click.UsageError("Provide at least one of --name or --description.")
+    result = _fab.patch(
+        f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/reports/{report_id}",
+        token, payload=payload,
+    )
+    _out(result if isinstance(result, dict) else {"status": "Updated"}, ctx, title="Report Updated")
+
+
+@fabric_report.command("delete")
+@click.option("--workspace", "workspace_id", required=True)
+@click.option("--report", "report_ref", required=True, help="Report name or id.")
+@click.option("--yes", is_flag=True, help="Skip confirmation.")
+@click.pass_context
+def report_delete(
+    ctx: click.Context, workspace_id: str, report_ref: str, yes: bool
+) -> None:
+    """Delete a report from a workspace."""
+    token = _fab.get_token()
+    report_id = _resolve_report(workspace_id, report_ref, token)
+    if not yes:
+        click.confirm(f"Delete report '{report_ref}' ({report_id})?", abort=True)
+    _fab.delete(
+        f"{_fab.FABRIC_API_BASE}/workspaces/{workspace_id}/reports/{report_id}", token
+    )
+    console.print(f"[green]Deleted report '{report_ref}'.[/green]")

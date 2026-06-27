@@ -47,6 +47,26 @@ class TestRequest:
         assert out["status"] == 200
         assert "headers" in out
 
+    def test_202_null_body_keeps_status_and_location(self):
+        # Regression: a Fabric LRO returns 202 with the JSON literal `null` and the
+        # operation URL in Location. json.loads("null") is None, which previously
+        # discarded the status + headers and broke every LRO (pull/push, fabric backend).
+        resp = _FakeResp(
+            b"null", status=202,
+            headers={"Content-Type": "application/json", "Location": "https://op/1"},
+        )
+        with patch("urllib.request.urlopen", return_value=resp):
+            out = fa.request("POST", "https://x", "tok", payload={})
+        assert out is not None
+        assert out["status"] == 202
+        assert out["headers"]["Location"] == "https://op/1"
+
+    def test_null_json_body_non_202_returns_envelope_not_none(self):
+        with patch("urllib.request.urlopen", return_value=_FakeResp(b"null", status=200)):
+            out = fa.request("GET", "https://x", "tok")
+        assert out is not None
+        assert out["status"] == 200
+
     def test_http_error_maps_to_fabric_api_error(self):
         err = urllib.error.HTTPError(
             "https://x", 403, "Forbidden", {}, io.BytesIO(b'{"error":"denied"}')
@@ -82,10 +102,32 @@ class TestPollLro:
     def test_polls_until_succeeded(self):
         accepted = {"status": 202, "headers": {"Location": "https://op/1"}}
         with patch.object(fa, "get", side_effect=[
-            {"status": "Running"}, {"status": "Succeeded", "id": "x"}
+            {"status": "Running"},
+            {"status": "Succeeded", "id": "x"},
+            fa.FabricApiError(404, "no result"),  # status-only op has no /result
         ]), patch("time.sleep", return_value=None):
             out = fa.poll_lro(accepted, "tok")
         assert out["status"] == "Succeeded"
+
+    def test_succeeded_fetches_result_subresource(self):
+        # getDefinition's payload lives at {operation}/result, not in the status.
+        accepted = {"status": 202, "headers": {"Location": "https://op/1"}}
+        with patch.object(fa, "get", side_effect=[
+            {"status": "Succeeded"},
+            {"definition": {"parts": [{"path": "definition.pbir"}]}},  # /result
+        ]), patch("time.sleep", return_value=None):
+            out = fa.poll_lro(accepted, "tok")
+        assert out["definition"]["parts"] == [{"path": "definition.pbir"}]
+
+    def test_succeeded_result_envelope_falls_back_to_status(self):
+        # An empty /result (bare status/headers envelope) → return the op status.
+        accepted = {"status": 202, "headers": {"Location": "https://op/1"}}
+        with patch.object(fa, "get", side_effect=[
+            {"status": "Succeeded", "id": "x"},
+            {"status": 200, "headers": {}},  # /result with no real content
+        ]), patch("time.sleep", return_value=None):
+            out = fa.poll_lro(accepted, "tok")
+        assert out["id"] == "x"
 
     def test_failed_operation_raises(self):
         accepted = {"status": 202, "headers": {"Location": "https://op/1"}}

@@ -119,6 +119,67 @@ class TestDisconnectCleansUp:
         assert not tmp.exists()
 
 
+def _update_calls(post_mock):
+    """The updateDefinition POSTs == the number of real remote pushes performed."""
+    return [c for c in post_mock.call_args_list if "updateDefinition" in c.args[0]]
+
+
+class TestBatching:
+    def test_each_write_pushes_without_batch(self):
+        token, post, poll = _mock_rest()
+        with token, post as post_mock, poll:
+            b = _make_backend()
+            b.measure_add("Sales", "A", "1")
+            b.measure_add("Sales", "B", "2")
+            b.measure_add("Sales", "C", "3")
+            n = len(_update_calls(post_mock))
+            b.disconnect()
+        assert n == 3  # three separate full-definition pushes
+
+    def test_batch_coalesces_to_single_push(self):
+        token, post, poll = _mock_rest()
+        with token, post as post_mock, poll:
+            b = _make_backend()
+            with b.batch():
+                b.measure_add("Sales", "A", "1")
+                b.measure_add("Sales", "B", "2")
+                b.measure_add("Sales", "C", "3")
+                assert len(_update_calls(post_mock)) == 0  # nothing pushed mid-batch
+            after = len(_update_calls(post_mock))
+            b.disconnect()
+        assert after == 1  # one push on batch exit
+
+    def test_batch_with_no_edits_pushes_nothing(self):
+        token, post, poll = _mock_rest()
+        with token, post as post_mock, poll:
+            b = _make_backend()
+            with b.batch():
+                pass
+            n = len(_update_calls(post_mock))
+            b.disconnect()
+        assert n == 0
+
+    def test_disconnect_flushes_deferred_edits(self):
+        token, post, poll = _mock_rest()
+        with token, post as post_mock, poll:
+            b = _make_backend()
+            b._defer_push = True  # simulate mid-batch teardown via disconnect()
+            b.measure_add("Sales", "A", "1")
+            assert len(_update_calls(post_mock)) == 0
+            b.disconnect()
+            assert len(_update_calls(post_mock)) == 1  # flushed, not dropped
+
+
+class TestContextManager:
+    def test_context_manager_cleans_up_tempdir(self):
+        token, post, poll = _mock_rest()
+        with token, post, poll:
+            with _make_backend() as b:
+                tmp = b._tmpdir
+                assert tmp.exists()
+            assert not tmp.exists()  # __exit__ → disconnect → cleanup
+
+
 class TestCliWiring:
     def test_missing_ids_errors(self):
         result = CliRunner().invoke(cli, ["--backend", "fabric", "measure", "list"])
