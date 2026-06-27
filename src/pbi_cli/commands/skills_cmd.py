@@ -36,8 +36,11 @@ def _version_tuple(v: str) -> tuple[int, ...]:
     """Convert '4.0.0' → (4, 0, 0)."""
     return tuple(int(x) for x in re.split(r"[.\-]", v) if x.isdigit())
 
-# Consolidated skill set: 24 narrow skills → 10 broad category-based skills.
-# Every original topic area is preserved inside the consolidated skill files.
+# Consolidated skill set. The original 24 narrow skills were folded into 10 broad
+# category-based skills (every topic preserved inside them); two report-workflow
+# skills (report-management, report-planner) were added later — 12 in total. This
+# list is the single source of truth: `pbi skills`, `pbi connect`, the README
+# skill table and tests/unit/test_docs_consistency.py all derive from it.
 _BUNDLED_SKILLS: list[dict[str, Any]] = [
     {
         "name": "power-bi-modeling",
@@ -107,6 +110,20 @@ _BUNDLED_SKILLS: list[dict[str, Any]] = [
         "description": (
             "Coordinates multi-skill workflows: model → DAX → governance → report → deploy. "
             "Knows which skill to invoke, handles handoffs, resolves conflicts"
+        ),
+    },
+    {
+        "name": "power-bi-report-management",
+        "description": (
+            "Publish, download, update, and delete PBIR reports in Fabric workspaces. "
+            "Covers pull/push round-trip, LRO polling, and binding verification"
+        ),
+    },
+    {
+        "name": "power-bi-report-planner",
+        "description": (
+            "Guided end-to-end report build workflow: requirements gathering, semantic model "
+            "inspection, locked design brief, approval-gated PBIR authoring and Fabric publish"
         ),
     },
 ]

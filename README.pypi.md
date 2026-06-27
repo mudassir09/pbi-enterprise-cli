@@ -23,10 +23,10 @@ pbi ask "top 10 customers by revenue"        # English → DAX → results
 - **Python-native BPA runner** — runs the Best Practice Analyzer `BPARules.json` format with no .NET; safe AST evaluation with an honest evaluated/skipped tally per run
 - **Full Fabric lifecycle** — item CRUD (Item Definition API), workspaces, git sync, deployment pipelines, OneLake, capacity ops, jobs, Direct Lake diagnostics
 - **Quality platform** — DAX lint/format, report lint + unused-field analysis, dbt-style data tests, schema contracts, RLS matrices, drift detection — all CI-gateable with SARIF output
-- **AI-agent native** — `pbi mcp serve` exposes everything to Cursor/Copilot/Claude Desktop; 10 bundled Claude Code skills install with `pbi connect`
+- **AI-agent native** — `pbi mcp serve` exposes everything to Cursor/Copilot/Claude Desktop; 12 bundled Claude Code skills install with `pbi connect`
 - **One-step CI** — published GitHub Action + pre-commit hooks; scaffold a full project with `pbi init`
 
-## Five backends, one API
+## Six backends, one API
 
 | Backend | Use for | OS |
 |---|---|---|
@@ -34,6 +34,7 @@ pbi ask "top 10 customers by revenue"        # English → DAX → results
 | `xmla` | Premium / Fabric read-write | Windows |
 | `file` | TMDL/PBIP repo artifacts — governance, lint, docs, diff | Any |
 | `rest` | Live DAX via executeQueries | Any |
+| `fabric` | Live model writes via the Item Definition API (no Windows) | Any |
 | `mock` | Unit tests, demos | Any |
 
 ## Command surface

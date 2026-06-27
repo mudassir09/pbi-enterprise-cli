@@ -8,6 +8,125 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed / Hardened — write safety, fail-closed verification, docs
+- **Atomic TMDL writes** — every on-disk edit by the `file` backend (and the
+  `model.tmdl` ref-line helpers) now writes to a temp file in the same directory
+  and `os.replace`s it into place. A crash, full disk, or Ctrl-C mid-write can no
+  longer leave a truncated/corrupted `.tmdl` file in the user's repo. New helper
+  `tmdl_util.atomic_write_text`.
+- **`pbi fabric report push --bind-verify` now fails closed** — it previously
+  swallowed any error fetching the model's tables and reported "Binding check
+  passed", giving false confidence. It now resolves model tables via the
+  documented `executeQueries` DAX endpoint (`INFO.TABLES()`) and **aborts** the
+  push if the model can't be queried, instead of pretending the bindings are valid.
+- **`fabric` backend — batching, deterministic cleanup, documented concurrency.**
+  `updateDefinition` re-uploads the whole model, so a new `backend.batch()`
+  context manager coalesces multiple edits into a single push. The backend is now
+  a context manager (`with ... as b:`) and `disconnect()` flushes pending edits
+  and removes the temp folder deterministically rather than relying on `__del__`.
+  The last-writer-wins concurrency limitation is now documented.
+
+### Fixed — Fabric long-running-operation client (found via live tenant testing)
+- **`request()` no longer drops 202/LRO responses.** A Fabric long-running
+  operation answers `202` with a JSON `null` body and the operation URL in the
+  `Location` header; `json.loads("null")` returned `None`, discarding the status
+  and headers, so `poll_lro` got `None`. This broke **every** LRO — `report
+  pull`/`push` and the `fabric` backend's getDefinition/updateDefinition — against
+  real Fabric (unit mocks never reproduced the `null` body). `request()` now always
+  returns the status+headers envelope for `202`/empty/`null` responses.
+- **`poll_lro()` now fetches the operation result.** Result-bearing operations
+  (e.g. `getDefinition`) expose their payload at `{operation}/result`, not in the
+  status object; `poll_lro` returns `/result` when present and the status otherwise.
+
+### Added — report publish: model rebind + deep binding verification
+- **`pbi fabric report push` rebinds `byPath` → `byConnection`.** When `--dataset-id`
+  is given, the report's `definition.pbir` is rewritten from a local (`byPath`)
+  model reference to a Fabric live (`byConnection`) reference — required for
+  first-time publish of a locally-authored `.pbip` (previously `--dataset-id` was
+  required but silently ignored for binding, so the report uploaded unbound and
+  visuals rendered empty). The `byConnection` `connectionString` shape was verified
+  against a real Fabric report. Transforms run on a temp copy; local files are
+  never modified. Pushing a `byPath` report without `--dataset-id` now warns.
+- **`--bind-verify` now checks tables, columns *and* measures** (was tables only).
+  Model schema is read by downloading and parsing the model's TMDL definition —
+  verified live that the `executeQueries` `INFO.*` functions are not available on
+  every model, whereas the TMDL definition always is. Report-level measures are
+  honoured; mismatches are reported by kind; it fails closed if the model can't be
+  read.
+- **New `--remap "Old=New"`** (repeatable) renames table references before push for
+  migrations where the target model renamed a table.
+
+### Changed — enforced backend protocol + consolidated skills
+- **Backend protocol is now enforced, not aspirational.** Split into
+  `TomBackendProtocol` (the universal surface every backend implements, incl.
+  `xmla`) and `ExtendedTomBackendProtocol` (partitions/roles/calc-groups/hierarchy
+  writes implemented by `mock`/`file`/`fabric`). A conformance test asserts each
+  backend against the contract it actually fulfils.
+- **Skills consolidated to the 12 shipped category skills.** Removed 28 superseded
+  narrow skill directories that were folded into the broad skills but never
+  deleted (they shipped in the wheel and caused trigger overlap). `_BUNDLED_SKILLS`
+  is the single source of truth; a new docs-consistency test fails CI if the
+  README skill count/list or backend list drifts from the code.
+- **Docs corrected** — README/README.pypi now state **six backends** (the `fabric`
+  backend was missing from the PyPI backend table) and **12 Claude Code skills**
+  (was "five backends / 10 skills").
+
+### Added — tests
+- New unit tests for atomic writes, Fabric backend batching/lifecycle, fail-closed
+  binding verification, backend protocol conformance, the DAX measure generator
+  (25% → 100%) and the visual builder (57% → 99%).
+
+### Added — pure-Python TMDL serializer + on-disk structural writes
+- **New module `pbi_cli.tmdl_writer`** — lossless TMDL block renderers
+  (table/column/measure/partition/hierarchy/relationship/role) plus a generalised
+  `find_block_span`. Descriptions render as `///` comment lines (the way TMDL actually
+  represents them — not a bogus `description:` property), and `lineageTag` / `annotation`
+  blocks are preserved so a model survives a round-trip through Power BI Desktop.
+- **The file backend now persists structural edits to TMDL** with no engine required.
+  `table`/`column`/`relationship`/`partition`/`hierarchy`/`calc-group`/`role` add & delete
+  are serialised back to disk (edits splice a single object in place; additions append a
+  rendered block; `model.tmdl` `ref table` lines stay in sync). Previously only measure
+  edits persisted and everything else raised `NotImplementedError`. `source scaffold` now
+  materialises a star schema to TMDL on the file backend. `partition refresh` still fails
+  loud (no engine to process data).
+- **Measure write-back is now lossless** — `measure update` preserves `lineageTag`,
+  annotations and unchanged properties instead of dropping them.
+
+### Added — PBIR analytics: trend line, forecast
+- **`pbi visual trend-line`** — add a trend line to a line/scatter/column chart
+  (`--style`, `--transparency`, `--combine-series`).
+- **`pbi visual forecast`** — add a forecast to a line chart (`--length`, `--confidence`,
+  `--seasonality`, `--ignore-last`, `--no-band`).
+- Both use the `objects.<name>` analytics-container shape and were **verified live in
+  Power BI Desktop**: the objects survive a Desktop save round-trip (not stripped).
+  They render only on a continuous (date/numeric) axis — Power BI does not offer trend
+  lines or forecast on a categorical axis.
+- Sparklines were prototyped but **removed**: live testing showed Power BI Desktop strips
+  a format-only `objects.sparkline` entry on load — real sparklines require a query-level
+  sparkline grouping, deferred until that binding is verified.
+
+### Added — custom theme & custom-visual registration
+- **`pbi theme apply`** — register a custom theme into a PBIR report: writes it under
+  `StaticResources/RegisteredResources/` **and** binds it in `report.json`
+  (`themeCollection.customTheme` + `resourcePackages`), which Power BI requires to
+  actually load it. The base theme is preserved. The `customTheme` block carries
+  `reportVersionAtImport` — **verified live**: omitting it makes Desktop reject the
+  report at load ("Required property 'reportVersionAtImport' was not included").
+- **`pbi visual register-custom`** — register a custom (.pbiviz) visual GUID in
+  `report.json` `publicCustomVisuals` so visuals of that type render.
+
+### Fixed — conditional formatting no longer clobbers sibling properties
+- **`visual format color-scale` / `data-bar` now merge** into the field's existing
+  `values` entry (via the shared upsert) instead of removing all entries and appending a
+  fresh one. Applying a data bar/icon set and then a color scale (in either order) to the
+  same field now preserves both, matching Desktop's single-entry-per-field model.
+
+### Improved — PBIR field extraction
+- **`extract_fields` now resolves `SourceRef.Source` query aliases to their table** (via
+  the enclosing query's `From` clause) and **captures `HierarchyLevel` references** (a
+  different `Level`/`Hierarchy` shape the old positional walk silently dropped). This
+  makes `field-usage`, `diff` and unused-field detection accurate on real query shapes.
+
 ### Fixed — filter field must reference Entity, not a query alias
 - **Filter `field` now uses `SourceRef.Entity` (the table), not `SourceRef.Source` (a
   query alias).** A `FilterContainer.field` built with an alias is accepted by the
